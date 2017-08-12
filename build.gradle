@@ -1,0 +1,111 @@
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'org.jsoup:jsoup:1.10.3'
+  }
+}
+
+plugins {
+  id 'org.jetbrains.kotlin.jvm' version '1.1.3-2'
+  id 'jacoco'
+//  id 'maven-publish'
+//  id 'com.jfrog.bintray' version '1.7.3'
+}
+
+group 'info.jdavid.server'
+version '1.0.0'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+println "Java version: ${System.getProperty('java.version')}"
+
+repositories {
+  jcenter()
+}
+
+dependencies {
+  compile 'org.jetbrains.kotlin:kotlin-stdlib'
+  compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.17'
+  compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.17'
+}
+
+kotlin {
+  experimental {
+    coroutines 'enable'
+  }
+}
+
+
+jacoco {
+  reportsDir = file("$buildDir/jacoco/reports")
+}
+
+jacocoTestReport {
+  reports {
+    xml.enabled false
+    csv.enabled false
+    html.enabled true
+  }
+}
+
+jar {
+  manifest {
+    attributes Sealed: true
+  }
+}
+
+test {
+  jvmArgs '-XX:+IgnoreUnrecognizedVMOptions'
+  jvmArgs '--permit-illegal-access'
+  jvmArgs '--show-version'
+  jacoco {
+    append = false
+    destinationFile = file("$buildDir/jacoco/jacocoTest.exec")
+    classDumpDir = file("$buildDir/jacoco/classpathdumps")
+  }
+  doLast {
+    File html = reports.html.entryPoint
+    def doc = org.jsoup.Jsoup.parse(html, 'UTF-8')
+    int total = doc.select('#tests > .counter').text() as int
+    int failed = doc.select('#failures > .counter').text() as int
+    html = jacocoTestReport.reports.html.entryPoint
+    doc = org.jsoup.Jsoup.parse(html, 'UTF-8')
+    def bars = doc.select('table.coverage>tbody>tr>.bar')
+    def firstBarImgs = bars.first().select('>img')
+    def lastBarImgs = bars.last().select('>img')
+    int missed =
+      (firstBarImgs.size() == 1 ? 0 : firstBarImgs.first().attr('title').replaceAll(',','') as int) +
+      (lastBarImgs.size() == 1 ? 0 : lastBarImgs.first().attr('title').replaceAll(',','') as int)
+    int all =
+      (firstBarImgs.last().attr('title').replaceAll(',','') as int) +
+      (lastBarImgs.last().attr('title').replaceAll(',','') as int) + missed
+    println missed
+    println all
+    int coverage = (100 * (all - missed) / all) as int
+    def readme = file('README.md')
+    def badge = { String label, String text, String color ->
+      "https://img.shields.io/badge/_${label}_-${text}-${color}.png?style=flat"
+    }
+    String color = failed == 0 ? 'green' : (failed < 3 ? 'yellow' : 'red')
+    String v = project.version
+    def download =
+      "https://bintray.com/artifact/download/programingjd/maven/info/jdavid/ok/json/okjson/$v/okjson-${v}.jar"
+    readme.readLines().withIndex().collect { line, i ->
+      switch (i) {
+        case 0:
+          return "![jcenter](${badge('jcenter', v, '6688ff')}) &#x2003; " +
+                 "![jcenter](${badge('Tests', "${total-failed}/${total}", color)}) &#x2003; " +
+                 "![jcenter](${badge('Coverage', "${coverage}%25", 'blue')})"
+        case 9: return "[Download](${download}) the latest jar."
+        case 19: return "  <version>${v}</version>"
+        case 32: return "  compile 'info.jdavid.ok.json:okjson:${v}'"
+        default: return line
+      }
+    }.join('\n').with { readme.text = it }
+  }
+  finalizedBy tasks.jacocoTestReport
+}
+
