@@ -22,13 +22,11 @@ interface RequestHandler {
         println("Uri: ${uri}")
         return super.acceptUri(method, uri)
       }
-
       override fun acceptHeaders(method: String, uri: String, headers: Headers): Int {
         println("Headers:")
         headers.lines.forEach { println("  ${it}") }
         return super.acceptHeaders(method, uri, headers)
       }
-
       override suspend fun handle(address: InetSocketAddress,
                                   method: String,
                                   uri: String,

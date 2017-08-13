@@ -45,8 +45,10 @@ class Server internal constructor(address: InetSocketAddress,
                                   maxHeaderSize, node.segment, node.buffer)
           }
           finally {
-            node.segment.rewind()
-            node.buffer.rewind()
+            val segment = node.segment
+            segment.rewind().limit(segment.capacity())
+            val buffer = node.buffer
+            buffer.rewind().limit(buffer.capacity())
             nodes.addLast(node)
           }
         }

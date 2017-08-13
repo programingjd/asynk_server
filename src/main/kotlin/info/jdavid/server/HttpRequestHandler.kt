@@ -47,6 +47,9 @@ abstract class HttpRequestHandler: RequestHandler {
     if (capacity < segmentSize) {
       throw RuntimeException("The maximum request size is lower than the maximum size of the status line.")
     }
+    if (capacity < maxHeaderSize) {
+      throw RuntimeException("The maximum request size is lower than the maximum header size.")
+    }
     val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimoutMillis)
     try {
       // Status Line
@@ -91,7 +94,6 @@ abstract class HttpRequestHandler: RequestHandler {
       // Headers + Body
       buffer.put(array, offset + i, length - i)
       var size = length - i
-      capacity -= size
       while (!exhausted) {
         segment.rewind()
         length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
@@ -100,10 +102,9 @@ abstract class HttpRequestHandler: RequestHandler {
           break
         }
         capacity -= length
-        if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
         size += length
         buffer.put(segment)
-        if (segment.limit() != segmentSize) {
+        if (segment.position() != segmentSize) {
           exhausted = true
           break
         }
@@ -114,7 +115,7 @@ abstract class HttpRequestHandler: RequestHandler {
       val headers = Headers()
       offset = buffer.arrayOffset()
       array = buffer.array()
-      length = buffer.limit()
+      length = buffer.position()
       i = 0
       j = 0
       while (true) {
@@ -123,7 +124,7 @@ abstract class HttpRequestHandler: RequestHandler {
           LF -> {
             if (array[offset + i - 2] != CR) return handleError(channel, writeTimeoutMillis, 400)
             if (i - 2 == j) true else {
-              headers.add(String(array, j, i - j - 2))
+              headers.add(String(array, offset + j, i - j - 2))
               j = i
               false
             }
@@ -132,6 +133,35 @@ abstract class HttpRequestHandler: RequestHandler {
         }) break
       }
       if (abort(channel, writeTimeoutMillis, acceptHeaders(method, uri, headers))) return
+
+      buffer.limit(buffer.position())
+      buffer.position(i)
+      buffer.compact()
+
+      // Rest of body
+      while (!exhausted) {
+        segment.rewind()
+        length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        if (length < 0) {
+//          exhausted = true
+          break
+        }
+        capacity -= length
+        if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
+        buffer.put(segment)
+        if (segment.position() != segmentSize) {
+//          exhausted = true
+          break
+        }
+      }
+
+      buffer.limit(buffer.position())
+      buffer.position(0)
+
+      val bytes = ByteArray(buffer.limit())
+      buffer.get(bytes)
+      println("Body:")
+      println(String(bytes))
 
       handle(address, method, uri, headers, channel, writeTimeoutMillis, segment, buffer)
     }
