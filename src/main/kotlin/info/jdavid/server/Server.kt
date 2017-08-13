@@ -12,7 +12,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 class Server internal constructor(address: InetSocketAddress,
                                   readTimeoutMillis: Long, writeTimeoutMillis: Long,
@@ -67,7 +66,7 @@ class Server internal constructor(address: InetSocketAddress,
       serverChannel.bind(address)
       return serverChannel
     }
-    val counter = AtomicInteger(0)
+//    val counter = AtomicInteger(0)
   }
 
   fun stop() {
@@ -80,9 +79,9 @@ class Server internal constructor(address: InetSocketAddress,
   private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
     internal val segment: ByteBuffer = ByteBuffer.allocate(segmentSize)
     internal val buffer: ByteBuffer = ByteBuffer.allocate(bufferSize)
-    init {
-      println("[${counter.incrementAndGet()}]")
-    }
+//    init {
+//      println("[${counter.incrementAndGet()}]")
+//    }
   }
 
 }

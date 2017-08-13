@@ -9,20 +9,45 @@ import java.nio.channels.InterruptedByTimeoutException
 import java.util.concurrent.TimeUnit
 
 
-open class HttpRequestHandler: RequestHandler {
+abstract class HttpRequestHandler: RequestHandler {
 
-  suspend override fun handle(channel: AsynchronousSocketChannel, address: InetSocketAddress,
-                              readTimoutMillis: Long, writeTimeoutMillis: Long,
-                              maxHeaderSize: Int,
-                              segment: ByteBuffer, buffer: ByteBuffer) {
-    if (!acceptConnection(address)) return channel.close()
+  suspend protected abstract fun handle(address: InetSocketAddress,
+                                        method: String,
+                                        uri: String,
+                                        headers: Headers,
+                                        channel: AsynchronousSocketChannel,
+                                        writeTimeoutMillis: Long,
+                                        segment: ByteBuffer,
+                                        buffer: ByteBuffer)
+
+  // accept methods return values:
+  //  -1       -> accept
+  //   0       -> drop connection
+  //  100..500 -> error code
+
+  protected open fun acceptConnection(address: InetSocketAddress): Int = -1
+
+  protected open fun acceptUri(method: String, uri: String): Int {
+    return if (method == "GET" || method == "HEAD") -1 else 404
+  }
+
+  protected open fun acceptHeaders(method: String, uri: String, headers: Headers): Int {
+    return if (headers.has("host")) -1 else 0
+  }
+
+  protected open fun acceptBody(method: String): Int = -1
+
+  suspend final override fun handle(channel: AsynchronousSocketChannel, address: InetSocketAddress,
+                                    readTimoutMillis: Long, writeTimeoutMillis: Long,
+                                    maxHeaderSize: Int,
+                                    segment: ByteBuffer, buffer: ByteBuffer) {
+    if (abort(channel, writeTimeoutMillis, acceptConnection(address))) return
     val segmentSize = segment.capacity()
     var capacity = buffer.capacity()
     if (capacity < segmentSize) {
       throw RuntimeException("The maximum request size is lower than the maximum size of the status line.")
     }
     val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimoutMillis)
-
     try {
       // Status Line
       var length = channel.aRead(segment, readTimoutMillis, TimeUnit.MILLISECONDS)
@@ -30,7 +55,6 @@ open class HttpRequestHandler: RequestHandler {
       var exhausted = length < segmentSize
       var offset = segment.arrayOffset()
       var array = segment.array()
-      println(String(array))
       var i = 0
       while (true) {
         if (i == 7) return channel.close()
@@ -41,7 +65,6 @@ open class HttpRequestHandler: RequestHandler {
         return channel.close()
       }
       val method = String(array, offset, i - 1)
-      println("method: '${method}'")
       var j = i
       while (true) {
         if (j == length) return handleError(channel, writeTimeoutMillis, 414)
@@ -51,9 +74,8 @@ open class HttpRequestHandler: RequestHandler {
         return channel.close()
       }
       val uri = String(array, offset + i, j - ++i)
-      println ("uri: '${uri}'")
+      if (abort(channel, writeTimeoutMillis, acceptUri(method, uri))) return
       i += uri.length
-
       if (array[offset + i++] != H_UPPER ||
           array[offset + i++] != T_UPPER ||
           array[offset + i++] != T_UPPER ||
@@ -66,7 +88,6 @@ open class HttpRequestHandler: RequestHandler {
           array[offset + i++] != LF) {
         return channel.close()
       }
-
       // Headers + Body
       buffer.put(array, offset + i, length - i)
       var size = length - i
@@ -90,7 +111,7 @@ open class HttpRequestHandler: RequestHandler {
       }
 
       // Headers
-      val headers = ArrayList<String>()
+      val headers = Headers()
       offset = buffer.arrayOffset()
       array = buffer.array()
       length = buffer.limit()
@@ -110,22 +131,25 @@ open class HttpRequestHandler: RequestHandler {
           else -> false
         }) break
       }
+      if (abort(channel, writeTimeoutMillis, acceptHeaders(method, uri, headers))) return
 
-      println("headers:")
-      headers.forEach {
-        println("  ${it}")
-      }
-      handleError(channel, writeTimeoutMillis, 200)
-
+      handle(address, method, uri, headers, channel, writeTimeoutMillis, segment, buffer)
     }
     catch (e: InterruptedByTimeoutException) {
       handleError(channel, writeTimeoutMillis, 408)
     }
-    println(RequestHandler.counter.incrementAndGet())
     channel.close()
   }
 
-  private suspend fun handleError(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long, code: Int) {
+  private suspend fun abort(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long,
+                            acceptValue: Int): Boolean {
+    if (acceptValue == -1) return false
+    if (acceptValue == 0) channel.close()
+    else if (acceptValue in 100..500) handleError(channel, writeTimeoutMillis, acceptValue)
+    return true
+  }
+
+  internal suspend fun handleError(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long, code: Int) {
     val message = HTTP_STATUSES.get(code) ?: throw IllegalArgumentException()
     try {
       val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
@@ -137,8 +161,6 @@ open class HttpRequestHandler: RequestHandler {
     catch (e: InterruptedByTimeoutException) {}
     channel.close()
   }
-
-  protected fun acceptConnection(address: InetSocketAddress) = true
 
   companion object {
     val HTTP_STATUSES = mapOf(
@@ -161,7 +183,6 @@ open class HttpRequestHandler: RequestHandler {
     )
     val ASCII = Charsets.US_ASCII
     val UTF_8 = Charsets.UTF_8
-
     private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
     private val CR: Byte = 0x0d
     private val LF: Byte = 0x0a

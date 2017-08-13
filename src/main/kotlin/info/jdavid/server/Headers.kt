@@ -6,7 +6,7 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
 
-class Headers(private val lines: MutableList<String> = ArrayList(16)) {
+class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
   internal fun add(line: String) = lines.add(line)
 
@@ -44,10 +44,13 @@ class Headers(private val lines: MutableList<String> = ArrayList(16)) {
   }
 
   fun keys(): List<String> {
-    return lines.associateTo(LinkedHashMap()) {
+    val set = HashSet<String>(lines.size)
+    val list = ArrayList<String>(lines.size)
+    lines.forEach {
       val key = it.substring(0, it.indexOf(':'))
-      key.toLowerCase() to key
-    }.values.toList()
+      if (set.add(key.toLowerCase())) list.add(key)
+    }
+    return list
   }
 
   fun has(name: String): Boolean {

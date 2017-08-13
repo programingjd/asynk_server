@@ -30,6 +30,7 @@ dependencies {
   compile 'org.jetbrains.kotlin:kotlin-stdlib'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.17'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.17'
+  testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.0-RC2'
 }
 
 kotlin {
