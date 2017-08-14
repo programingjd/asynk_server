@@ -26,30 +26,42 @@ class Server internal constructor(address: InetSocketAddress,
       return t
     }
   })
+  private val dispatcher = looper.asCoroutineDispatcher()
   private val serverChannel = openChannel(address)
   private val job = launch(looper.asCoroutineDispatcher()) {
     val pool = ForkJoinPool(cores)
-    val dispatcher = pool.asCoroutineDispatcher()
     val channel = serverChannel
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
     while (true) {
       try {
         val clientChannel = channel.accept().get()
-        launch(dispatcher) {
+        val clientAddress = clientChannel.remoteAddress as InetSocketAddress
+        if (requestHandler.reject(clientAddress)) continue
+        launch(pool.asCoroutineDispatcher()) {
           val node = nodes.removeFirstOrNull() as? Node ?: Node(8192, maxRequestSize)
-          val clientAddress = clientChannel.remoteAddress as InetSocketAddress
+          val segment = node.segment
+          val buffer = node.buffer
           try {
-            requestHandler.handle(clientChannel, clientAddress,
-                                  readTimeoutMillis, writeTimeoutMillis,
-                                  maxHeaderSize, node.segment, node.buffer)
+            while (true) {
+              try {
+                if (!requestHandler.handle(clientChannel, clientAddress,
+                                           readTimeoutMillis, writeTimeoutMillis,
+                                           maxHeaderSize, node.segment, node.buffer)) {
+                  break
+                }
+              }
+              finally {
+                segment.rewind().limit(segment.capacity())
+                buffer.rewind().limit(buffer.capacity())
+              }
+            }
           }
           finally {
-            val segment = node.segment
-            segment.rewind().limit(segment.capacity())
-            val buffer = node.buffer
-            buffer.rewind().limit(buffer.capacity())
             nodes.addLast(node)
+            launch(dispatcher) {
+              channel.close()
+            }
           }
         }
       } catch (e: InterruptedException) {
@@ -89,7 +101,10 @@ class Server internal constructor(address: InetSocketAddress,
 }
 
 fun main(args: Array<String>) {
-  val server = Config().startServer()
+  val server = Config().
+    readTimeoutMillis(Long.MAX_VALUE).
+    writeTimeoutMillis(Long.MAX_VALUE)
+    .startServer()
   //Thread.sleep(15000L)
   //server.stop()
 }

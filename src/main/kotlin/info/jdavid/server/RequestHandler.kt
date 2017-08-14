@@ -1,21 +1,27 @@
 package info.jdavid.server
 
+import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.nio.aWrite
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
+import java.nio.channels.InterruptedByTimeoutException
+import java.util.concurrent.TimeUnit
 
 interface RequestHandler {
+
+  suspend fun reject(address: InetSocketAddress): Boolean
 
   suspend fun handle(channel: AsynchronousSocketChannel, address: InetSocketAddress,
                      readTimoutMillis: Long, writeTimeoutMillis: Long,
                      maxHeaderSize: Int,
-                     segment: ByteBuffer, buffer: ByteBuffer)
+                     segment: ByteBuffer, buffer: ByteBuffer): Boolean
 
   companion object {
     val DEFAULT = object: HttpRequestHandler() {
-      override fun acceptConnection(address: InetSocketAddress): Int {
+      override suspend fun reject(address: InetSocketAddress): Boolean {
         println("Client: ${address.address}")
-        return super.acceptConnection(address)
+        return false
       }
       override fun acceptUri(method: String, uri: String): Int {
         println("Method: ${method}")
@@ -35,7 +41,26 @@ interface RequestHandler {
                                   writeTimeoutMillis: Long,
                                   segment: ByteBuffer,
                                   buffer: ByteBuffer) {
-        handleError(channel, writeTimeoutMillis, 200)
+        try {
+          val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+          channel.aWrite(ByteBuffer.wrap("HTTP/1.1 200 OK\r\n".toByteArray(ASCII)),
+                         writeTimeoutMillis, TimeUnit.MILLISECONDS)
+          val timeout = deadline - System.nanoTime()
+          if (timeout > 0L) channel.aWrite(
+            ByteBuffer.wrap("Content-Type: text/plain\r\n".toByteArray()), timeout, TimeUnit.NANOSECONDS
+          )
+          if (timeout > 0L) channel.aWrite(
+            ByteBuffer.wrap("Content-Length: 6\r\n".toByteArray()), timeout, TimeUnit.NANOSECONDS
+          )
+          if (timeout > 0L) channel.aWrite(
+            ByteBuffer.wrap("\r\nbody\n".toByteArray()), timeout, TimeUnit.NANOSECONDS
+          )
+          delay(5, TimeUnit.SECONDS)
+          if (timeout > 0L) channel.aWrite(
+            ByteBuffer.wrap("\n".toByteArray()), timeout, TimeUnit.NANOSECONDS
+          )
+        }
+        catch (e: InterruptedByTimeoutException) {}
       }
     }
   }

@@ -25,8 +25,6 @@ abstract class HttpRequestHandler: RequestHandler {
   //   0       -> drop connection
   //  100..500 -> error code
 
-  protected open fun acceptConnection(address: InetSocketAddress): Int = -1
-
   protected open fun acceptUri(method: String, uri: String): Int {
     return if (method == "GET" || method == "HEAD") -1 else 404
   }
@@ -40,8 +38,7 @@ abstract class HttpRequestHandler: RequestHandler {
   suspend final override fun handle(channel: AsynchronousSocketChannel, address: InetSocketAddress,
                                     readTimoutMillis: Long, writeTimeoutMillis: Long,
                                     maxHeaderSize: Int,
-                                    segment: ByteBuffer, buffer: ByteBuffer) {
-    if (abort(channel, writeTimeoutMillis, acceptConnection(address))) return
+                                    segment: ByteBuffer, buffer: ByteBuffer): Boolean {
     val segmentSize = segment.capacity()
     var capacity = buffer.capacity()
     if (capacity < segmentSize) {
@@ -54,18 +51,17 @@ abstract class HttpRequestHandler: RequestHandler {
     try {
       // Status Line
       var length = channel.aRead(segment, readTimoutMillis, TimeUnit.MILLISECONDS)
-      if (length < 16) return channel.close()
-      var exhausted = length < segmentSize
+      if (length < 16) return false
       var offset = segment.arrayOffset()
       var array = segment.array()
       var i = 0
       while (true) {
-        if (i == 7) return channel.close()
+        if (i == 7) return false
         val b = array[offset + i++]
         @Suppress("ConvertTwoComparisonsToRangeCheck")
         if (validMethod(b)) continue
         if (b == SPACE) break
-        return channel.close()
+        return false
       }
       val method = String(array, offset, i - 1)
       var j = i
@@ -74,10 +70,10 @@ abstract class HttpRequestHandler: RequestHandler {
         val b = array[offset + j++]
         if (validUrl(b)) continue
         if (b == SPACE) break
-        return channel.close()
+        return false
       }
       val uri = String(array, offset + i, j - ++i)
-      if (abort(channel, writeTimeoutMillis, acceptUri(method, uri))) return
+      if (abort(channel, writeTimeoutMillis, acceptUri(method, uri))) return false
       i += uri.length
       if (array[offset + i++] != H_UPPER ||
           array[offset + i++] != T_UPPER ||
@@ -88,29 +84,9 @@ abstract class HttpRequestHandler: RequestHandler {
           array[offset + i++] != DOT ||
           array[offset + i++] != ONE ||
           array[offset + i++] != CR ||
-          array[offset + i++] != LF) {
-        return channel.close()
-      }
+          array[offset + i++] != LF) return false
       // Headers + Body
       buffer.put(array, offset + i, length - i)
-      var size = length - i
-      while (!exhausted) {
-        segment.rewind()
-        length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-        if (length < 0) {
-          exhausted = true
-          break
-        }
-        capacity -= length
-        size += length
-        buffer.put(segment)
-        if (segment.position() != segmentSize) {
-          exhausted = true
-          break
-        }
-        if (size > maxHeaderSize) break
-      }
-
       // Headers
       val headers = Headers()
       offset = buffer.arrayOffset()
@@ -119,7 +95,14 @@ abstract class HttpRequestHandler: RequestHandler {
       i = 0
       j = 0
       while (true) {
-        if (i == length) return handleError(channel, writeTimeoutMillis, 431)
+        if (i == length) {
+          if (i > maxHeaderSize) return handleError(channel, writeTimeoutMillis, 431)
+          segment.rewind()
+          length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+          if (length < 0) return handleError(channel, writeTimeoutMillis, 400)
+          buffer.put(segment)
+          length = buffer.position()
+        }
         if (when (array[offset + i++]) {
           LF -> {
             if (array[offset + i - 2] != CR) return handleError(channel, writeTimeoutMillis, 400)
@@ -132,55 +115,59 @@ abstract class HttpRequestHandler: RequestHandler {
           else -> false
         }) break
       }
-      if (abort(channel, writeTimeoutMillis, acceptHeaders(method, uri, headers))) return
-
+      if (i > maxHeaderSize) return handleError(channel, writeTimeoutMillis, 431)
+      if (abort(channel, writeTimeoutMillis, acceptHeaders(method, uri, headers))) return false
       buffer.limit(buffer.position())
       buffer.position(i)
       buffer.compact()
-
+      length = buffer.position()
+      capacity -= length
+      if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
+      val encoding = headers.value(Headers.TRANSFER_ENCODING)
+      //if (encoding?.endsWith(CHUNKED) == true) return handleError(channel, writeTimeoutMillis, 501)
+      if (encoding != null && encoding != IDENTITY) return handleError(channel, writeTimeoutMillis, 501)
+      val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
+      if (contentLength > length + capacity) return handleError(channel, writeTimeoutMillis, 413)
+      capacity = contentLength - length
       // Rest of body
-      while (!exhausted) {
+      while (capacity > 0) {
         segment.rewind()
         length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
         if (length < 0) {
-//          exhausted = true
           break
         }
         capacity -= length
         if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
         buffer.put(segment)
-        if (segment.position() != segmentSize) {
-//          exhausted = true
-          break
-        }
       }
-
       buffer.limit(buffer.position())
       buffer.position(0)
-
       val bytes = ByteArray(buffer.limit())
       buffer.get(bytes)
       println("Body:")
       println(String(bytes))
-
       handle(address, method, uri, headers, channel, writeTimeoutMillis, segment, buffer)
+      return true
     }
     catch (e: InterruptedByTimeoutException) {
-      handleError(channel, writeTimeoutMillis, 408)
+      return handleError(channel, writeTimeoutMillis, 408)
     }
-    channel.close()
   }
 
   private suspend fun abort(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long,
                             acceptValue: Int): Boolean {
     if (acceptValue == -1) return false
-    if (acceptValue == 0) channel.close()
-    else if (acceptValue in 100..500) handleError(channel, writeTimeoutMillis, acceptValue)
-    return true
+    if (acceptValue == 0) return true
+    else if (acceptValue in 100..500) {
+      handleError(channel, writeTimeoutMillis, acceptValue)
+      return true
+    }
+    throw IllegalArgumentException()
   }
 
-  internal suspend fun handleError(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long, code: Int) {
-    val message = HTTP_STATUSES.get(code) ?: throw IllegalArgumentException()
+  private suspend fun handleError(channel: AsynchronousSocketChannel,
+                                   writeTimeoutMillis: Long, code: Int): Boolean {
+    val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
     try {
       val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
       channel.aWrite(ByteBuffer.wrap("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII)),
@@ -189,7 +176,7 @@ abstract class HttpRequestHandler: RequestHandler {
       if (timeout > 0L) channel.aWrite(ByteBuffer.wrap(EMPTY_BODY_HEADER), timeout, TimeUnit.NANOSECONDS)
     }
     catch (e: InterruptedByTimeoutException) {}
-    channel.close()
+    return false
   }
 
   companion object {
@@ -211,9 +198,15 @@ abstract class HttpRequestHandler: RequestHandler {
       414 to "URI Too Long",
       431 to "Request Header Fields Too Large"
     )
+
     val ASCII = Charsets.US_ASCII
     val UTF_8 = Charsets.UTF_8
+
     private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
+
+    private val IDENTITY = "identity"
+    private val CHUNKED = "chunked"
+
     private val CR: Byte = 0x0d
     private val LF: Byte = 0x0a
     private val SPACE: Byte = 0x20

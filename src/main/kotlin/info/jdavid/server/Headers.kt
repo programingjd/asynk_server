@@ -59,6 +59,10 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
   }
 
   companion object {
+    val CONTENT_LENGTH = "Content-Length"
+    val TRANSFER_ENCODING = "Transfer-Encoding"
+
+
     private val ISO_8859_1 = Charsets.ISO_8859_1
     private val CRLF: ByteArray = byteArrayOf(0x0d, 0x0a)
     private fun matches(line: String, lowercaseName: String): Boolean {
