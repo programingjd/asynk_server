@@ -1,12 +1,8 @@
 package info.jdavid.server
 
-import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.InterruptedByTimeoutException
-import java.util.concurrent.TimeUnit
 
 
 abstract class HttpRequestHandler: RequestHandler {
@@ -15,9 +11,8 @@ abstract class HttpRequestHandler: RequestHandler {
                                         method: String,
                                         uri: String,
                                         headers: Headers,
-                                        channel: AsynchronousSocketChannel,
-                                        writeTimeoutMillis: Long,
-                                        segment: ByteBuffer,
+                                        channel: Channel,
+                                        deadline: Long,
                                         buffer: ByteBuffer)
 
   // accept methods return values:
@@ -35,22 +30,15 @@ abstract class HttpRequestHandler: RequestHandler {
 
   protected open fun acceptBody(method: String): Int = -1
 
-  suspend final override fun handle(channel: AsynchronousSocketChannel, address: InetSocketAddress,
-                                    readTimoutMillis: Long, writeTimeoutMillis: Long,
+  suspend final override fun handle(channel: Channel, address: InetSocketAddress,
+                                    readDeadline: Long, writeDeadline: Long,
                                     maxHeaderSize: Int,
-                                    segment: ByteBuffer, buffer: ByteBuffer): Boolean {
-    val segmentSize = segment.capacity()
-    var capacity = buffer.capacity()
-    if (capacity < segmentSize) {
-      throw RuntimeException("The maximum request size is lower than the maximum size of the status line.")
-    }
-    if (capacity < maxHeaderSize) {
-      throw RuntimeException("The maximum request size is lower than the maximum header size.")
-    }
-    val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimoutMillis)
+                                    buffer: ByteBuffer): Boolean {
     try {
+      var capacity = buffer.capacity()
       // Status Line
-      var length = channel.aRead(segment, readTimoutMillis, TimeUnit.MILLISECONDS)
+      var segment = channel.read(readDeadline)
+      var length = segment.remaining()
       if (length < 16) return false
       var offset = segment.arrayOffset()
       var array = segment.array()
@@ -66,14 +54,14 @@ abstract class HttpRequestHandler: RequestHandler {
       val method = String(array, offset, i - 1)
       var j = i
       while (true) {
-        if (j == length) return handleError(channel, writeTimeoutMillis, 414)
+        if (j == length) return handleError(channel, writeDeadline, 414)
         val b = array[offset + j++]
         if (validUrl(b)) continue
         if (b == SPACE) break
         return false
       }
       val uri = String(array, offset + i, j - ++i)
-      if (abort(channel, writeTimeoutMillis, acceptUri(method, uri))) return false
+      if (abort(channel, writeDeadline, acceptUri(method, uri))) return false
       i += uri.length
       if (array[offset + i++] != H_UPPER ||
           array[offset + i++] != T_UPPER ||
@@ -96,16 +84,16 @@ abstract class HttpRequestHandler: RequestHandler {
       j = 0
       while (true) {
         if (i == length) {
-          if (i > maxHeaderSize) return handleError(channel, writeTimeoutMillis, 431)
-          segment.rewind()
-          length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-          if (length < 0) return handleError(channel, writeTimeoutMillis, 400)
+          if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
+          segment = channel.read(readDeadline)
+          length = segment.remaining()
+          if (length == 0) return handleError(channel, writeDeadline, 400)
           buffer.put(segment)
           length = buffer.position()
         }
         if (when (array[offset + i++]) {
           LF -> {
-            if (array[offset + i - 2] != CR) return handleError(channel, writeTimeoutMillis, 400)
+            if (array[offset + i - 2] != CR) return handleError(channel, writeDeadline, 400)
             if (i - 2 == j) true else {
               headers.add(String(array, offset + j, i - j - 2))
               j = i
@@ -115,29 +103,30 @@ abstract class HttpRequestHandler: RequestHandler {
           else -> false
         }) break
       }
-      if (i > maxHeaderSize) return handleError(channel, writeTimeoutMillis, 431)
-      if (abort(channel, writeTimeoutMillis, acceptHeaders(method, uri, headers))) return false
+      if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
+      if (abort(channel, writeDeadline, acceptHeaders(method, uri, headers))) return false
       buffer.limit(buffer.position())
       buffer.position(i)
       buffer.compact()
       length = buffer.position()
       capacity -= length
-      if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
+      if (capacity < 0) return handleError(channel, writeDeadline, 413)
       val encoding = headers.value(Headers.TRANSFER_ENCODING)
       //if (encoding?.endsWith(CHUNKED) == true) return handleError(channel, writeTimeoutMillis, 501)
-      if (encoding != null && encoding != IDENTITY) return handleError(channel, writeTimeoutMillis, 501)
+      if (encoding != null && encoding != IDENTITY) return handleError(channel, writeDeadline, 501)
       val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
-      if (contentLength > length + capacity) return handleError(channel, writeTimeoutMillis, 413)
+      if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
       capacity = contentLength - length
       // Rest of body
       while (capacity > 0) {
         segment.rewind()
-        length = channel.aRead(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-        if (length < 0) {
+        segment = channel.read(readDeadline)
+        length = segment.remaining()
+        if (length == 0) {
           break
         }
         capacity -= length
-        if (capacity < 0) return handleError(channel, writeTimeoutMillis, 413)
+        if (capacity < 0) return handleError(channel, writeDeadline, 413)
         buffer.put(segment)
       }
       buffer.limit(buffer.position())
@@ -146,36 +135,29 @@ abstract class HttpRequestHandler: RequestHandler {
       buffer.get(bytes)
       println("Body:")
       println(String(bytes))
-      handle(address, method, uri, headers, channel, writeTimeoutMillis, segment, buffer)
+      handle(address, method, uri, headers, channel, writeDeadline, buffer)
       return true
     }
     catch (e: InterruptedByTimeoutException) {
-      return handleError(channel, writeTimeoutMillis, 408)
+      return handleError(channel, writeDeadline, 408)
     }
   }
 
-  private suspend fun abort(channel: AsynchronousSocketChannel, writeTimeoutMillis: Long,
+  private suspend fun abort(channel: Channel, writeDeadline: Long,
                             acceptValue: Int): Boolean {
     if (acceptValue == -1) return false
     if (acceptValue == 0) return true
     else if (acceptValue in 100..500) {
-      handleError(channel, writeTimeoutMillis, acceptValue)
+      handleError(channel, writeDeadline, acceptValue)
       return true
     }
     throw IllegalArgumentException()
   }
 
-  private suspend fun handleError(channel: AsynchronousSocketChannel,
-                                   writeTimeoutMillis: Long, code: Int): Boolean {
+  private suspend fun handleError(channel: Channel, writeDeadline: Long, code: Int): Boolean {
     val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
-    try {
-      val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
-      channel.aWrite(ByteBuffer.wrap("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII)),
-                     writeTimeoutMillis, TimeUnit.MILLISECONDS)
-      val timeout = deadline - System.nanoTime()
-      if (timeout > 0L) channel.aWrite(ByteBuffer.wrap(EMPTY_BODY_HEADER), timeout, TimeUnit.NANOSECONDS)
-    }
-    catch (e: InterruptedByTimeoutException) {}
+    channel.write("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), writeDeadline)
+    channel.write(EMPTY_BODY_HEADER, writeDeadline)
     return false
   }
 
@@ -201,6 +183,7 @@ abstract class HttpRequestHandler: RequestHandler {
 
     val ASCII = Charsets.US_ASCII
     val UTF_8 = Charsets.UTF_8
+    val ISO_8859_1 = Charsets.ISO_8859_1
 
     private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
 

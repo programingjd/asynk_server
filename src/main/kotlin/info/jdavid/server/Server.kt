@@ -2,11 +2,9 @@ package info.jdavid.server
 
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
-import kotlinx.coroutines.experimental.internal.LockFreeLinkedListNode
 import kotlinx.coroutines.experimental.launch
 import java.net.InetSocketAddress
 import java.net.StandardSocketOptions
-import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
@@ -17,7 +15,7 @@ class Server internal constructor(address: InetSocketAddress,
                                   readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                   maxHeaderSize: Int, maxRequestSize: Int,
                                   requestHandler: RequestHandler,
-                                  cores: Int) {
+                                  cores: Int, cert: () -> ByteArray?) {
   @Suppress("ObjectLiteralToLambda")
   private val looper = Executors.newSingleThreadExecutor(object: ThreadFactory {
     override fun newThread(r: Runnable): Thread {
@@ -29,42 +27,42 @@ class Server internal constructor(address: InetSocketAddress,
   private val dispatcher = looper.asCoroutineDispatcher()
   private val serverChannel = openChannel(address)
   private val job = launch(looper.asCoroutineDispatcher()) {
+    val ssl = SSL.createSSLEngine(cert())
     val pool = ForkJoinPool(cores)
-    val channel = serverChannel
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
     while (true) {
       try {
-        val clientChannel = channel.accept().get()
+        val clientChannel = serverChannel.accept().get()
         val clientAddress = clientChannel.remoteAddress as InetSocketAddress
         if (requestHandler.reject(clientAddress)) continue
         launch(pool.asCoroutineDispatcher()) {
-          val node = nodes.removeFirstOrNull() as? Node ?: Node(8192, maxRequestSize)
-          val segment = node.segment
-          val buffer = node.buffer
+          val channel = if (ssl == null) InsecureChannel(clientChannel, nodes, maxRequestSize) else TODO()
           try {
             while (true) {
               try {
-                if (!requestHandler.handle(clientChannel, clientAddress,
-                                           readTimeoutMillis, writeTimeoutMillis,
-                                           maxHeaderSize, node.segment, node.buffer)) {
+                val now = System.nanoTime()
+                if (!requestHandler.handle(channel, clientAddress,
+                                           now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                                           now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
+                                           maxHeaderSize, channel.buffer())) {
                   break
                 }
               }
               finally {
-                segment.rewind().limit(segment.capacity())
-                buffer.rewind().limit(buffer.capacity())
+                channel.next()
               }
             }
           }
           finally {
-            nodes.addLast(node)
+            channel.done()
             launch(dispatcher) {
-              channel.close()
+              clientChannel.close()
             }
           }
         }
-      } catch (e: InterruptedException) {
+      }
+      catch (e: InterruptedException) {
         pool.shutdownNow()
         while (!pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
         break
@@ -89,22 +87,14 @@ class Server internal constructor(address: InetSocketAddress,
     while (!looper.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
   }
 
-
-  private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
-    internal val segment: ByteBuffer = ByteBuffer.allocate(segmentSize)
-    internal val buffer: ByteBuffer = ByteBuffer.allocate(bufferSize)
-//    init {
-//      println("[${counter.incrementAndGet()}]")
-//    }
-  }
-
 }
 
 fun main(args: Array<String>) {
   val server = Config().
-    readTimeoutMillis(Long.MAX_VALUE).
-    writeTimeoutMillis(Long.MAX_VALUE)
-    .startServer()
+    readTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
+    writeTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
+    //certificate(java.io.File("localhost.p12")).
+    startServer()
   //Thread.sleep(15000L)
   //server.stop()
 }

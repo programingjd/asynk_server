@@ -1,35 +1,9 @@
 package info.jdavid.server
 
-import kotlinx.coroutines.experimental.nio.aWrite
-import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
-import java.util.concurrent.TimeUnit
-
 
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
   internal fun add(line: String) = lines.add(line)
-
-  internal suspend fun aWrite(channel: AsynchronousSocketChannel, deadline: Long) {
-    for (line in lines) {
-      channel.aWrite(ByteBuffer.wrap(line.toByteArray(ISO_8859_1)),
-                     deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-      channel.aWrite(ByteBuffer.wrap(CRLF),
-                     deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-    }
-    channel.aWrite(ByteBuffer.wrap(CRLF),
-                   deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-  }
-
-  internal suspend fun aWrite(channel: AsynchronousSocketChannel, deadline: Long, segment: ByteBuffer) {
-    for (line in lines) {
-      segment.put(line.toByteArray(ISO_8859_1))
-      segment.put(CRLF)
-    }
-    segment.put(CRLF)
-    segment.rewind()
-    channel.aWrite(segment, deadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-  }
 
   fun add(name: String, value: String) = lines.add("${name}: ${value}")
 
@@ -61,10 +35,8 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
   companion object {
     val CONTENT_LENGTH = "Content-Length"
     val TRANSFER_ENCODING = "Transfer-Encoding"
+    val CONTENT_TYPE = "Content-Type"
 
-
-    private val ISO_8859_1 = Charsets.ISO_8859_1
-    private val CRLF: ByteArray = byteArrayOf(0x0d, 0x0a)
     private fun matches(line: String, lowercaseName: String): Boolean {
       return line.length > lowercaseName.length + 1 &&
         line.substring(0, lowercaseName.length).toLowerCase() == lowercaseName &&
