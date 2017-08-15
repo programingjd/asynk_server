@@ -1,6 +1,7 @@
 package info.jdavid.server
 
 import kotlinx.coroutines.experimental.CommonPool
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.runBlocking
@@ -22,10 +23,12 @@ class HeadersTests {
     channel0.bind(InetSocketAddress(InetAddress.getLocalHost(), 8080))
     val channel2 = AsynchronousSocketChannel.open()
     channel2.connect(InetSocketAddress(InetAddress.getLocalHost(), 8080))
+    val nodes = LockFreeLinkedListHead()
     try {
       val s1: String = runBlocking(CommonPool) {
         val channel1 = channel0.aAccept()
-        headers.aWrite(channel1, Long.MAX_VALUE)
+        val channel = InsecureChannel(channel1, nodes, 8192)
+        channel.write(headers, Long.MAX_VALUE)
         val buffer = ByteBuffer.allocate(1024)
         val n = channel2.aRead(buffer, Long.MAX_VALUE)
         channel1.close()

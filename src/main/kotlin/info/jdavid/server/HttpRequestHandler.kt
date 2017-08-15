@@ -40,48 +40,46 @@ abstract class HttpRequestHandler: RequestHandler {
       var segment = channel.read(readDeadline)
       var length = segment.remaining()
       if (length < 16) return false
-      var offset = segment.arrayOffset()
-      var array = segment.array()
       var i = 0
       while (true) {
         if (i == 7) return false
-        val b = array[offset + i++]
+        val b = segment[i++]
         @Suppress("ConvertTwoComparisonsToRangeCheck")
         if (validMethod(b)) continue
         if (b == SPACE) break
         return false
       }
-      val method = String(array, offset, i - 1)
-      var j = i
+      val method = "a" //String(ByteArray(i-1).apply { segment.get(this) })
+      segment.get()
+      length -= i
+      i = 0
       while (true) {
-        if (j == length) return handleError(channel, writeDeadline, 414)
-        val b = array[offset + j++]
+        if (i == length) return handleError(channel, writeDeadline, 414)
+        val b = segment[i++]
         if (validUrl(b)) continue
         if (b == SPACE) break
         return false
       }
-      val uri = String(array, offset + i, j - ++i)
+      val uri = "b" //String(ByteArray(i-1).apply { segment.get(this) })
+      segment.get()
       if (abort(channel, writeDeadline, acceptUri(method, uri))) return false
-      i += uri.length
-      if (array[offset + i++] != H_UPPER ||
-          array[offset + i++] != T_UPPER ||
-          array[offset + i++] != T_UPPER ||
-          array[offset + i++] != P_UPPER ||
-          array[offset + i++] != SLASH ||
-          array[offset + i++] != ONE ||
-          array[offset + i++] != DOT ||
-          array[offset + i++] != ONE ||
-          array[offset + i++] != CR ||
-          array[offset + i++] != LF) return false
+      if (segment.get() != H_UPPER ||
+          segment.get() != T_UPPER ||
+          segment.get() != T_UPPER ||
+          segment.get() != P_UPPER ||
+          segment.get() != SLASH ||
+          segment.get() != ONE ||
+          segment.get() != DOT ||
+          segment.get() != ONE ||
+          segment.get() != CR ||
+          segment.get() != LF) return false
       // Headers + Body
-      buffer.put(array, offset + i, length - i)
+      buffer.put(segment)
       // Headers
       val headers = Headers()
-      offset = buffer.arrayOffset()
-      array = buffer.array()
       length = buffer.position()
       i = 0
-      j = 0
+      var j = 0
       while (true) {
         if (i == length) {
           if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
@@ -91,11 +89,18 @@ abstract class HttpRequestHandler: RequestHandler {
           buffer.put(segment)
           length = buffer.position()
         }
-        if (when (array[offset + i++]) {
+        if (when (buffer[i++]) {
           LF -> {
-            if (array[offset + i - 2] != CR) return handleError(channel, writeDeadline, 400)
-            if (i - 2 == j) true else {
-              headers.add(String(array, offset + j, i - j - 2))
+            if (buffer[i - 2] != CR) return handleError(channel, writeDeadline, 400)
+            if (i - 2 == j) {
+              buffer.get()
+              buffer.get()
+              true
+            }
+            else {
+              headers.add(String(ByteArray(i - j - 2).apply { buffer.get(this) }))
+              buffer.get()
+              buffer.get()
               j = i
               false
             }
@@ -224,8 +229,8 @@ abstract class HttpRequestHandler: RequestHandler {
     private fun validUrl(b: Byte): Boolean {
       @Suppress("ConvertTwoComparisonsToRangeCheck")
       return b == EXCLAMATION_POINT || (b > DOUBLE_QUOTE && b < LOWER_THAN) || b == EQUALS ||
-        (b > GREATER_THAN && b < BACKSLASH) || b == RIGHT_SQUARE_BRACKET || b == UNDERSCORE ||
-        (b > BACKTICK && b < LEFT_CURLY_BRACE) || b == TILDA
+             (b > GREATER_THAN && b < BACKSLASH) || b == RIGHT_SQUARE_BRACKET || b == UNDERSCORE ||
+             (b > BACKTICK && b < LEFT_CURLY_BRACE) || b == TILDA
     }
   }
 
