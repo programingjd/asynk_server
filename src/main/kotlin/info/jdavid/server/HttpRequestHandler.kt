@@ -49,10 +49,11 @@ abstract class HttpRequestHandler: RequestHandler {
         if (b == SPACE) break
         return false
       }
-      val method = "a" //String(ByteArray(i-1).apply { segment.get(this) })
+      val methodBytes = ByteArray(i-1)
+      segment.get(methodBytes)
+      val method = String(methodBytes, ASCII)
       segment.get()
-      length -= i
-      i = 0
+      var j = i
       while (true) {
         if (i == length) return handleError(channel, writeDeadline, 414)
         val b = segment[i++]
@@ -60,7 +61,9 @@ abstract class HttpRequestHandler: RequestHandler {
         if (b == SPACE) break
         return false
       }
-      val uri = "b" //String(ByteArray(i-1).apply { segment.get(this) })
+      val uriBytes = ByteArray(i-j-1)
+      segment.get(uriBytes)
+      val uri = String(uriBytes)
       segment.get()
       if (abort(channel, writeDeadline, acceptUri(method, uri))) return false
       if (segment.get() != H_UPPER ||
@@ -78,8 +81,9 @@ abstract class HttpRequestHandler: RequestHandler {
       // Headers
       val headers = Headers()
       length = buffer.position()
+      buffer.flip()
       i = 0
-      var j = 0
+      j = 0
       while (true) {
         if (i == length) {
           if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
@@ -98,7 +102,9 @@ abstract class HttpRequestHandler: RequestHandler {
               true
             }
             else {
-              headers.add(String(ByteArray(i - j - 2).apply { buffer.get(this) }))
+              val headerBytes = ByteArray(i-j-2)
+              buffer.get(headerBytes)
+              headers.add(String(headerBytes, ISO_8859_1))
               buffer.get()
               buffer.get()
               j = i
@@ -110,8 +116,6 @@ abstract class HttpRequestHandler: RequestHandler {
       }
       if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
       if (abort(channel, writeDeadline, acceptHeaders(method, uri, headers))) return false
-      buffer.limit(buffer.position())
-      buffer.position(i)
       buffer.compact()
       length = buffer.position()
       capacity -= length
