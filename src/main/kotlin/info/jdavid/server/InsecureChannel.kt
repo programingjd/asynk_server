@@ -52,8 +52,8 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
   }
 
   private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
-    internal val segment: ByteBuffer = ByteBuffer.allocate(segmentSize)
-    internal val buffer: ByteBuffer = ByteBuffer.allocate(bufferSize)
+    internal val segment = ByteBuffer.allocateDirect(segmentSize)
+    internal val buffer = ByteBuffer.allocateDirect(bufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")
 //    }

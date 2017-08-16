@@ -2,8 +2,6 @@ package info.jdavid.server
 
 import java.io.ByteArrayInputStream
 import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.net.ssl.*
@@ -26,28 +24,22 @@ class SSL {
         tmf.init(trustStore)
         val context = SSLContext.getInstance("TLS")
         context.init(kmf.keyManagers, tmf.trustManagers, SecureRandom())
-        return context.createSSLEngine()
+        val engine = context.createSSLEngine()
+        engine.useClientMode = false
+        engine.wantClientAuth = false
+        engine.enableSessionCreation = true
+        engine.sslParameters = SSLParameters().apply {
+          protocols = Platform.protocols
+          cipherSuites = Platform.cipherSuites
+        }
+        return engine
       }
       finally {
         try {
           cert.close()
         }
-        catch (ignore: IOException) {
-        }
+        catch (ignore: IOException) {}
       }
-    }
-
-    suspend fun r(channel: AsynchronousSocketChannel, engine: SSLEngine) {
-      engine.useClientMode = false
-      engine.wantClientAuth = false
-      engine.enableSessionCreation = true
-      engine.sslParameters = SSLParameters().apply {
-        protocols = Platform.protocols
-        cipherSuites = Platform.cipherSuites
-      }
-      engine.beginHandshake()
-      val net = ByteBuffer.wrap(ByteArray(engine.session.packetBufferSize))
-      val app = ByteBuffer.wrap(ByteArray(engine.session.applicationBufferSize))
     }
 
   }

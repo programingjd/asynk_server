@@ -37,7 +37,14 @@ class Server internal constructor(address: InetSocketAddress,
         val clientAddress = clientChannel.remoteAddress as InetSocketAddress
         if (requestHandler.reject(clientAddress)) continue
         launch(pool.asCoroutineDispatcher()) {
-          val channel = if (ssl == null) InsecureChannel(clientChannel, nodes, maxRequestSize) else TODO()
+          val channel = if (ssl == null) {
+            InsecureChannel(clientChannel, nodes, maxRequestSize)
+          } else {
+            val now = System.nanoTime()
+            SecureChannel(clientChannel, ssl, nodes, maxRequestSize).
+              handshake(now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                        now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+          }
           try {
             while (true) {
               try {
@@ -93,7 +100,7 @@ fun main(args: Array<String>) {
   val server = Config().
     readTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
     writeTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
-    //certificate(java.io.File("localhost.p12")).
+    certificate(java.io.File("localhost.p12")).port(8181).
     startServer()
   //Thread.sleep(15000L)
   //server.stop()
