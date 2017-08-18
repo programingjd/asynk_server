@@ -22,7 +22,11 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
     buffer.rewind().limit(buffer.capacity())
   }
 
-  override fun done() {
+  suspend override fun start(readDeadline: Long, writeDeadline: Long) {}
+
+  suspend override fun stop(readDeadline: Long, writeDeadline: Long) {}
+
+  override fun recycle() {
     nodes.addLast(node)
   }
 

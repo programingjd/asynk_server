@@ -21,8 +21,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                                                   engine.session.applicationBufferSize))
   private val segment = node.segment
   private val buffer = node.buffer
-  private val engine1 = node.engine1
-  private val engine2 = node.engine2
+  private val buffer1 = node.engine1
+  private val buffer2 = node.engine2
   private var exhausted = false
 
   private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -45,16 +45,16 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                 readDeadline: Long, writeDeadline: Long) {
     when(status) {
       SSLEngineResult.Status.BUFFER_OVERFLOW -> {
-        engine2.flip()
-        val write = channel.aWrite(engine2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        buffer2.flip()
+        val write = channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
         if (write == -1) throw IOException()
-        engine2.compact()
+        if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
       }
       SSLEngineResult.Status.BUFFER_UNDERFLOW -> {
-        if (engine1.position() == 0) engine1.limit(engine1.capacity()) else engine1.compact()
-        val read = channel.aRead(engine1, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        if (buffer1.position() == 0) buffer1.limit(buffer1.capacity()) else buffer1.compact()
+        val read = channel.aRead(buffer1, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
         if (read == -1) throw IOException()
-        engine1.flip()
+        buffer1.flip()
       }
       else -> {}
     }
@@ -67,30 +67,47 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
       }
       SSLEngineResult.HandshakeStatus.NEED_WRAP -> {
         segment.flip()
-        val result = engine.wrap(segment, engine2)
+        val result = engine.wrap(segment, buffer2)
         if (segment.position() == 0) segment.limit(segment.capacity()) else segment.compact()
         handshake(channel, SSLEngineResult.Status.BUFFER_OVERFLOW, result.handshakeStatus, readDeadline, writeDeadline)
       }
       SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
-        val result = engine.unwrap(engine1, segment)
+        val result = engine.unwrap(buffer1, segment)
         handshake(channel, result.status, result.handshakeStatus, readDeadline, writeDeadline)
       }
       else -> throw IllegalArgumentException()
     }
   }
 
-  suspend fun handshake(readDeadline: Long, writeDeadline: Long): SecureChannel {
+  suspend override fun start(readDeadline: Long, writeDeadline: Long) {
     engine.beginHandshake()
     handshake(channel, null, engine.handshakeStatus, readDeadline, writeDeadline)
     println("handshake done")
-    return this
+  }
+
+  suspend override fun stop(readDeadline: Long, writeDeadline: Long) {
+    engine.closeOutbound()
+    segment.rewind().limit(0)
+    engine.wrap(segment, buffer2)
+    buffer2.flip()
+    if (channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS) == -1) {
+      throw IOException()
+    }
+    if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
+    engine.closeInbound()
+    segment.rewind().limit(0)
+    engine.wrap(segment, buffer2)
+    if (channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS) == -1) {
+      throw IOException()
+    }
+    if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
   }
 
   override fun next() {
     buffer.rewind().limit(buffer.capacity())
   }
 
-  override fun done() {
+  override fun recycle() {
     nodes.addLast(node)
   }
 

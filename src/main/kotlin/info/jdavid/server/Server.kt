@@ -3,9 +3,11 @@ package info.jdavid.server
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.launch
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.StandardSocketOptions
 import java.nio.channels.AsynchronousServerSocketChannel
+import java.nio.channels.InterruptedByTimeoutException
 import java.util.concurrent.Executors
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ThreadFactory
@@ -39,13 +41,14 @@ class Server internal constructor(address: InetSocketAddress,
         launch(pool.asCoroutineDispatcher()) {
           val channel = if (ssl == null) {
             InsecureChannel(clientChannel, nodes, maxRequestSize)
-          } else {
-            val now = System.nanoTime()
-            SecureChannel(clientChannel, ssl, nodes, maxRequestSize).
-              handshake(now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                        now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+          }
+          else {
+            SecureChannel(clientChannel, ssl, nodes, maxRequestSize)
           }
           try {
+            val start = System.nanoTime()
+            channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                          start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
             while (true) {
               try {
                 val now = System.nanoTime()
@@ -60,11 +63,23 @@ class Server internal constructor(address: InetSocketAddress,
                 channel.next()
               }
             }
+            val stop = System.nanoTime()
+            channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                         stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+          }
+          catch (ignore: IOException) {
+            println("Connection closed prematurely")
+          }
+          catch (ignored: InterruptedByTimeoutException) {
+            println("Timeout")
           }
           finally {
-            channel.done()
+            channel.recycle()
             launch(dispatcher) {
-              clientChannel.close()
+              try {
+                clientChannel.close()
+              }
+              catch (ignore: IOException) {}
             }
           }
         }

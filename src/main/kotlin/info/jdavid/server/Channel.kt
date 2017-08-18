@@ -12,7 +12,11 @@ abstract class Channel internal constructor() {
 
   abstract internal fun next()
 
-  abstract internal fun done()
+  abstract suspend internal fun start(readDeadline: Long, writeDeadline: Long)
+
+  abstract suspend internal fun stop(readDeadline: Long, writeDeadline: Long)
+
+  abstract internal fun recycle()
 
   abstract internal fun buffer(): ByteBuffer
 
