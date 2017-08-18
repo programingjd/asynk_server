@@ -18,6 +18,7 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
   private var exhausted = false
 
   override fun next() {
+    segment.rewind().limit(segment.capacity())
     buffer.rewind().limit(buffer.capacity())
   }
 

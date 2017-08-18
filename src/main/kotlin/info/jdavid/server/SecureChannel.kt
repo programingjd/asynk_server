@@ -20,50 +20,70 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                                                 maxRequestSize)
   private val segment = node.segment
   private val buffer = node.buffer
-  private val packet = node.packet
+  private val inPackets = node.inPackets
+  private val outPackets = node.outPackets
   private val application = node.application
   private var exhausted = false
 
   private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
                                        'a', 'b', 'c', 'd', 'e', 'f')
 
-  private fun hex(byteBuffer: ByteBuffer): String {
-    val n = byteBuffer.remaining()
+  private fun hex(byteBuffer: ByteBuffer, from: Int, to: Int): String {
+    val n = to - from
     val result = CharArray(3 * n)
     for (i in 0 until n) {
-      result[3*i] = HEX_DIGITS[byteBuffer[i].toInt().shr(4).and(0x0f)]
-      result[3*i+1] = HEX_DIGITS[byteBuffer[i].toInt().and(0x0f)]
-      result[3*i+2] = if (i%40 == 0) '\n' else ' '
+      result[3*i] = HEX_DIGITS[byteBuffer[from + i].toInt().shr(4).and(0x0f)]
+      result[3*i+1] = HEX_DIGITS[byteBuffer[from + i].toInt().and(0x0f)]
+      result[3*i+2] = if ((i+1)%40 == 0) '\n' else ' '
     }
     return String(result)
   }
 
   private suspend fun handshake(channel: AsynchronousSocketChannel,
-                                status: SSLEngineResult.HandshakeStatus,
+                                status: SSLEngineResult.Status?,
+                                handshakeStatus: SSLEngineResult.HandshakeStatus,
                                 readDeadline: Long, writeDeadline: Long) {
     when(status) {
-      SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING -> false
-      SSLEngineResult.HandshakeStatus.FINISHED -> false
+      SSLEngineResult.Status.BUFFER_OVERFLOW -> {
+        outPackets.flip()
+        val write = channel.aWrite(outPackets, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        println("${write} bytes written to buffer:\n" +
+                  hex(outPackets, outPackets.position() - write, outPackets.position()))
+        outPackets.compact()
+      }
+      SSLEngineResult.Status.BUFFER_UNDERFLOW -> {
+        if (inPackets.position() == 0) inPackets.limit(inPackets.capacity()) else inPackets.compact()
+        val read = channel.aRead(inPackets, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        println("${read} bytes read from buffer:\n" +
+                  hex(inPackets, inPackets.position() - read, inPackets.position()))
+        inPackets.flip()
+      }
+      else -> {}
+    }
+    when(handshakeStatus) {
+      SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING -> return
+      SSLEngineResult.HandshakeStatus.FINISHED -> return
       SSLEngineResult.HandshakeStatus.NEED_TASK -> {
         engine.delegatedTask?.run()
-        handshake(channel, engine.handshakeStatus, readDeadline, writeDeadline)
+        handshake(channel, null, engine.handshakeStatus, readDeadline, writeDeadline)
       }
       SSLEngineResult.HandshakeStatus.NEED_WRAP -> {
-        val s = engine.wrap(application, packet).handshakeStatus
-        packet.flip()
-        println("Write: " + hex(packet))
-        channel.aWrite(packet, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-//        channel.write(packet).get()
-        handshake(channel, s, readDeadline, writeDeadline)
+        println("Before wrap: ${application.limit() - application.position()}\n" +
+                  hex(application, application.position(), application.limit()))
+        application.flip()
+        val result = engine.wrap(application, outPackets)
+        application.compact()
+        println("After wrap:\n ${application.limit() - application.position()}" +
+                  hex(application, application.position(), application.limit()))
+        handshake(channel, SSLEngineResult.Status.BUFFER_OVERFLOW, result.handshakeStatus, readDeadline, writeDeadline)
       }
       SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
-        channel.aRead(packet, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
-//        channel.read(packet).get()
-        packet.flip()
-        println("Read:  " + hex(packet))
-        val s = engine.unwrap(packet, application).handshakeStatus
-        packet.compact()
-        handshake(channel, s, readDeadline, writeDeadline)
+        println("Before unwrap: ${inPackets.limit() - inPackets.position()}\n" +
+                  hex(inPackets, inPackets.position(), inPackets.limit()))
+        val result = engine.unwrap(inPackets, application)
+        println("After unwrap: ${inPackets.limit() - inPackets.position()}\n" +
+                  hex(inPackets, inPackets.position(), inPackets.limit()))
+        handshake(channel, result.status, result.handshakeStatus, readDeadline, writeDeadline)
       }
       else -> throw IllegalArgumentException()
     }
@@ -71,7 +91,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   suspend fun handshake(readDeadline: Long, writeDeadline: Long): SecureChannel {
     engine.beginHandshake()
-    handshake(channel, engine.handshakeStatus, readDeadline, writeDeadline)
+    handshake(channel, null, engine.handshakeStatus, readDeadline, writeDeadline)
     println("handshake done")
     return this
   }
@@ -103,7 +123,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                      bufferSize: Int): LockFreeLinkedListNode() {
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
-    internal val packet = ByteBuffer.allocateDirect(packetBufferSize)
+    internal val inPackets = ByteBuffer.allocateDirect(packetBufferSize).limit(0)
+    internal val outPackets = ByteBuffer.allocateDirect(packetBufferSize)
     internal val application = ByteBuffer.allocateDirect(applicationBufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")
