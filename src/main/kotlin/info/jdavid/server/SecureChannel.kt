@@ -88,19 +88,9 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   suspend override fun stop(readDeadline: Long, writeDeadline: Long) {
     engine.closeOutbound()
     segment.rewind().limit(0)
-    engine.wrap(segment, buffer2)
-    buffer2.flip()
-    if (channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS) == -1) {
-      throw IOException()
-    }
-    if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
+    handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
     engine.closeInbound()
-    segment.rewind().limit(0)
-    engine.wrap(segment, buffer2)
-    if (channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS) == -1) {
-      throw IOException()
-    }
-    if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
+    handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
   }
 
   override fun next() {
