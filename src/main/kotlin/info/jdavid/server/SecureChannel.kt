@@ -21,8 +21,10 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                                                   engine.session.applicationBufferSize))
   private val segment = node.segment
   private val buffer = node.buffer
-  private val buffer1 = node.engine1
-  private val buffer2 = node.engine2
+  private val wireIn = node.wireIn
+  private val wireOut = node.wireOut
+  private val appIn = node.appIn
+  private val appOut = node.appOut
   private var exhausted = false
 
   private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -39,40 +41,53 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     return String(result)
   }
 
-  private suspend fun handshake(channel: AsynchronousSocketChannel,
+  suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,
                                 handshakeStatus: SSLEngineResult.HandshakeStatus,
                                 readDeadline: Long, writeDeadline: Long) {
     when(status) {
       SSLEngineResult.Status.BUFFER_OVERFLOW -> {
-        buffer2.flip()
-        val write = channel.aWrite(buffer2, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        wireOut.flip()
+        val write = channel.aWrite(wireOut, writeDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
         if (write == -1) throw IOException()
-        if (buffer2.position() == 0) buffer2.limit(buffer2.capacity()) else buffer2.compact()
+        if (wireOut.position() == 0) wireOut.limit(wireOut.capacity()) else wireOut.compact()
       }
       SSLEngineResult.Status.BUFFER_UNDERFLOW -> {
-        if (buffer1.position() == 0) buffer1.limit(buffer1.capacity()) else buffer1.compact()
-        val read = channel.aRead(buffer1, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
+        if (wireIn.position() == 0) wireIn.limit(wireIn.capacity()) else wireIn.compact()
+        val read = channel.aRead(wireIn, readDeadline - System.nanoTime(), TimeUnit.NANOSECONDS)
         if (read == -1) throw IOException()
-        buffer1.flip()
+        wireIn.flip()
       }
       else -> {}
     }
     when(handshakeStatus) {
-      SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING -> return
+      SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING -> {
+        if (wireIn.remaining() > 0) {
+          val result = engine.unwrap(wireIn, appIn)
+          handshake(channel, result.status, result.handshakeStatus, readDeadline, writeDeadline)
+        }
+        if (appOut.position() > 0) {
+          appOut.flip()
+          val result = engine.wrap(appOut, wireOut)
+          if (appOut.position() == 0) appOut.limit(appOut.capacity()) else appOut.compact()
+          handshake(channel, SSLEngineResult.Status.BUFFER_OVERFLOW, result.handshakeStatus,
+                    readDeadline, writeDeadline)
+        }
+      }
       SSLEngineResult.HandshakeStatus.FINISHED -> return
       SSLEngineResult.HandshakeStatus.NEED_TASK -> {
         engine.delegatedTask?.run()
         handshake(channel, null, engine.handshakeStatus, readDeadline, writeDeadline)
       }
       SSLEngineResult.HandshakeStatus.NEED_WRAP -> {
-        segment.flip()
-        val result = engine.wrap(segment, buffer2)
-        if (segment.position() == 0) segment.limit(segment.capacity()) else segment.compact()
-        handshake(channel, SSLEngineResult.Status.BUFFER_OVERFLOW, result.handshakeStatus, readDeadline, writeDeadline)
+        appOut.flip()
+        val result = engine.wrap(appOut, wireOut)
+        if (appOut.position() == 0) appOut.limit(appOut.capacity()) else appOut.compact()
+        handshake(channel, SSLEngineResult.Status.BUFFER_OVERFLOW, result.handshakeStatus,
+                  readDeadline, writeDeadline)
       }
       SSLEngineResult.HandshakeStatus.NEED_UNWRAP -> {
-        val result = engine.unwrap(buffer1, segment)
+        val result = engine.unwrap(wireIn, appIn)
         handshake(channel, result.status, result.handshakeStatus, readDeadline, writeDeadline)
       }
       else -> throw IllegalArgumentException()
@@ -87,7 +102,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   suspend override fun stop(readDeadline: Long, writeDeadline: Long) {
     engine.closeOutbound()
-    segment.rewind().limit(0)
+    appIn.rewind().limit(0)
     handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
     engine.closeInbound()
     handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
@@ -108,18 +123,49 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   suspend override fun read(deadline: Long) = read(16384, deadline)
 
   suspend override fun read(bytes: Int, deadline: Long): ByteBuffer {
-    TODO()
+    segment.rewind().limit(bytes)
+    if (bytes == 0) return segment.flip() as ByteBuffer
+    val p = appIn.position()
+    if (p > bytes) {
+      appIn.rewind().limit(bytes)
+      segment.put(appIn)
+      appIn.limit(p)
+      if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
+    }
+    else if (p > 0) {
+      appIn.flip()
+      segment.put(appIn)
+      if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
+    }
+    else {
+      handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_UNWRAP, deadline, deadline)
+      val p2 = appIn.position()
+      if (p2 > bytes) {
+        appIn.rewind().limit(bytes)
+        segment.put(appIn)
+        appIn.limit(p2)
+        if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
+      }
+      else if (p2 > 0) {
+        appIn.flip()
+        segment.put(appIn)
+        if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
+      }
+    }
+    return segment.flip() as ByteBuffer
   }
 
   suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
-    TODO()
+
   }
 
   private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
-    internal val engine1 = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
-    internal val engine2 = ByteBuffer.allocateDirect(engineBufferSize)
+    internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
+    internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)
+    internal val appIn = ByteBuffer.allocateDirect(engineBufferSize)
+    internal val appOut = ByteBuffer.allocateDirect(engineBufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")
 //    }

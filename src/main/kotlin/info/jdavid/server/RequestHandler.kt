@@ -15,7 +15,7 @@ interface RequestHandler {
 
   companion object {
     val DEFAULT = object: HttpRequestHandler() {
-      override suspend fun reject(address: InetSocketAddress): Boolean {
+      suspend override fun reject(address: InetSocketAddress): Boolean {
         println("Client: ${address.address}")
         return false
       }
@@ -29,7 +29,7 @@ interface RequestHandler {
         headers.lines.forEach { println("  ${it}") }
         return super.acceptHeaders(method, uri, headers)
       }
-      override suspend fun handle(address: InetSocketAddress,
+      suspend override fun handle(address: InetSocketAddress,
                                   method: String,
                                   uri: String,
                                   headers: Headers,

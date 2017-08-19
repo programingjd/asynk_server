@@ -152,7 +152,7 @@ abstract class HttpRequestHandler: RequestHandler {
     }
   }
 
-  private suspend fun abort(channel: Channel, writeDeadline: Long,
+  suspend private fun abort(channel: Channel, writeDeadline: Long,
                             acceptValue: Int): Boolean {
     if (acceptValue == -1) return false
     if (acceptValue == 0) return true
