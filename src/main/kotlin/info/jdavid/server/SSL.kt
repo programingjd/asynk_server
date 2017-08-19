@@ -4,7 +4,11 @@ import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.security.KeyStore
 import java.security.SecureRandom
-import javax.net.ssl.*
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLEngine
+import javax.net.ssl.SSLParameters
+import javax.net.ssl.TrustManagerFactory
 
 class SSL {
 
@@ -13,6 +17,7 @@ class SSL {
     val sslParameters = SSLParameters().apply {
       protocols = Platform.protocols
       cipherSuites = Platform.cipherSuites
+      applicationProtocols = arrayOf("h2", "http/1.1")
     }
 
     fun createSSLContext(certificate: ByteArray?): SSLContext? {
