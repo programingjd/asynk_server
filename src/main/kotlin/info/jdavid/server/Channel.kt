@@ -20,7 +20,7 @@ abstract class Channel internal constructor() {
 
   abstract internal fun buffer(): ByteBuffer
 
-  abstract protected fun segment(): ByteBuffer
+  abstract internal fun segment(): ByteBuffer
 
   suspend fun write(bytes: ByteArray, deadline: Long) {
     val segment = segment()
