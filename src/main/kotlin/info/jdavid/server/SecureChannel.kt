@@ -156,7 +156,23 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   }
 
   suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
-
+    byteBuffer.flip()
+    val bytes = byteBuffer.remaining()
+    if (bytes == 0) return
+    val r = appOut.remaining()
+    if (r >= bytes) {
+      appOut.put(byteBuffer)
+      handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, deadline, deadline)
+    }
+    else {
+      byteBuffer.limit(r)
+      appOut.put(byteBuffer)
+      byteBuffer.limit(bytes)
+      handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, deadline, deadline)
+      appOut.put(byteBuffer)
+      handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, deadline, deadline)
+    }
+    byteBuffer.rewind().limit(byteBuffer.capacity())
   }
 
   private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
