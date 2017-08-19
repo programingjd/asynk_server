@@ -97,7 +97,6 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   suspend override fun start(readDeadline: Long, writeDeadline: Long) {
     engine.beginHandshake()
     handshake(channel, null, engine.handshakeStatus, readDeadline, writeDeadline)
-    println("handshake done")
   }
 
   suspend override fun stop(readDeadline: Long, writeDeadline: Long) {

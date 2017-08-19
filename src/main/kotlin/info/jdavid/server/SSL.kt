@@ -10,7 +10,12 @@ class SSL {
 
   companion object {
 
-    fun createSSLEngine(certificate: ByteArray?): SSLEngine? {
+    val sslParameters = SSLParameters().apply {
+      protocols = Platform.protocols
+      cipherSuites = Platform.cipherSuites
+    }
+
+    fun createSSLContext(certificate: ByteArray?): SSLContext? {
       if (certificate == null) return null
       val cert = ByteArrayInputStream(certificate)
       try {
@@ -24,15 +29,7 @@ class SSL {
         tmf.init(trustStore)
         val context = SSLContext.getInstance("TLS")
         context.init(kmf.keyManagers, tmf.trustManagers, SecureRandom())
-        val engine = context.createSSLEngine()
-        engine.useClientMode = false
-        engine.wantClientAuth = false
-        engine.enableSessionCreation = true
-        engine.sslParameters = SSLParameters().apply {
-          protocols = Platform.protocols
-          cipherSuites = Platform.cipherSuites
-        }
-        return engine
+        return context
       }
       finally {
         try {
@@ -40,6 +37,15 @@ class SSL {
         }
         catch (ignore: IOException) {}
       }
+    }
+
+    fun createSSLEngine(context: SSLContext): SSLEngine {
+      val engine = context.createSSLEngine()
+      engine.useClientMode = false
+      engine.wantClientAuth = false
+      engine.enableSessionCreation = true
+      engine.sslParameters = sslParameters
+      return engine
     }
 
   }

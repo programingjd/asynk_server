@@ -29,7 +29,7 @@ class Server internal constructor(address: InetSocketAddress,
   private val dispatcher = looper.asCoroutineDispatcher()
   private val serverChannel = openChannel(address)
   private val job = launch(looper.asCoroutineDispatcher()) {
-    val ssl = SSL.createSSLEngine(cert())
+    val ssl = SSL.createSSLContext(cert())
     val pool = ForkJoinPool(cores)
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
@@ -43,7 +43,7 @@ class Server internal constructor(address: InetSocketAddress,
             InsecureChannel(clientChannel, nodes, maxRequestSize)
           }
           else {
-            SecureChannel(clientChannel, ssl, nodes, maxRequestSize)
+            SecureChannel(clientChannel, SSL.createSSLEngine(ssl), nodes, maxRequestSize)
           }
           try {
             val start = System.nanoTime()
@@ -68,6 +68,7 @@ class Server internal constructor(address: InetSocketAddress,
                          stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
           }
           catch (ignore: IOException) {
+            ignore.printStackTrace()
             println("Connection closed prematurely")
           }
           catch (ignored: InterruptedByTimeoutException) {
