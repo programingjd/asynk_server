@@ -7,6 +7,8 @@ import java.util.concurrent.TimeUnit
 
 interface RequestHandler {
 
+  fun enableHttp2(): Boolean
+
   suspend fun reject(address: InetSocketAddress): Boolean
 
   suspend fun handle(channel: Channel, address: InetSocketAddress,

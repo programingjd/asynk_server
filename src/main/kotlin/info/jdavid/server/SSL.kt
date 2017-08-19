@@ -14,7 +14,12 @@ class SSL {
 
   companion object {
 
-    val sslParameters = SSLParameters().apply {
+    val http11SslParameters = SSLParameters().apply {
+      protocols = Platform.protocols
+      cipherSuites = Platform.cipherSuites
+      applicationProtocols = arrayOf("http/1.1")
+    }
+    val http2SslParameters = SSLParameters().apply {
       protocols = Platform.protocols
       cipherSuites = Platform.cipherSuites
       applicationProtocols = arrayOf("h2", "http/1.1")
@@ -44,12 +49,12 @@ class SSL {
       }
     }
 
-    fun createSSLEngine(context: SSLContext): SSLEngine {
+    fun createSSLEngine(context: SSLContext, enableHttp2: Boolean): SSLEngine {
       val engine = context.createSSLEngine()
       engine.useClientMode = false
       engine.wantClientAuth = false
       engine.enableSessionCreation = true
-      engine.sslParameters = sslParameters
+      engine.sslParameters = if (enableHttp2) http2SslParameters else http11SslParameters
       return engine
     }
 

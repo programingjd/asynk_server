@@ -15,6 +15,8 @@ abstract class HttpRequestHandler: RequestHandler {
                                         deadline: Long,
                                         buffer: ByteBuffer)
 
+  override fun enableHttp2() = true
+
   // accept methods return values:
   //  -1       -> accept
   //   0       -> drop connection

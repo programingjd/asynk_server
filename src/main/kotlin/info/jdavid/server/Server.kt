@@ -43,7 +43,8 @@ class Server internal constructor(address: InetSocketAddress,
             InsecureChannel(clientChannel, nodes, maxRequestSize)
           }
           else {
-            SecureChannel(clientChannel, SSL.createSSLEngine(ssl), nodes, maxRequestSize)
+            SecureChannel(clientChannel, SSL.createSSLEngine(ssl, requestHandler.enableHttp2()),
+                          nodes, maxRequestSize)
           }
           try {
             val start = System.nanoTime()
