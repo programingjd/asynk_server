@@ -25,21 +25,6 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   private val wireOut = node.wireOut
   private val appIn = node.appIn
   private val appOut = node.appOut
-  private var exhausted = false
-
-  private val HEX_DIGITS = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                                       'a', 'b', 'c', 'd', 'e', 'f')
-
-  private fun hex(byteBuffer: ByteBuffer, from: Int, to: Int): String {
-    val n = to - from
-    val result = CharArray(3 * n)
-    for (i in 0 until n) {
-      result[3*i] = HEX_DIGITS[byteBuffer[from + i].toInt().shr(4).and(0x0f)]
-      result[3*i+1] = HEX_DIGITS[byteBuffer[from + i].toInt().and(0x0f)]
-      result[3*i+2] = if ((i+1)%40 == 0) '\n' else ' '
-    }
-    return String(result)
-  }
 
   suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,
