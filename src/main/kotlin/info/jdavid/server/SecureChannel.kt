@@ -26,6 +26,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   private val appIn = node.appIn
   private val appOut = node.appOut
 
+  fun applicationProtocol() = engine.applicationProtocol
+
   suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,
                                 handshakeStatus: SSLEngineResult.HandshakeStatus,

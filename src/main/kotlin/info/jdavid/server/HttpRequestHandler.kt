@@ -34,6 +34,25 @@ abstract class HttpRequestHandler: RequestHandler {
                                     readDeadline: Long, writeDeadline: Long,
                                     maxHeaderSize: Int,
                                     buffer: ByteBuffer): Boolean {
+    return if (channel is SecureChannel && channel.applicationProtocol() == "h2") {
+      http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
+    }
+    else {
+      http11(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
+    }
+  }
+
+  suspend final fun http2(channel: Channel, address: InetSocketAddress,
+                          readDeadline: Long, writeDeadline: Long,
+                          maxHeaderSize: Int,
+                          buffer: ByteBuffer): Boolean {
+    TODO("http2")
+  }
+
+  suspend final fun http11(channel: Channel, address: InetSocketAddress,
+                           readDeadline: Long, writeDeadline: Long,
+                           maxHeaderSize: Int,
+                           buffer: ByteBuffer): Boolean {
     try {
       var capacity = buffer.capacity()
       // Status Line
