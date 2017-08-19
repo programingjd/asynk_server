@@ -109,13 +109,13 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun next() {
     buffer.rewind().limit(buffer.capacity())
+  }
+
+  override fun recycle() {
     wireIn.rewind().limit(0)
     wireOut.rewind().limit(wireOut.capacity())
     appIn.rewind().limit(appIn.capacity())
     appOut.rewind().limit(appOut.capacity())
-  }
-
-  override fun recycle() {
     nodes.addLast(node)
   }
 
