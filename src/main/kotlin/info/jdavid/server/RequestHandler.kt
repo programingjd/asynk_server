@@ -6,9 +6,9 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
-interface RequestHandler<out T: Closeable?> {
+interface RequestHandler {
 
-  suspend fun connection(channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): T
+  suspend fun connection(channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable?
 
   fun enableHttp2(): Boolean
 

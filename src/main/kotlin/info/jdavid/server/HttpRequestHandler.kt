@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
 
 
-abstract class HttpRequestHandler: RequestHandler<Closeable?> {
+abstract class HttpRequestHandler: RequestHandler {
 
   suspend protected abstract fun handle(address: InetSocketAddress,
                                         method: String,
