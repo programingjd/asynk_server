@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 class Server internal constructor(address: InetSocketAddress,
                                   readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                   maxHeaderSize: Int, maxRequestSize: Int,
-                                  requestHandler: RequestHandler<*>,
+                                  requestHandler: RequestHandler,
                                   cores: Int, cert: () -> ByteArray?) {
   @Suppress("ObjectLiteralToLambda")
   private val looper = Executors.newSingleThreadExecutor(object: ThreadFactory {
