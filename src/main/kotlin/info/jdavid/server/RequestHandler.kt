@@ -1,17 +1,20 @@
 package info.jdavid.server
 
 import kotlinx.coroutines.experimental.delay
+import java.io.Closeable
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
-interface RequestHandler {
+interface RequestHandler<out T: Closeable?> {
+
+  suspend fun connection(channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): T
 
   fun enableHttp2(): Boolean
 
   suspend fun reject(address: InetSocketAddress): Boolean
 
-  suspend fun handle(channel: Channel, address: InetSocketAddress,
+  suspend fun handle(channel: Channel, connection: Closeable?, address: InetSocketAddress,
                      readDeadline: Long, writeDeadline: Long,
                      maxHeaderSize: Int, buffer: ByteBuffer): Boolean
 

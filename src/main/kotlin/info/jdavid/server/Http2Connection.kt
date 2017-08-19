@@ -1,9 +1,13 @@
 package info.jdavid.server
 
+import java.io.Closeable
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
+import java.util.concurrent.TimeUnit
 
-internal class Http2Connection(val channel: Channel, val hostname: String) {
+internal class Http2Connection(val channel: Channel,
+                               val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Closeable {
   private var nextStreamId = 2
   private var nextPingId = 2
   private var lastGoogStreamId = 0
@@ -14,10 +18,17 @@ internal class Http2Connection(val channel: Channel, val hostname: String) {
     set(Settings.HEADER_TABLE_SIZE, bytesLeftInWriteWindow).
     set(Settings.MAX_FRAME_SIZE, 16384)
 
-  suspend fun start(readDeadline: Long, writeDeadline: Long) {
+  suspend fun start(): Http2Connection {
+    val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
     writePreface(writeDeadline)
     writeSettings(Settings(), writeDeadline)
+    val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     readPreface(readDeadline)
+    TODO()
+  }
+
+  override fun close() {
+    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
   }
 
   suspend private fun writePreface(deadline: Long) {
@@ -36,7 +47,8 @@ internal class Http2Connection(val channel: Channel, val hostname: String) {
   }
 
   suspend private fun readPreface(deadline: Long) {
-
+    val segment = channel.read(CONNECTION_PREFACE.size, deadline)
+    if (segment.equals(ByteBuffer.wrap(CONNECTION_PREFACE))) throw IOException()
   }
 
   private fun frameHeader(streamId: Int, length: Int, type: Int, flags: Int): ByteBuffer {

@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 class Server internal constructor(address: InetSocketAddress,
                                   readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                   maxHeaderSize: Int, maxRequestSize: Int,
-                                  requestHandler: RequestHandler,
+                                  requestHandler: RequestHandler<*>,
                                   cores: Int, cert: () -> ByteArray?) {
   @Suppress("ObjectLiteralToLambda")
   private val looper = Executors.newSingleThreadExecutor(object: ThreadFactory {
@@ -50,10 +50,11 @@ class Server internal constructor(address: InetSocketAddress,
             val start = System.nanoTime()
             channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                           start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+            val connection = requestHandler.connection(channel, readTimeoutMillis, writeTimeoutMillis)
             while (true) {
               try {
                 val now = System.nanoTime()
-                if (!requestHandler.handle(channel, clientAddress,
+                if (!requestHandler.handle(channel, connection, clientAddress,
                                            now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                                            now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
                                            maxHeaderSize, channel.buffer())) {
@@ -65,6 +66,7 @@ class Server internal constructor(address: InetSocketAddress,
               }
             }
             val stop = System.nanoTime()
+            connection?.close()
             channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                          stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
           }

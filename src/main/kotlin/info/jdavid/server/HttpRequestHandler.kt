@@ -1,11 +1,12 @@
 package info.jdavid.server
 
+import java.io.Closeable
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
 
 
-abstract class HttpRequestHandler: RequestHandler {
+abstract class HttpRequestHandler: RequestHandler<Closeable?> {
 
   suspend protected abstract fun handle(address: InetSocketAddress,
                                         method: String,
@@ -32,11 +33,21 @@ abstract class HttpRequestHandler: RequestHandler {
 
   protected open fun acceptBody(method: String): Int = -1
 
-  suspend final override fun handle(channel: Channel, address: InetSocketAddress,
+  suspend final override fun connection(channel: Channel,
+                                        readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable? {
+    return if (channel is SecureChannel && channel.applicationProtocol() == "h2") {
+      Http2Connection(channel, readTimeoutMillis, writeTimeoutMillis).start()
+    }
+    else null
+  }
+
+  suspend final override fun handle(channel: Channel,
+                                    connection: Closeable?,
+                                    address: InetSocketAddress,
                                     readDeadline: Long, writeDeadline: Long,
                                     maxHeaderSize: Int,
                                     buffer: ByteBuffer): Boolean {
-    return if (channel is SecureChannel && channel.applicationProtocol() == "h2") {
+    return if (connection is Http2Connection) {
       http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
     }
     else {
@@ -44,17 +55,22 @@ abstract class HttpRequestHandler: RequestHandler {
     }
   }
 
-  suspend final fun http2(channel: Channel, address: InetSocketAddress,
-                          readDeadline: Long, writeDeadline: Long,
-                          maxHeaderSize: Int,
-                          buffer: ByteBuffer): Boolean {
-    TODO("http2")
+  suspend private fun http2(channel: Channel, address: InetSocketAddress,
+                            readDeadline: Long, writeDeadline: Long,
+                            maxHeaderSize: Int,
+                            buffer: ByteBuffer): Boolean {
+    try {
+      return true
+    }
+    catch (e: InterruptedByTimeoutException) {
+      return false
+    }
   }
 
-  suspend final fun http11(channel: Channel, address: InetSocketAddress,
-                           readDeadline: Long, writeDeadline: Long,
-                           maxHeaderSize: Int,
-                           buffer: ByteBuffer): Boolean {
+  suspend private fun http11(channel: Channel, address: InetSocketAddress,
+                             readDeadline: Long, writeDeadline: Long,
+                             maxHeaderSize: Int,
+                             buffer: ByteBuffer): Boolean {
     try {
       var capacity = buffer.capacity()
       // Status Line
