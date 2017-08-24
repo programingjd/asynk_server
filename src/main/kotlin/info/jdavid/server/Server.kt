@@ -1,5 +1,6 @@
 package info.jdavid.server
 
+import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.launch
@@ -28,7 +29,7 @@ class Server internal constructor(address: InetSocketAddress,
   })
   private val dispatcher = looper.asCoroutineDispatcher()
   private val serverChannel = openChannel(address)
-  private val job = launch(looper.asCoroutineDispatcher()) {
+  private val job = launch(dispatcher) {
     val ssl = SSL.createSSLContext(cert())
     val pool = ForkJoinPool(cores)
     println("Started listening on ${address.hostName}:${address.port}")
@@ -37,7 +38,13 @@ class Server internal constructor(address: InetSocketAddress,
       try {
         val clientChannel = serverChannel.accept().get()
         val clientAddress = clientChannel.remoteAddress as InetSocketAddress
-        if (requestHandler.reject(clientAddress)) continue
+        if (requestHandler.reject(clientAddress)) {
+          try {
+            clientChannel.close()
+          }
+          catch (ignore: IOException) {}
+          continue
+        }
         launch(pool.asCoroutineDispatcher()) {
           val channel = if (ssl == null) {
             InsecureChannel(clientChannel, nodes, maxRequestSize)
@@ -111,6 +118,7 @@ class Server internal constructor(address: InetSocketAddress,
     job.cancel()
     looper.shutdownNow()
     while (!looper.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
+    try { serverChannel.close() } catch (ignore: IOException) {}
   }
 
 }
@@ -119,8 +127,10 @@ fun main(args: Array<String>) {
   val server = Config().
     readTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
     writeTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
-    certificate(java.io.File("localhost.p12")).port(8181).
+//    certificate(java.io.File("localhost.p12")).port(8181).
+    port(8080).
     startServer()
-  //Thread.sleep(15000L)
-  //server.stop()
+  Thread.sleep(15000L)
+  server.stop()
+  Thread.sleep(50000L)
 }

@@ -5,8 +5,8 @@ import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.runBlocking
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Test
+import org.junit.Assert.*
+import org.junit.Test
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -15,10 +15,10 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class HeadersTests {
 
-  @Test fun test1() {
+  @Test fun testFromList() {
     val headers =
       Headers(mutableListOf("Content-Type: text/plain", "Content-Length: 1024", "Test: 1", "test: 2"))
-    testBasic(headers)
+    test(headers)
     val channel0 = AsynchronousServerSocketChannel.open()
     channel0.bind(InetSocketAddress(InetAddress.getLocalHost(), 8080))
     val channel2 = AsynchronousSocketChannel.open()
@@ -38,14 +38,42 @@ class HeadersTests {
       //println(s1.replace("\r\n", "\\r\\n\n"))
       val split1 = s1.split("\r\n").toList()
       assertEquals(6, split1.size)
-      testBasic(Headers(split1.dropLast(2).toMutableList()))
+      test(Headers(split1.dropLast(2).toMutableList()))
     }
     finally {
       channel2.close()
     }
   }
 
-  private fun testBasic(headers: Headers) {
+  @Test fun testAdd() {
+    val headers = Headers()
+    assertEquals(0, headers.keys().size)
+    assertFalse(headers.has("Content-Type"))
+    assertNull(headers.value("Content-Type"))
+    assertEquals(0, headers.values("Content-Type").size)
+    headers.add("Content-Type", "text/plain")
+    assertTrue(headers.has("Content-Type"))
+    assertEquals("text/plain", headers.value("Content-Type"))
+    assertEquals(1, headers.values("Content-Type").size)
+    assertFalse(headers.has("Content-Length"))
+    assertNull(headers.value("Content-Length"))
+    assertEquals(0, headers.values("Content-Length").size)
+    headers.add("Content-Length: 1024")
+    assertTrue(headers.has("Content-Type"))
+    assertEquals("text/plain", headers.value("Content-Type"))
+    assertEquals(1, headers.values("Content-Type").size)
+    assertTrue(headers.has("Content-Length"))
+    assertEquals("1024", headers.value("Content-Length"))
+    assertEquals(1, headers.values("Content-Length").size)
+    headers.add("Test", "1")
+    headers.add("test: 2")
+    test(headers)
+  }
+
+  private fun test(headers: Headers) {
+    assertFalse(headers.has("ContentType"))
+    assertNull(headers.value("ContentType"))
+    assertEquals(0, headers.values("ContentType").size)
     sequenceOf("Content-Type", "CONTENT-TYPE", "content-type").forEach {
       assertTrue(headers.has(it))
       assertEquals("text/plain", headers.value(it))

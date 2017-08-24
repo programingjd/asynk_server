@@ -224,7 +224,9 @@ abstract class HttpRequestHandler: RequestHandler {
       410 to "Gone",
       413 to "Payload Too Large",
       414 to "URI Too Long",
-      431 to "Request Header Fields Too Large"
+      431 to "Request Header Fields Too Large",
+      500 to "Internal Server Error",
+      501 to "Not Implemented"
     )
 
     val ASCII = Charsets.US_ASCII

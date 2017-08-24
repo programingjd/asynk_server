@@ -30,7 +30,7 @@ dependencies {
   compile 'org.jetbrains.kotlin:kotlin-stdlib'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.17'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.17'
-  testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.0-RC2'
+  testCompile 'junit:junit:4.12'
 }
 
 kotlin {
@@ -72,20 +72,6 @@ test {
     def doc = org.jsoup.Jsoup.parse(html, 'UTF-8')
     int total = doc.select('#tests > .counter').text() as int
     int failed = doc.select('#failures > .counter').text() as int
-    html = jacocoTestReport.reports.html.entryPoint
-    doc = org.jsoup.Jsoup.parse(html, 'UTF-8')
-    def bars = doc.select('table.coverage>tbody>tr>.bar')
-    def firstBarImgs = bars.first().select('>img')
-    def lastBarImgs = bars.last().select('>img')
-    int missed =
-      (firstBarImgs.size() == 1 ? 0 : firstBarImgs.first().attr('title').replaceAll(',','') as int) +
-      (lastBarImgs.size() == 1 ? 0 : lastBarImgs.first().attr('title').replaceAll(',','') as int)
-    int all =
-      (firstBarImgs.last().attr('title').replaceAll(',','') as int) +
-      (lastBarImgs.last().attr('title').replaceAll(',','') as int) + missed
-    println missed
-    println all
-    int coverage = (100 * (all - missed) / all) as int
     def readme = file('README.md')
     def badge = { String label, String text, String color ->
       "https://img.shields.io/badge/_${label}_-${text}-${color}.png?style=flat"
@@ -98,8 +84,7 @@ test {
       switch (i) {
         case 0:
           return "![jcenter](${badge('jcenter', v, '6688ff')}) &#x2003; " +
-                 "![jcenter](${badge('Tests', "${total-failed}/${total}", color)}) &#x2003; " +
-                 "![jcenter](${badge('Coverage', "${coverage}%25", 'blue')})"
+                 "![jcenter](${badge('Tests', "${total-failed}/${total}", color)})"
         case 9: return "[Download](${download}) the latest jar."
         case 19: return "  <version>${v}</version>"
         case 32: return "  compile 'info.jdavid.ok.json:okjson:${v}'"
