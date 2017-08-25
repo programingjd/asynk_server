@@ -152,7 +152,7 @@ class HttpTests {
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
-            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\na: b\r\nCache-Control: no-store\n\r\nabcd".
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\na: b\r\nCache-Control: no-store\r\n\r\nabcd".
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(buffer, deadline)
@@ -170,7 +170,7 @@ class HttpTests {
         assertEquals(4, bytes.size)
         assertEquals("abcd", String(bytes))
         assertEquals("4", conn.getHeaderField("Content-Length"))
-        assertEquals("nocache", conn.getHeaderField("Cache-Control"))
+        assertEquals("no-store", conn.getHeaderField("Cache-Control"))
         assertEquals("b", conn.getHeaderField("a"))
       }
       finally {
