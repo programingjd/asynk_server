@@ -178,7 +178,7 @@ abstract class HttpRequestHandler: RequestHandler {
       buffer.limit(buffer.position())
       buffer.position(0)
       val bytes = ByteArray(buffer.limit())
-      buffer.get(bytes)
+      buffer.slice().get(bytes)
       println("Body:")
       println(String(bytes))
       handle(address, method, uri, headers, channel, writeDeadline, buffer)
