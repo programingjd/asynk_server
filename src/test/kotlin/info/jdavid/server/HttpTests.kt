@@ -160,7 +160,6 @@ class HttpTests {
     try {
       val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
       try {
-        conn.connect()
         assertEquals(200, conn.responseCode)
         assertEquals("OK", conn.responseMessage)
         val bytes = conn.inputStream.readAllBytes()
@@ -178,6 +177,52 @@ class HttpTests {
     finally {
       server.stop()
     }
+  }
+
+  @Test fun testPost() {
+    val server = Config().
+      port(port).
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptUri(method: String, uri: String) = -1
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          val array = ByteArray(buffer.remaining())
+          buffer.get(array)
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+          channel.write(array, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
+      try {
+        val post = "abcd".toByteArray()
+        conn.requestMethod = "POST"
+        conn.addRequestProperty("Content-Length", post.size.toString())
+        conn.doOutput = true
+        conn.outputStream.apply { write(post) }.close()
+        assertEquals(200, conn.responseCode)
+        assertEquals("OK", conn.responseMessage)
+        val bytes = conn.inputStream.readAllBytes()
+        assertEquals(4, bytes.size)
+        assertEquals("abcd", String(bytes))
+        assertEquals("4", conn.getHeaderField("Content-Length"))
+        assertEquals("no-store", conn.getHeaderField("Cache-Control"))
+      }
+      finally {
+        conn.disconnect()
+      }
+    }
+    finally {
+      server.stop()
+    }
+
   }
 
 }
