@@ -123,8 +123,6 @@ class HttpTests {
         conn.outputStream.apply { write(post) }.close()
         assertEquals(400, conn.responseCode)
         assertEquals("Bad Request", conn.responseMessage)
-        val bytes = conn.inputStream.readAllBytes()
-        assertEquals(0, bytes.size)
       }
       finally {
         conn.disconnect()

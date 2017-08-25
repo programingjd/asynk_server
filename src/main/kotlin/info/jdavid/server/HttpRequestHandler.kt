@@ -161,6 +161,7 @@ abstract class HttpRequestHandler: RequestHandler {
       //if (encoding?.endsWith(CHUNKED) == true) return handleError(channel, writeTimeoutMillis, 501)
       if (encoding != null && encoding != IDENTITY) return handleError(channel, writeDeadline, 501)
       val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
+      if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
       if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
       capacity = contentLength - length
       // Rest of body
