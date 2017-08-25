@@ -135,9 +135,10 @@ class Server internal constructor(address: InetSocketAddress,
         }
       }
       catch (ignore: CancellationException) {
+        println("*** canceled ***")
         accepted.close()
         closer.cancel()
-        if (pending.isEmpty && closing.isEmpty) closing.close()
+        if (pending.isEmpty) closing.close()
       }
     }
   }()
@@ -153,6 +154,7 @@ class Server internal constructor(address: InetSocketAddress,
   }
 
   fun stop() {
+    println("*** stop ***")
     acceptor.cancel()
     try { serverChannel.close() } catch (ignore: IOException) {}
     while (!acceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
