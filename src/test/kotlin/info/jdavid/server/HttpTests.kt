@@ -1,10 +1,7 @@
 package info.jdavid.server
 
-import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Test
 import org.junit.Assert.*
-import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -12,8 +9,6 @@ import java.net.InetSocketAddress
 import java.net.SocketException
 import java.net.URL
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousFileChannel
-import java.nio.file.StandardOpenOption
 
 class HttpTests {
 
