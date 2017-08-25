@@ -25,7 +25,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = true
+        /*suspend*/ override fun reject(address: InetSocketAddress) = true
       }).
       startServer()
     try {
@@ -51,7 +51,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = false
+        /*suspend*/ override fun reject(address: InetSocketAddress) = false
       }).
       startServer()
     try {
@@ -76,7 +76,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = false
+        /*suspend*/ override fun reject(address: InetSocketAddress) = false
       }).
       startServer()
     try {
@@ -102,7 +102,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = false
+        /*suspend*/ override fun reject(address: InetSocketAddress) = false
       }).
       startServer()
     try {
@@ -128,7 +128,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = false
+        /*suspend*/ override fun reject(address: InetSocketAddress) = false
       }).
       startServer()
     try {
@@ -152,7 +152,7 @@ class HttpTests {
           )
           channel.write(buffer, deadline)
         }
-        suspend override fun reject(address: InetSocketAddress) = false
+        /*suspend*/ override fun reject(address: InetSocketAddress) = false
       }).
       startServer()
     try {

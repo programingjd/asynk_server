@@ -12,7 +12,7 @@ interface RequestHandler {
 
   fun enableHttp2(): Boolean
 
-  suspend fun reject(address: InetSocketAddress): Boolean
+  /*suspend*/ fun reject(address: InetSocketAddress): Boolean
 
   suspend fun handle(channel: Channel, connection: Closeable?, address: InetSocketAddress,
                      readDeadline: Long, writeDeadline: Long,
@@ -20,7 +20,7 @@ interface RequestHandler {
 
   companion object {
     val DEFAULT = object: HttpRequestHandler() {
-      suspend override fun reject(address: InetSocketAddress): Boolean {
+      /*suspend*/ override fun reject(address: InetSocketAddress): Boolean {
         println("Client: ${address.address}")
         return false
       }

@@ -1,16 +1,20 @@
 package info.jdavid.server
 
+import kotlinx.coroutines.experimental.CoroutineStart
 import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListNode
 import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.experimental.nio.aAccept
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.StandardSocketOptions
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.InterruptedByTimeoutException
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
-import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
@@ -29,14 +33,17 @@ class Server internal constructor(address: InetSocketAddress,
   })
   private val dispatcher = looper.asCoroutineDispatcher()
   private val serverChannel = openChannel(address)
+  private val pool = Executors.newScheduledThreadPool(cores * 2)  //ForkJoinPool(cores)
+  private val jobs = LockFreeLinkedListHead()
   private val job = launch(dispatcher) {
     val ssl = SSL.createSSLContext(cert())
-    val pool = ForkJoinPool(cores)
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
     while (true) {
       try {
-        val clientChannel = serverChannel.accept().get()
+        println("accepting")
+        val clientChannel = serverChannel.aAccept()
+        println("accepted")
         val clientAddress = clientChannel.remoteAddress as InetSocketAddress
         if (requestHandler.reject(clientAddress)) {
           try {
@@ -45,7 +52,8 @@ class Server internal constructor(address: InetSocketAddress,
           catch (ignore: IOException) {}
           continue
         }
-        launch(pool.asCoroutineDispatcher()) {
+        val p = pool.asCoroutineDispatcher()
+        launch(p) {
           val channel = if (ssl == null) {
             InsecureChannel(clientChannel, nodes, maxRequestSize)
           }
@@ -54,40 +62,56 @@ class Server internal constructor(address: InetSocketAddress,
                           nodes, maxRequestSize)
           }
           try {
-            val start = System.nanoTime()
-            channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                          start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-            val connection = requestHandler.connection(channel, readTimeoutMillis, writeTimeoutMillis)
-            while (true) {
+            val async = async(p, CoroutineStart.LAZY) {
               try {
-                val now = System.nanoTime()
-                if (!requestHandler.handle(channel, connection, clientAddress,
-                                           now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                                           now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
-                                           maxHeaderSize, channel.buffer())) {
-                  break
+                val start = System.nanoTime()
+                channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                              start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+                val connection = requestHandler.connection(channel, readTimeoutMillis, writeTimeoutMillis)
+                while (true) {
+                  try {
+                    val now = System.nanoTime()
+                    if (!requestHandler.handle(channel, connection, clientAddress,
+                                               now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                                               now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
+                                               maxHeaderSize, channel.buffer())) {
+                      break
+                    }
+                  }
+                  finally {
+                    channel.next()
+                  }
                 }
+                val stop = System.nanoTime()
+                connection?.close()
+                channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                             stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
               }
-              finally {
-                channel.next()
+              catch (ignore: IOException) {
+                ignore.printStackTrace()
+                println("Connection closed prematurely")
+              }
+              catch (ignored: InterruptedByTimeoutException) {
+                println("Timeout")
               }
             }
-            val stop = System.nanoTime()
-            connection?.close()
-            channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                         stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-          }
-          catch (ignore: IOException) {
-            ignore.printStackTrace()
-            println("Connection closed prematurely")
-          }
-          catch (ignored: InterruptedByTimeoutException) {
-            println("Timeout")
+            val node = Node(async)
+            jobs.addLast(node)
+            try {
+              async.start()
+              async.await()
+            }
+            finally {
+              println("remove")
+              node.remove()
+            }
           }
           finally {
+            println("closing")
             channel.recycle()
             launch(dispatcher) {
               try {
+                println("close")
                 clientChannel.close()
               }
               catch (ignore: IOException) {}
@@ -95,7 +119,12 @@ class Server internal constructor(address: InetSocketAddress,
           }
         }
       }
-      catch (e: InterruptedException) {
+      catch (e: CancellationException) {
+        println("canceled in")
+        jobs.forEach<Node> {
+          println("canceling")
+          it.job.cancel()
+        }
         pool.shutdownNow()
         while (!pool.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
         break
@@ -120,6 +149,8 @@ class Server internal constructor(address: InetSocketAddress,
     while (!looper.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
     try { serverChannel.close() } catch (ignore: IOException) {}
   }
+
+  private class Node(val job: Job): LockFreeLinkedListNode()
 
 }
 
