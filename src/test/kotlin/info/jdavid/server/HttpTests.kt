@@ -21,6 +21,7 @@ open class HttpTests {
   @Test fun testRejectClientAddress() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -47,6 +48,7 @@ open class HttpTests {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptUri(method: String, uri: String) = 404
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -73,6 +75,7 @@ open class HttpTests {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptHeaders(method: String, uri: String, headers: Headers) = 403
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -100,6 +103,7 @@ open class HttpTests {
       requestHandler(object: HttpRequestHandler() {
         override fun acceptBody(method: String) = 400
         override fun acceptUri(method: String, uri: String) = -1
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -136,6 +140,7 @@ open class HttpTests {
   @Test fun testEmptyOK() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -160,6 +165,7 @@ open class HttpTests {
   @Test fun testEmptyNotFound() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -185,6 +191,7 @@ open class HttpTests {
   @Test fun testEmptyError() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -210,6 +217,7 @@ open class HttpTests {
   @Test fun testSimpleOK() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -233,6 +241,7 @@ open class HttpTests {
   @Test fun testHeaders() {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
@@ -271,6 +280,7 @@ open class HttpTests {
     val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptUri(method: String, uri: String) = -1
+        override fun enableHttp2() = false
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
           val array = ByteArray(buffer.remaining())
