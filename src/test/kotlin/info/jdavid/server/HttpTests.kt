@@ -10,13 +10,16 @@ import java.net.SocketException
 import java.net.URL
 import java.nio.ByteBuffer
 
-class HttpTests {
+open class HttpTests {
 
   private val port = 8085
 
+  protected open fun scheme() = "http"
+
+  protected open fun config() = Config().port(port)
+
   @Test fun testRejectClientAddress() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -31,7 +34,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
+      URL("${scheme()}://localhost:${port}").readBytes()
       fail()
     }
     catch (ignore: SocketException) {}
@@ -41,8 +44,7 @@ class HttpTests {
   }
 
   @Test fun testRejectMethod() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptUri(method: String, uri: String) = 404
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
@@ -58,7 +60,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
+      URL("${scheme()}://localhost:${port}").readBytes()
       fail()
     }
     catch (ignore: FileNotFoundException) {}
@@ -68,8 +70,7 @@ class HttpTests {
   }
 
   @Test fun testRejectHeaders() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptHeaders(method: String, uri: String, headers: Headers) = 403
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
@@ -85,7 +86,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
+      URL("${scheme()}://localhost:${port}").readBytes()
       fail()
     }
     catch (ignore: IOException) {}
@@ -95,8 +96,7 @@ class HttpTests {
   }
 
   @Test fun testRejectBody() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptBody(method: String) = 400
         override fun acceptUri(method: String, uri: String) = -1
@@ -113,8 +113,8 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
-      val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
+      URL("${scheme()}://localhost:${port}").readBytes()
+      val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
       try {
         val post = "abcd".toByteArray()
         conn.requestMethod = "POST"
@@ -134,8 +134,7 @@ class HttpTests {
   }
 
   @Test fun testEmptyOK() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -150,7 +149,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      val bytes = URL("http://localhost:${port}").readBytes()
+      val bytes = URL("${scheme()}://localhost:${port}").readBytes()
       assertEquals(0, bytes.size)
     }
     finally {
@@ -159,8 +158,7 @@ class HttpTests {
   }
 
   @Test fun testEmptyNotFound() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -175,7 +173,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
+      URL("${scheme()}://localhost:${port}").readBytes()
       fail()
     }
     catch (ignore: FileNotFoundException) {}
@@ -185,8 +183,7 @@ class HttpTests {
   }
 
   @Test fun testEmptyError() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -201,7 +198,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      URL("http://localhost:${port}").readBytes()
+      URL("${scheme()}://localhost:${port}").readBytes()
       fail()
     }
     catch (ignore: IOException) {}
@@ -211,8 +208,7 @@ class HttpTests {
   }
 
   @Test fun testSimpleOK() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -227,7 +223,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      assertEquals("abcd", URL("http://localhost:${port}").readText())
+      assertEquals("abcd", URL("${scheme()}://localhost:${port}").readText())
     }
     finally {
       server.stop()
@@ -235,8 +231,7 @@ class HttpTests {
   }
 
   @Test fun testHeaders() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
                                     channel: Channel, deadline: Long, buffer: ByteBuffer) {
@@ -251,7 +246,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
+      val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
       try {
         assertEquals(200, conn.responseCode)
         assertEquals("OK", conn.responseMessage)
@@ -265,7 +260,7 @@ class HttpTests {
       finally {
         conn.disconnect()
       }
-      assertEquals("abcd", URL("http://localhost:${port}").readText())
+      assertEquals("abcd", URL("${scheme()}://localhost:${port}").readText())
     }
     finally {
       server.stop()
@@ -273,8 +268,7 @@ class HttpTests {
   }
 
   @Test fun testPost() {
-    val server = Config().
-      port(port).
+    val server = config().
       requestHandler(object: HttpRequestHandler() {
         override fun acceptUri(method: String, uri: String) = -1
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
@@ -293,7 +287,7 @@ class HttpTests {
       }).
       startServer()
     try {
-      val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
+      val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
       try {
         val post = "abcd".toByteArray()
         conn.requestMethod = "POST"
