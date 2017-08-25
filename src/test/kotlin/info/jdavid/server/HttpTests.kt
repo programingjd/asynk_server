@@ -14,7 +14,7 @@ class HttpTests {
 
   private val port = 8085
 
-  @Test fun testReject() {
+  @Test fun testRejectClientAddress() {
     val server = Config().
       port(port).
       requestHandler(object: HttpRequestHandler() {
@@ -35,6 +35,101 @@ class HttpTests {
       fail()
     }
     catch (ignore: SocketException) {}
+    finally {
+      server.stop()
+    }
+  }
+
+  @Test fun testRejectMethod() {
+    val server = Config().
+      port(port).
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptUri(method: String, uri: String) = 404
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      URL("http://localhost:${port}").readBytes()
+      fail()
+    }
+    catch (ignore: FileNotFoundException) {}
+    finally {
+      server.stop()
+    }
+  }
+
+  @Test fun testRejectHeaders() {
+    val server = Config().
+      port(port).
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptHeaders(method: String, uri: String, headers: Headers) = 403
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      URL("http://localhost:${port}").readBytes()
+      fail()
+    }
+    catch (ignore: IOException) {}
+    finally {
+      server.stop()
+    }
+  }
+
+  @Test fun testRejectBody() {
+    val server = Config().
+      port(port).
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptBody(method: String) = 400
+        override fun acceptUri(method: String, uri: String) = -1
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      URL("http://localhost:${port}").readBytes()
+      val conn = URL("http://localhost:${port}").openConnection() as HttpURLConnection
+      try {
+        val post = "abcd".toByteArray()
+        conn.requestMethod = "POST"
+        conn.addRequestProperty("Content-Length", post.size.toString())
+        conn.doOutput = true
+        conn.outputStream.apply { write(post) }.close()
+        assertEquals(400, conn.responseCode)
+        assertEquals("Bad Request", conn.responseMessage)
+        val bytes = conn.inputStream.readAllBytes()
+        assertEquals(0, bytes.size)
+      }
+      finally {
+        conn.disconnect()
+      }
+    }
     finally {
       server.stop()
     }
@@ -222,7 +317,6 @@ class HttpTests {
     finally {
       server.stop()
     }
-
   }
 
 }
