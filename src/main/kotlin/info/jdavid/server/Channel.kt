@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 abstract class Channel internal constructor() {
 
-  abstract suspend fun read( deadline: Long): ByteBuffer
+  abstract suspend fun read(deadline: Long): ByteBuffer
 
   abstract suspend fun read(bytes: Int, deadline: Long): ByteBuffer
 
