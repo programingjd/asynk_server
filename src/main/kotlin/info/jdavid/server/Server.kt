@@ -1,11 +1,9 @@
 package info.jdavid.server
 
-import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.NonCancellable
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
-import kotlinx.coroutines.experimental.internal.LockFreeLinkedListNode
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
 import kotlinx.coroutines.experimental.run
@@ -43,7 +41,6 @@ class Server internal constructor(address: InetSocketAddress,
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
     val accepted = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
-    val pending = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
     val closing = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
     launch(handleDispatcher) outer@ {
       while (true) {
@@ -104,16 +101,17 @@ class Server internal constructor(address: InetSocketAddress,
           finally {
             println("*** closing ***")
             closing.send(clientChannel)
-            if (pending.receive() != clientChannel) throw RuntimeException()
           }
         }
       }
     }
+    var pending = 0
     val closer = launch(acceptDispatcher) {
       run(NonCancellable) {
-        while (isActive || !pending.isEmpty || !closing.isEmpty) {
-          println("${isActive} ${pending.isEmpty} ${closing.isEmpty}")
+        while (isActive || pending > 0 || !closing.isEmpty) {
+          println("${isActive} ${pending} ${closing.isEmpty}")
           val clientChannel = closing.receiveOrNull() ?: break
+          --pending
           println("*** closed ***")
           try { clientChannel.close() } catch (ignore: IOException) {}
         }
@@ -121,7 +119,6 @@ class Server internal constructor(address: InetSocketAddress,
         handleThreads.shutdownNow()
         while (!handleThreads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
         closing.close()
-        pending.close()
         acceptThread.shutdownNow()
       }
     }
@@ -130,7 +127,8 @@ class Server internal constructor(address: InetSocketAddress,
         while (true) {
           val clientChannel = serverChannel.aAccept()
           println("*** accepted *** ")
-          pending.send(clientChannel)
+          println("+1 pending")
+          ++pending
           accepted.send(clientChannel)
         }
       }
@@ -138,7 +136,7 @@ class Server internal constructor(address: InetSocketAddress,
         println("*** canceled ***")
         accepted.close()
         closer.cancel()
-        if (pending.isEmpty) closing.close()
+        if (pending == 0) closing.close()
       }
     }
   }()
@@ -159,8 +157,6 @@ class Server internal constructor(address: InetSocketAddress,
     try { serverChannel.close() } catch (ignore: IOException) {}
     while (!acceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
   }
-
-  private class Node(val job: Job): LockFreeLinkedListNode()
 
 }
 
