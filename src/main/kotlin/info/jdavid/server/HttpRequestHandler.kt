@@ -187,7 +187,7 @@ abstract class HttpRequestHandler: RequestHandler {
         if (abort(channel, writeDeadline, acceptBody(method))) return false
         val sb = StringBuilder(12)
         var k = 0
-        var max = buffer.position()
+        var max = buffer.position() - 1
         while (true) {
           var n = 0
           while (true) {
@@ -204,7 +204,7 @@ abstract class HttpRequestHandler: RequestHandler {
             sb.append(b.toChar())
             if (b == LF) {
               if (buffer[k - 2] != CR) return handleError(channel, writeDeadline, 400)
-              var end = k - 2
+              var end = sb.length - 2
               var start = 0
               while (start < end) {
                 val c = sb[start].toByte()
@@ -219,7 +219,7 @@ abstract class HttpRequestHandler: RequestHandler {
               break
             }
           }
-          while (max < k + n + 2) {
+          while (max < k + n + 1) {
             segment = channel.read(readDeadline)
             length = segment.remaining()
             if (length == 0) return handleError(channel, writeDeadline, 400)
@@ -229,7 +229,6 @@ abstract class HttpRequestHandler: RequestHandler {
             max += length
           }
           k += n
-          if (buffer[k++] != CR || buffer[k++] != LF) return handleError(channel, writeDeadline, 400)
           if (n == 0) {
             while (true) {
               if (k > max) {
@@ -249,6 +248,9 @@ abstract class HttpRequestHandler: RequestHandler {
             }
             if (k < max) return handleError(channel, writeDeadline, 400)
             break
+          }
+          else {
+            if (buffer[k++] != CR || buffer[k++] != LF) return handleError(channel, writeDeadline, 400)
           }
         }
         buffer.limit(buffer.position())
