@@ -305,6 +305,7 @@ abstract class HttpRequestHandler: RequestHandler {
 
   companion object {
     val HTTP_STATUSES = mapOf(
+      100 to "Continue",
       200 to "OK",
       301 to "Moved Permanently",
       302 to "Found",
