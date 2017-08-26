@@ -188,6 +188,7 @@ abstract class HttpRequestHandler: RequestHandler {
         val sb = StringBuilder(12)
         var k = 0
         var max = buffer.position() - 1
+        var p = 0
         while (true) {
           var n = 0
           while (true) {
@@ -247,9 +248,19 @@ abstract class HttpRequestHandler: RequestHandler {
               }
             }
             if (k < max) return handleError(channel, writeDeadline, 400)
+            buffer.limit(p)
             break
           }
           else {
+            val position = buffer.position()
+            buffer.position(k - n)
+            buffer.limit(k)
+            val slice = buffer.slice()
+            buffer.position(p)
+            buffer.put(slice)
+            p += n
+            buffer.limit(buffer.capacity())
+            buffer.position(position)
             if (buffer[k++] != CR || buffer[k++] != LF) return handleError(channel, writeDeadline, 400)
           }
         }
