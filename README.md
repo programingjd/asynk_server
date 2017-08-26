@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-1.0.0-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-22/22-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-1.0.0-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-24/24-green.png?style=flat)
 # server
 An http/http2 server in kotlin using both threads and coroutines for maximum performance.
 
