@@ -158,32 +158,75 @@ abstract class HttpRequestHandler: RequestHandler {
       capacity -= length
       if (capacity < 0) return handleError(channel, writeDeadline, 413)
       val encoding = headers.value(Headers.TRANSFER_ENCODING)
-      //if (encoding?.endsWith(CHUNKED) == true) return handleError(channel, writeTimeoutMillis, 501)
-      if (encoding != null && encoding != IDENTITY) return handleError(channel, writeDeadline, 501)
-      val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
-      if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
-      if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
-      capacity = contentLength - length
-      // Rest of body
-      while (capacity > 0) {
-        segment.rewind()
-        segment = channel.read(readDeadline)
-        length = segment.remaining()
-        if (length == 0) {
-          break
+      if (encoding == null || encoding == IDENTITY) {
+        val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
+        if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
+        if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
+        capacity = contentLength - length
+        // Rest of body
+        while (capacity > 0) {
+          segment = channel.read(readDeadline)
+          length = segment.remaining()
+          if (length == 0) {
+            break
+          }
+          capacity -= length
+          if (capacity < 0) return handleError(channel, writeDeadline, 413)
+          buffer.put(segment)
         }
-        capacity -= length
-        if (capacity < 0) return handleError(channel, writeDeadline, 413)
-        buffer.put(segment)
+        buffer.limit(buffer.position())
+        buffer.position(0)
+        val bytes = ByteArray(buffer.limit())
+        buffer.slice().get(bytes)
+        println("Body:")
+        println(String(bytes))
+        handle(address, method, uri, headers, channel, writeDeadline, buffer)
+        return true
       }
-      buffer.limit(buffer.position())
-      buffer.position(0)
-      val bytes = ByteArray(buffer.limit())
-      buffer.slice().get(bytes)
-      println("Body:")
-      println(String(bytes))
-      handle(address, method, uri, headers, channel, writeDeadline, buffer)
-      return true
+      else if (encoding == CHUNKED) {
+        if (abort(channel, writeDeadline, acceptBody(method))) return false
+        val sb = StringBuilder(12)
+        var k = 0
+        var max = buffer.position()
+        while (true) {
+          var n = 0
+          while (true) {
+            if (k > max) {
+              segment = channel.read(readDeadline)
+              length = segment.remaining()
+              if (length == 0) return handleError(channel, writeDeadline, 400)
+              capacity -= length
+              if (capacity < 0) return handleError(channel, writeDeadline, 413)
+              buffer.put(segment)
+              max += length
+            }
+            val b = buffer[k++]
+            sb.append(b.toChar())
+            if (b == LF) {
+              if (buffer[k - 2] != CR) return handleError(channel, writeDeadline, 400)
+              var end = k - 2
+              var start = 0
+              while (start < end) {
+                val c = sb[start].toByte()
+                if (c == SPACE || c == HTAB) ++start else break
+              }
+              while (end > start) {
+                val c = sb[end].toByte()
+                if (c == SPACE || c == HTAB) --end else break
+              }
+              n = Integer.parseInt(sb, start, end, 16)
+              sb.delete(0, sb.length)
+              break
+            }
+          }
+
+
+
+        }
+      }
+      else {
+        return handleError(channel, writeDeadline, 501)
+      }
     }
     catch (e: InterruptedByTimeoutException) {
       return handleError(channel, writeDeadline, 408)
@@ -242,6 +285,7 @@ abstract class HttpRequestHandler: RequestHandler {
     private val CR: Byte = 0x0d
     private val LF: Byte = 0x0a
     private val SPACE: Byte = 0x20
+    private val HTAB: Byte = 0x09
     private val H_UPPER: Byte = 0x48
     private val T_UPPER: Byte = 0x54
     private val P_UPPER: Byte = 0x50
