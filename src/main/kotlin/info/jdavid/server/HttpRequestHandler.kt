@@ -171,7 +171,7 @@ abstract class HttpRequestHandler: RequestHandler {
             break
           }
           capacity -= length
-          if (capacity < 0) return handleError(channel, writeDeadline, 413)
+          if (capacity < 0) return handleError(channel, writeDeadline, 400)
           buffer.put(segment)
         }
         buffer.limit(buffer.position())
@@ -219,10 +219,46 @@ abstract class HttpRequestHandler: RequestHandler {
               break
             }
           }
-
-
-
+          while (max < k + n + 2) {
+            segment = channel.read(readDeadline)
+            length = segment.remaining()
+            if (length == 0) return handleError(channel, writeDeadline, 400)
+            capacity -= length
+            if (capacity < 0) return handleError(channel, writeDeadline, 413)
+            buffer.put(segment)
+            max += length
+          }
+          k += n
+          if (buffer[k++] != CR || buffer[k++] != LF) return handleError(channel, writeDeadline, 400)
+          if (n == 0) {
+            while (true) {
+              if (k > max) {
+                segment = channel.read(readDeadline)
+                length = segment.remaining()
+                if (length == 0) return handleError(channel, writeDeadline, 400)
+                capacity -= length
+                if (capacity < 0) return handleError(channel, writeDeadline, 413)
+                buffer.put(segment)
+                max += length
+              }
+              val b = buffer[k++]
+              if (b == LF) {
+                if (buffer[k - 2] != CR) return handleError(channel, writeDeadline, 400)
+                if (buffer[k - 3] == LF) break
+              }
+            }
+            if (k < max) return handleError(channel, writeDeadline, 400)
+            break
+          }
         }
+        buffer.limit(buffer.position())
+        buffer.position(0)
+        val bytes = ByteArray(buffer.limit())
+        buffer.slice().get(bytes)
+        println("Body:")
+        println(String(bytes))
+        handle(address, method, uri, headers, channel, writeDeadline, buffer)
+        return true
       }
       else {
         return handleError(channel, writeDeadline, 501)
