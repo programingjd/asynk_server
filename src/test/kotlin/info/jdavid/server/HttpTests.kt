@@ -344,18 +344,20 @@ open class HttpTests {
     try {
       val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
       try {
-        val post = "abcd".toByteArray()
+        val post = "abcdefghijklmnopqrstuvwxyz1234567890".toByteArray()
         conn.requestMethod = "POST"
         conn.addRequestProperty("Content-Length", post.size.toString())
-        conn.setChunkedStreamingMode(1)
+        conn.setChunkedStreamingMode(10)
         conn.doOutput = true
-        conn.outputStream.apply { write(post) }.close()
+        conn.outputStream.apply {
+          write(post)
+        }.close()
         assertEquals(200, conn.responseCode)
         assertEquals("OK", conn.responseMessage)
         val bytes = conn.inputStream.readAllBytes()
-        assertEquals(4, bytes.size)
-        assertEquals("abcd", String(bytes))
-        assertEquals("4", conn.getHeaderField("Content-Length"))
+        assertEquals(36, bytes.size)
+        assertEquals("abcdefghijklmnopqrstuvwxyz1234567890", String(bytes))
+        assertEquals("36", conn.getHeaderField("Content-Length"))
         assertEquals("no-store", conn.getHeaderField("Cache-Control"))
       }
       finally {
