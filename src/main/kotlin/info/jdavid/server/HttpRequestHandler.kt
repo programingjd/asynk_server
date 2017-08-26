@@ -162,6 +162,9 @@ abstract class HttpRequestHandler: RequestHandler {
         val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
         if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
         if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
+        if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
+          return handleError(channel, writeDeadline, if (length > 0 || contentLength == 0) 400 else 100)
+        }
         capacity = contentLength - length
         // Rest of body
         while (capacity > 0) {
@@ -328,6 +331,7 @@ abstract class HttpRequestHandler: RequestHandler {
 
     private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
 
+    private val CONTINUE = "100-continue"
     private val IDENTITY = "identity"
     private val CHUNKED = "chunked"
 
