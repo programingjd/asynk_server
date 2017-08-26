@@ -163,7 +163,8 @@ abstract class HttpRequestHandler: RequestHandler {
         if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
         if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
-          return handleError(channel, writeDeadline, if (length > 0 || contentLength == 0) 400 else 100)
+          if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
+          return handleContinue(channel, writeDeadline)
         }
         capacity = contentLength - length
         // Rest of body
@@ -188,12 +189,16 @@ abstract class HttpRequestHandler: RequestHandler {
       }
       else if (encoding == CHUNKED) {
         if (abort(channel, writeDeadline, acceptBody(method))) return false
+        if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
+          if (length > 0) return handleError(channel, writeDeadline, 400)
+          return handleContinue(channel, writeDeadline)
+        }
         val sb = StringBuilder(12)
         var k = 0
         var max = buffer.position() - 1
         var p = 0
         while (true) {
-          var n = 0
+          var n: Int
           while (true) {
             if (k > max) {
               segment = channel.read(readDeadline)
@@ -301,6 +306,13 @@ abstract class HttpRequestHandler: RequestHandler {
     channel.write("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), writeDeadline)
     channel.write(EMPTY_BODY_HEADER, writeDeadline)
     return false
+  }
+
+  private suspend fun handleContinue(channel: Channel, writeDeadline: Long): Boolean {
+    val message = HTTP_STATUSES[100] ?: throw IllegalArgumentException()
+    channel.write("HTTP/1.1 100 ${message}\r\n".toByteArray(ASCII), writeDeadline)
+    channel.write(EMPTY_BODY_HEADER, writeDeadline)
+    return true
   }
 
   companion object {
