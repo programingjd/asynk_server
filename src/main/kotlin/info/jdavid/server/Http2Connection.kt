@@ -6,6 +6,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+@Suppress("UsePropertyAccessSyntax")
 internal class Http2Connection(val channel: Channel,
                                val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Closeable {
   private var nextStreamId = 2
@@ -24,6 +25,8 @@ internal class Http2Connection(val channel: Channel,
     //writeSettings(Settings(), writeDeadline)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     readPreface(readDeadline)
+    readFrame(readDeadline)
+
     TODO()
   }
 
@@ -47,8 +50,45 @@ internal class Http2Connection(val channel: Channel,
   }
 
   suspend private fun readPreface(deadline: Long) {
-    val segment = channel.read(CONNECTION_PREFACE.size, deadline)
-    if (segment.equals(ByteBuffer.wrap(CONNECTION_PREFACE))) throw IOException()
+    channel.read(CONNECTION_PREFACE.size, deadline)
+  }
+
+  suspend private fun readFrame(deadline: Long) {
+    val segment = channel.read(9, deadline)
+    segment.rewind().limit(segment.capacity())
+    val length = (segment.get().toInt() and 0xff shl 16) or
+                 (segment.get().toInt() and 0xff shl 8) or
+                 (segment.get().toInt() and 0xff)
+    val type = segment.get().toInt().and(0xff).toByte()
+    val flags = segment.get().toInt().and(0xff)
+    val streamId = segment.getInt() and 0x7fffffff
+    println(streamId)
+    when (streamId) {
+      Types.DATA -> TODO()
+      Types.HEADERS -> TODO()
+      Types.PRIORITY -> TODO()
+      Types.RST_STREAM -> TODO()
+      Types.SETTINGS -> {
+        if (flags and 0x01 == 0) readSettings(length, deadline)
+      }
+      Types.PUSH_PROMISE -> TODO()
+      Types.PING -> TODO()
+      Types.GOAWAY -> TODO()
+      Types.WINDOW_UPDATE -> TODO()
+      else -> TODO()
+    }
+  }
+
+  suspend private fun readSettings(length: Int, deadline: Long) {
+    val segment = channel.read(length * 6, deadline)
+    segment.rewind().limit(segment.capacity())
+    val settings = Settings()
+    for (i in 0 until length) {
+      val id = segment.getShort().toInt()
+      val value = segment.getInt()
+      settings[id] = value
+    }
+    // set settings
   }
 
   private fun frameHeader(streamId: Int, length: Int, type: Int, flags: Int): ByteBuffer {
