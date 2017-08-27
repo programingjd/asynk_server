@@ -20,8 +20,8 @@ internal class Http2Connection(val channel: Channel,
 
   suspend fun start(): Http2Connection {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
-    writePreface(writeDeadline)
-    writeSettings(Settings(), writeDeadline)
+    //writePreface(writeDeadline)
+    //writeSettings(Settings(), writeDeadline)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     readPreface(readDeadline)
     TODO()
