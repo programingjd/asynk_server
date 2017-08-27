@@ -164,7 +164,7 @@ abstract class HttpRequestHandler: RequestHandler {
         if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
-          return handleContinue(channel, writeDeadline)
+          channel.write(CONTINUE_RESPONSE, writeDeadline)
         }
         capacity = contentLength - length
         // Rest of body
@@ -191,7 +191,7 @@ abstract class HttpRequestHandler: RequestHandler {
         if (abort(channel, writeDeadline, acceptBody(method))) return false
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           if (length > 0) return handleError(channel, writeDeadline, 400)
-          return handleContinue(channel, writeDeadline)
+          channel.write(CONTINUE_RESPONSE, writeDeadline)
         }
         val sb = StringBuilder(12)
         var k = 0
@@ -308,13 +308,6 @@ abstract class HttpRequestHandler: RequestHandler {
     return false
   }
 
-  private suspend fun handleContinue(channel: Channel, writeDeadline: Long): Boolean {
-    val message = HTTP_STATUSES[100] ?: throw IllegalArgumentException()
-    channel.write("HTTP/1.1 100 ${message}\r\n".toByteArray(ASCII), writeDeadline)
-    channel.write(EMPTY_BODY_HEADER, writeDeadline)
-    return true
-  }
-
   companion object {
     val HTTP_STATUSES = mapOf(
       100 to "Continue",
@@ -342,6 +335,7 @@ abstract class HttpRequestHandler: RequestHandler {
     val UTF_8 = Charsets.UTF_8
     val ISO_8859_1 = Charsets.ISO_8859_1
 
+    private val CONTINUE_RESPONSE = "HTTP/1.1 100 Continue\r\n\r\n".toByteArray(ASCII)
     private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
 
     private val CONTINUE = "100-continue"
