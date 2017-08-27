@@ -99,7 +99,6 @@ class Server internal constructor(address: InetSocketAddress,
             }
           }
           finally {
-            println("*** closing ***")
             closing.send(clientChannel)
           }
         }
@@ -109,13 +108,10 @@ class Server internal constructor(address: InetSocketAddress,
     val closer = launch(acceptDispatcher) {
       run(NonCancellable) {
         while (isActive || pending > 0 || !closing.isEmpty) {
-          println("${isActive} ${pending} ${closing.isEmpty}")
           val clientChannel = closing.receiveOrNull() ?: break
           --pending
-          println("*** closed ***")
           try { clientChannel.close() } catch (ignore: IOException) {}
         }
-        println("*** shutdown ***")
         handleThreads.shutdownNow()
         while (!handleThreads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
         closing.close()
@@ -126,14 +122,11 @@ class Server internal constructor(address: InetSocketAddress,
       try {
         while (true) {
           val clientChannel = serverChannel.aAccept()
-          println("*** accepted *** ")
-          println("+1 pending")
           ++pending
           accepted.send(clientChannel)
         }
       }
       catch (ignore: CancellationException) {
-        println("*** canceled ***")
         accepted.close()
         closer.cancel()
         if (pending == 0) closing.close()
@@ -152,7 +145,6 @@ class Server internal constructor(address: InetSocketAddress,
   }
 
   fun stop() {
-    println("*** stop ***")
     acceptor.cancel()
     try { serverChannel.close() } catch (ignore: IOException) {}
     while (!acceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}

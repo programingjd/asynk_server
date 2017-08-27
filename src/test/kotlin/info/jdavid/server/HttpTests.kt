@@ -369,4 +369,42 @@ open class HttpTests {
     }
   }
 
+  @Test fun testPostContinueError() {
+    val server = config().
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptUri(method: String, uri: String) = -1
+        override fun enableHttp2() = false
+        override fun acceptHeaders(method: String, uri: String, headers: Headers) = 401
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          val array = ByteArray(buffer.remaining())
+          buffer.get(array)
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+          channel.write(array, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
+      try {
+        conn.requestMethod = "POST"
+        conn.addRequestProperty("Expect", "100-Continue")
+        conn.doOutput = false
+        assertEquals(401, conn.responseCode)
+      }
+      finally {
+        conn.disconnect()
+      }
+    }
+    finally {
+      server.stop()
+    }
+  }
+
 }
