@@ -349,9 +349,7 @@ open class HttpTests {
         conn.addRequestProperty("Content-Length", post.size.toString())
         conn.setChunkedStreamingMode(10)
         conn.doOutput = true
-        conn.outputStream.apply {
-          write(post)
-        }.close()
+        conn.outputStream.apply { write(post) }.close()
         assertEquals(200, conn.responseCode)
         assertEquals("OK", conn.responseMessage)
         val bytes = conn.inputStream.readAllBytes()
@@ -397,6 +395,52 @@ open class HttpTests {
         conn.addRequestProperty("Expect", "100-Continue")
         conn.doOutput = false
         assertEquals(401, conn.responseCode)
+      }
+      finally {
+        conn.disconnect()
+      }
+    }
+    finally {
+      server.stop()
+    }
+  }
+
+  @Test fun testPostContinue() {
+    val server = config().
+      requestHandler(object: HttpRequestHandler() {
+        override fun acceptUri(method: String, uri: String) = -1
+        override fun enableHttp2() = false
+        suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
+          val array = ByteArray(buffer.remaining())
+          buffer.get(array)
+          buffer.rewind().limit(buffer.capacity())
+          buffer.put(
+            "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
+              toByteArray(HttpRequestHandler.ASCII)
+          )
+          channel.write(buffer, deadline)
+          channel.write(array, deadline)
+        }
+        suspend override fun reject(address: InetSocketAddress) = false
+      }).
+      startServer()
+    try {
+      val conn = URL("${scheme()}://localhost:${port}").openConnection() as HttpURLConnection
+      try {
+        val post = "abcdefghijklmnopqrstuvwxyz1234567890".toByteArray()
+        conn.requestMethod = "PUT"
+        conn.addRequestProperty("Expect", "100-Continue")
+        conn.setFixedLengthStreamingMode(post.size)
+        conn.doOutput = true
+        conn.outputStream.apply { write(post) }.close()
+        assertEquals(200, conn.responseCode)
+        assertEquals("OK", conn.responseMessage)
+        val bytes = conn.inputStream.readAllBytes()
+        assertEquals(36, bytes.size)
+        assertEquals("abcdefghijklmnopqrstuvwxyz1234567890", String(bytes))
+        assertEquals("36", conn.getHeaderField("Content-Length"))
+        assertEquals("no-store", conn.getHeaderField("Cache-Control"))
       }
       finally {
         conn.disconnect()
