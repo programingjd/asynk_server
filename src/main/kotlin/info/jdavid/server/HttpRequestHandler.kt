@@ -321,7 +321,7 @@ abstract class HttpRequestHandler: RequestHandler {
       println(String(bytes))
 
       handle(address, method, uri, headers, channel, writeDeadline, buffer)
-      return true
+      return headers.value(Headers.CONNECTION) == CLOSE
     }
     catch (e: InterruptedByTimeoutException) {
       return handleError(channel, writeDeadline, 408)
@@ -379,6 +379,7 @@ abstract class HttpRequestHandler: RequestHandler {
     private val CONTINUE = "100-continue"
     private val IDENTITY = "identity"
     private val CHUNKED = "chunked"
+    private val CLOSE = "close"
 
     private val CR: Byte = 0x0d
     private val LF: Byte = 0x0a
