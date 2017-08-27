@@ -71,12 +71,20 @@ abstract class HttpRequestHandler: RequestHandler {
                              readDeadline: Long, writeDeadline: Long,
                              maxHeaderSize: Int,
                              buffer: ByteBuffer): Boolean {
+    // Request line: (ASCII)
+    // METHOD URI HTTP/1.1\r\n
+    // 1. look for first space -> METHOD
+    // 2. look for second space -> URI
+    // 3. check that rest of line is correct.
+
     try {
       var capacity = buffer.capacity()
-      // Status Line
       var segment = channel.read(readDeadline)
       var length = segment.remaining()
+      // shortest possible request line is 16 bytes long.
       if (length < 16) return false
+
+      // 1. look for first space to extract METHOD
       var i = 0
       while (true) {
         if (i == 7) return false
@@ -90,6 +98,8 @@ abstract class HttpRequestHandler: RequestHandler {
       segment.get(methodBytes)
       val method = String(methodBytes, ASCII)
       segment.get()
+
+      // 2. look for second space to extract URI
       var j = i
       while (true) {
         if (i == length) return handleError(channel, writeDeadline, 414)
@@ -102,6 +112,8 @@ abstract class HttpRequestHandler: RequestHandler {
       segment.get(uriBytes)
       val uri = String(uriBytes)
       segment.get()
+
+      // 3. HTTP/1.1\r\n should follow
       if (abort(channel, writeDeadline, acceptUri(method, uri))) return false
       if (segment.get() != H_UPPER ||
           segment.get() != T_UPPER ||
@@ -113,9 +125,15 @@ abstract class HttpRequestHandler: RequestHandler {
           segment.get() != ONE ||
           segment.get() != CR ||
           segment.get() != LF) return false
-      // Headers + Body
+
       buffer.put(segment)
+
       // Headers
+      // FIELD_NAME_1: FIELD_VALUE_1\r\n
+      // ...
+      // FIELD_NAME_N: FIELD_VALUE_N\r\n
+      // \r\n
+      // Add content between \r\n as header lines until an empty line signifying the end of the headers.
       val headers = Headers()
       length = buffer.position()
       buffer.flip()
@@ -154,20 +172,25 @@ abstract class HttpRequestHandler: RequestHandler {
       if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
       if (abort(channel, writeDeadline, acceptHeaders(method, uri, headers))) return false
       buffer.compact()
+
+      // Body
       length = buffer.position()
       capacity -= length
       if (capacity < 0) return handleError(channel, writeDeadline, 413)
       val encoding = headers.value(Headers.TRANSFER_ENCODING)
+
       if (encoding == null || encoding == IDENTITY) {
+        // Body with no encoding
+        // Content-Length header specifies the amount of bytes to read.
         val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
         if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
         if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
+          // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
           channel.write(CONTINUE_RESPONSE, writeDeadline)
         }
         capacity = contentLength - length
-        // Rest of body
         while (capacity > 0) {
           segment = channel.read(readDeadline)
           length = segment.remaining()
@@ -180,16 +203,23 @@ abstract class HttpRequestHandler: RequestHandler {
         }
         buffer.limit(buffer.position())
         buffer.position(0)
-        val bytes = ByteArray(buffer.limit())
-        buffer.slice().get(bytes)
-        println("Body:")
-        println(String(bytes))
-        handle(address, method, uri, headers, channel, writeDeadline, buffer)
-        return true
       }
       else if (encoding == CHUNKED) {
+        // Body with chunked encoding
+        // CHUNK_1_LENGTH_HEX\r\n
+        // CHUNK_1_BYTES\r\n
+        // ...
+        // CHUNK_N_LENGTH_HEX\r\n
+        // CHUNK_N_BYTES\r\n
+        // 0\r\n
+        // FIELD_NAME_1: FIELD_VALUE_1\r\n
+        // ...
+        // FIELD_NAME_N: FIELD_VALUE_N\r\n
+        // \r\n
+        // Trailing header fields are ignored.
         if (abort(channel, writeDeadline, acceptBody(method))) return false
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
+          // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0) return handleError(channel, writeDeadline, 400)
           channel.write(CONTINUE_RESPONSE, writeDeadline)
         }
@@ -199,6 +229,7 @@ abstract class HttpRequestHandler: RequestHandler {
         var p = 0
         while (true) {
           var n: Int
+          // Look for \r\n to extract the chunk length
           while (true) {
             if (k > max) {
               segment = channel.read(readDeadline)
@@ -228,6 +259,7 @@ abstract class HttpRequestHandler: RequestHandler {
               break
             }
           }
+          // Read chunk bytes
           while (max < k + n + 1) {
             segment = channel.read(readDeadline)
             length = segment.remaining()
@@ -239,6 +271,8 @@ abstract class HttpRequestHandler: RequestHandler {
           }
           k += n
           if (n == 0) {
+            // zero length chunk marks the end of the chunk list
+            // skip trailing fields and look for \r\n\r\n sequence
             while (true) {
               if (k > max) {
                 segment = channel.read(readDeadline)
@@ -260,6 +294,7 @@ abstract class HttpRequestHandler: RequestHandler {
             break
           }
           else {
+            // copy decoded bytes to body buffer
             val position = buffer.position()
             buffer.position(k - n)
             buffer.limit(k)
@@ -274,16 +309,19 @@ abstract class HttpRequestHandler: RequestHandler {
         }
         buffer.limit(buffer.position())
         buffer.position(0)
-        val bytes = ByteArray(buffer.limit())
-        buffer.slice().get(bytes)
-        println("Body:")
-        println(String(bytes))
-        handle(address, method, uri, headers, channel, writeDeadline, buffer)
-        return true
       }
       else {
         return handleError(channel, writeDeadline, 501)
       }
+
+      // Log body (TODO: remove)
+      val bytes = ByteArray(buffer.limit())
+      buffer.slice().get(bytes)
+      println("Body:")
+      println(String(bytes))
+
+      handle(address, method, uri, headers, channel, writeDeadline, buffer)
+      return true
     }
     catch (e: InterruptedByTimeoutException) {
       return handleError(channel, writeDeadline, 408)
@@ -304,7 +342,7 @@ abstract class HttpRequestHandler: RequestHandler {
   private suspend fun handleError(channel: Channel, writeDeadline: Long, code: Int): Boolean {
     val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
     channel.write("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), writeDeadline)
-    channel.write(EMPTY_BODY_HEADER, writeDeadline)
+    channel.write(ERROR_HEADERS, writeDeadline)
     return false
   }
 
@@ -336,7 +374,7 @@ abstract class HttpRequestHandler: RequestHandler {
     val ISO_8859_1 = Charsets.ISO_8859_1
 
     private val CONTINUE_RESPONSE = "HTTP/1.1 100 Continue\r\n\r\n".toByteArray(ASCII)
-    private val EMPTY_BODY_HEADER = "Content-Length: 0\r\n\r\n".toByteArray(ASCII)
+    private val ERROR_HEADERS = "Content-Length: 0\r\nConnection: close\r\n\r\n".toByteArray(ASCII)
 
     private val CONTINUE = "100-continue"
     private val IDENTITY = "identity"
