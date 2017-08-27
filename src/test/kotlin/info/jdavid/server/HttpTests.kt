@@ -2,6 +2,8 @@ package info.jdavid.server
 
 import org.junit.Test
 import org.junit.Assert.*
+import org.junit.FixMethodOrder
+import org.junit.runners.MethodSorters
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -10,6 +12,7 @@ import java.net.SocketException
 import java.net.URL
 import java.nio.ByteBuffer
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 open class HttpTests {
 
   private val port = 8085
