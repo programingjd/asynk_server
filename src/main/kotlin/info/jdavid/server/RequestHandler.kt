@@ -5,10 +5,12 @@ import java.io.Closeable
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.experimental.CoroutineContext
 
 interface RequestHandler {
 
-  suspend fun connection(channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable?
+  suspend fun connection(context: CoroutineContext,
+                         channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable?
 
   fun enableHttp2(): Boolean
 

@@ -4,7 +4,7 @@ import java.io.Closeable
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
-
+import kotlin.coroutines.experimental.CoroutineContext
 
 abstract class HttpRequestHandler: RequestHandler {
 
@@ -33,10 +33,10 @@ abstract class HttpRequestHandler: RequestHandler {
 
   protected open fun acceptBody(method: String): Int = -1
 
-  suspend final override fun connection(channel: Channel,
+  suspend final override fun connection(context: CoroutineContext, channel: Channel,
                                         readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable? {
     return if (channel is SecureChannel && channel.applicationProtocol() == "h2") {
-      Http2Connection(channel, readTimeoutMillis, writeTimeoutMillis).start()
+      Http2Connection(context, channel, readTimeoutMillis, writeTimeoutMillis).start()
     }
     else null
   }
@@ -48,6 +48,7 @@ abstract class HttpRequestHandler: RequestHandler {
                                     maxHeaderSize: Int,
                                     buffer: ByteBuffer): Boolean {
     return if (connection is Http2Connection) {
+      connection.readAll()
       http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
     }
     else {

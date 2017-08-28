@@ -1,19 +1,23 @@
 package info.jdavid.server
 
+import kotlinx.coroutines.experimental.launch
+import kotlin.coroutines.experimental.CoroutineContext
 import java.io.Closeable
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 @Suppress("UsePropertyAccessSyntax")
-internal class Http2Connection(val channel: Channel,
+internal class Http2Connection(val context: CoroutineContext,
+                               val channel: Channel,
                                val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Closeable {
   private var nextStreamId = 2
   private var nextPingId = 2
   private var lastGoogStreamId = 0
   private var unacknowledgedBytesRead = 0
-  private var bytesLeftInWriteWindow = 65535
+  private var maxFrameSize = 16384
+  private val defaultInitialWindowSize = 65535
+  private var bytesLeftInWriteWindow = defaultInitialWindowSize
   private var receivedInitialPeerSetttings = false
   private val peerSettings = Settings().
     set(Settings.HEADER_TABLE_SIZE, bytesLeftInWriteWindow).
@@ -24,14 +28,26 @@ internal class Http2Connection(val channel: Channel,
     //writePreface(writeDeadline)
     //writeSettings(Settings(), writeDeadline)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+    writeSettings(Settings(), writeDeadline)
     readPreface(readDeadline)
-    readFrame(readDeadline)
-
-    TODO()
+    return this
   }
 
   override fun close() {
     TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  }
+
+  suspend fun readAll(readTimeoutMillis: Long, writeTimeoutMillis: Long) {
+    while (true) {
+      readFrame(readTimeoutMillis)
+    }
+
+
+
+  }
+
+  suspend private fun readPreface(deadline: Long) {
+    channel.read(CONNECTION_PREFACE.size, deadline)
   }
 
   suspend private fun writePreface(deadline: Long) {
@@ -49,12 +65,36 @@ internal class Http2Connection(val channel: Channel,
     channel.write(segment, deadline)
   }
 
-  suspend private fun readPreface(deadline: Long) {
-    channel.read(CONNECTION_PREFACE.size, deadline)
+  suspend private fun readSettings(length: Int, deadline: Long): Settings {
+    val segment = channel.read(length * 6, deadline)
+    segment.rewind().limit(segment.capacity())
+    val settings = Settings()
+    for (i in 0 until length) {
+      val id = segment.getShort().toInt()
+      val value = segment.getInt()
+      settings[id] = value
+    }
+    return settings
   }
 
-  suspend private fun readFrame(deadline: Long) {
-    val segment = channel.read(9, deadline)
+  suspend private fun commitSettings(settings: Settings, deadline: Long) {
+    val segment = frameHeader(0, 0, Types.SETTINGS, 1)
+    launch(context) {
+      channel.write(segment, deadline)
+    }
+    if (peerSettings.isSet(Settings.INITIAL_WINDOW_SIZE) &&
+        peerSettings[Settings.INITIAL_WINDOW_SIZE] != settings[Settings.INITIAL_WINDOW_SIZE]) {
+
+    }
+    peerSettings.merge(settings)
+    if (peerSettings.isSet(Settings.MAX_FRAME_SIZE)) maxFrameSize = peerSettings[Settings.MAX_FRAME_SIZE]
+    if (peerSettings.isSet(Settings.HEADER_TABLE_SIZE)) TODO("hpackWriter.setHeaderTableSizeSetting")
+  }
+
+
+
+  suspend private fun readFrame(readDeadline: Long, writeDeadline: Long) {
+    val segment = channel.read(9, readDeadline)
     segment.rewind().limit(segment.capacity())
     val length = (segment.get().toInt() and 0xff shl 16) or
                  (segment.get().toInt() and 0xff shl 8) or
@@ -69,7 +109,10 @@ internal class Http2Connection(val channel: Channel,
       Types.PRIORITY -> TODO()
       Types.RST_STREAM -> TODO()
       Types.SETTINGS -> {
-        if (flags and 0x01 == 0) readSettings(length, deadline)
+        if (flags and 0x01 == 0) {
+          val settings = readSettings(length, readDeadline)
+          commitSettings(settings, writeDeadline)
+        }
       }
       Types.PUSH_PROMISE -> TODO()
       Types.PING -> TODO()
@@ -79,20 +122,10 @@ internal class Http2Connection(val channel: Channel,
     }
   }
 
-  suspend private fun readSettings(length: Int, deadline: Long) {
-    val segment = channel.read(length * 6, deadline)
-    segment.rewind().limit(segment.capacity())
-    val settings = Settings()
-    for (i in 0 until length) {
-      val id = segment.getShort().toInt()
-      val value = segment.getInt()
-      settings[id] = value
-    }
-    // set settings
-  }
 
-  private fun frameHeader(streamId: Int, length: Int, type: Int, flags: Int): ByteBuffer {
-    val segment = channel.segment()
+
+  private fun frameHeader(streamId: Int, length: Int, type: Int, flags: Int,
+                          segment: ByteBuffer = channel.segment()): ByteBuffer {
     segment.rewind().limit(segment.capacity())
     segment.put((length.ushr(16) and 0xff).toByte())
     segment.put((length.ushr(8) and 0xff).toByte())
@@ -171,6 +204,8 @@ internal class Http2Connection(val channel: Channel,
     }
 
     operator fun get(id: Int) = values[id]
+
+    fun getOrDefault(id: Int, defaultValue: Int) = if (isSet(id)) get(id) else defaultValue
 
     fun size() = Integer.bitCount(bitset)
 

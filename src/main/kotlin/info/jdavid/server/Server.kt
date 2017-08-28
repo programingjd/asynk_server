@@ -61,7 +61,8 @@ class Server internal constructor(address: InetSocketAddress,
               val start = System.nanoTime()
               channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                             start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-              val connection = requestHandler.connection(channel, readTimeoutMillis, writeTimeoutMillis)
+              val connection = requestHandler.connection(coroutineContext,
+                                                         channel, readTimeoutMillis, writeTimeoutMillis)
               try {
                 while (!accepted.isClosedForSend) {
                   try {
