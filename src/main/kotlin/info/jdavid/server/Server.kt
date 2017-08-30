@@ -157,8 +157,8 @@ fun main(args: Array<String>) {
   val server = Config().
     readTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
     writeTimeoutMillis(TimeUnit.SECONDS.toMillis(300)).
-    certificate(java.io.File("localhost.p12")).port(8181).
-//    port(8080).
+//    certificate(java.io.File("localhost.p12")).port(8181).
+    port(8080).
     startServer()
   Thread.sleep(150000L)
   //server.stop()

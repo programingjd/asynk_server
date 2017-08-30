@@ -1,8 +1,8 @@
 package info.jdavid.server
 
+import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.launch
 import kotlin.coroutines.experimental.CoroutineContext
-import java.io.Closeable
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 @Suppress("UsePropertyAccessSyntax")
 internal class Http2Connection(val context: CoroutineContext,
                                val channel: Channel,
-                               val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Closeable {
+                               val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
   private var nextStreamId = 2
   private var nextPingId = 2
   private var lastGoogStreamId = 0
@@ -25,21 +25,41 @@ internal class Http2Connection(val context: CoroutineContext,
 
   suspend fun start(): Http2Connection {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+    val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+    connectionPreface(readDeadline, writeDeadline)
+
     //writePreface(writeDeadline)
     //writeSettings(Settings(), writeDeadline)
-    val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     writeSettings(Settings(), writeDeadline)
     readPreface(readDeadline)
     return this
   }
 
-  override fun close() {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  suspend override fun close() {
+    TODO("not implemented")
+  }
+
+
+  suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long) {
+    val client = async(context) {
+      channel.read(CONNECTION_PREFACE.size, readDeadline)
+      val settings = Frame.frame(channel, readDeadline) as Frame.Settings
+
+    }
+    val server = async(context) {
+      //Frame.Settings(0, 0, Settings().write())
+    }
+  }
+
+  abstract class FrameHeader {
+
+
+
   }
 
   suspend fun readAll(readTimeoutMillis: Long, writeTimeoutMillis: Long) {
     while (true) {
-      readFrame(readTimeoutMillis)
+      readFrame(readTimeoutMillis, writeTimeoutMillis)
     }
 
 
@@ -99,11 +119,11 @@ internal class Http2Connection(val context: CoroutineContext,
     val length = (segment.get().toInt() and 0xff shl 16) or
                  (segment.get().toInt() and 0xff shl 8) or
                  (segment.get().toInt() and 0xff)
-    val type = segment.get().toInt().and(0xff).toByte()
+    val type = segment.get().toInt().and(0xff)
     val flags = segment.get().toInt().and(0xff)
     val streamId = segment.getInt() and 0x7fffffff
     println(streamId)
-    when (streamId) {
+    when (type) {
       Types.DATA -> TODO()
       Types.HEADERS -> TODO()
       Types.PRIORITY -> TODO()
@@ -125,7 +145,7 @@ internal class Http2Connection(val context: CoroutineContext,
 
 
   private fun frameHeader(streamId: Int, length: Int, type: Int, flags: Int,
-                          segment: ByteBuffer = channel.segment()): ByteBuffer {
+                          segment: ByteBuffer = channel.segmentW()): ByteBuffer {
     segment.rewind().limit(segment.capacity())
     segment.put((length.ushr(16) and 0xff).toByte())
     segment.put((length.ushr(8) and 0xff).toByte())

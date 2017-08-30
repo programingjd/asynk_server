@@ -1,7 +1,6 @@
 package info.jdavid.server
 
 import kotlinx.coroutines.experimental.delay
-import java.io.Closeable
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
@@ -10,13 +9,13 @@ import kotlin.coroutines.experimental.CoroutineContext
 interface RequestHandler {
 
   suspend fun connection(context: CoroutineContext,
-                         channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Closeable?
+                         channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection?
 
   fun enableHttp2(): Boolean
 
   suspend fun reject(address: InetSocketAddress): Boolean
 
-  suspend fun handle(channel: Channel, connection: Closeable?, address: InetSocketAddress,
+  suspend fun handle(channel: Channel, connection: Connection?, address: InetSocketAddress,
                      readDeadline: Long, writeDeadline: Long,
                      maxHeaderSize: Int, buffer: ByteBuffer): Boolean
 

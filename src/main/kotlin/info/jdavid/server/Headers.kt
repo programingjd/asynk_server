@@ -38,6 +38,8 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     val CONTENT_TYPE = "Content-Type"
     val EXPECT = "Expect"
     val CONNECTION = "Connection"
+    val UPGRADE = "Upgrade"
+    val HTTP2_SETTINGS = "HTTP2-Settings"
 
     private fun matches(line: String, lowercaseName: String): Boolean {
       return line.length > lowercaseName.length + 1 &&

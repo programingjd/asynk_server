@@ -13,12 +13,14 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
                                private val nodes: LockFreeLinkedListHead,
                                maxRequestSize: Int): Channel() {
   private val node = nodes.removeFirstOrNull() as? Node ?: Node(8192, maxRequestSize)
-  private val segment = node.segment
+  private val segmentR = node.segmentR
+  private val segmentW = node.segmentW
   private val buffer = node.buffer
   private var exhausted = false
 
   override fun next() {
-    segment.rewind().limit(segment.capacity())
+    segmentW.rewind().limit(segmentW.capacity())
+    segmentR.rewind().limit(segmentR.capacity())
     buffer.rewind().limit(buffer.capacity())
   }
 
@@ -32,20 +34,22 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun buffer() = buffer
 
-  override fun segment() = segment
+  override fun segmentW() = segmentW
+
+  override fun segmentR() = segmentR
 
   suspend override fun read(deadline: Long) = read(8192, deadline)
 
   suspend override fun read(bytes: Int, deadline: Long): ByteBuffer {
-    segment.rewind().limit(segment.capacity())
-    if (exhausted) return segment.limit(0) as ByteBuffer
+    segmentR.rewind().limit(segmentR.capacity())
+    if (exhausted) return segmentR.limit(0) as ByteBuffer
     val timeout = deadline - System.nanoTime()
     if (timeout < 0L) throw InterruptedByTimeoutException()
-    val n = channel.aRead(segment, timeout, TimeUnit.NANOSECONDS)
+    val n = channel.aRead(segmentR, timeout, TimeUnit.NANOSECONDS)
     if (n == -1) {
       exhausted = true
     }
-    return segment.flip() as ByteBuffer
+    return segmentR.flip() as ByteBuffer
   }
 
   suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
@@ -57,7 +61,8 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
   }
 
   private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
-    internal val segment = ByteBuffer.allocateDirect(segmentSize)
+    internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
+    internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")

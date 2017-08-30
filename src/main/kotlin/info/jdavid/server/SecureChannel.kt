@@ -19,7 +19,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                                                 Math.max(
                                                                   engine.session.packetBufferSize,
                                                                   engine.session.applicationBufferSize))
-  private val segment = node.segment
+  private val segmentR = node.segmentR
+  private val segmentW = node.segmentW
   private val buffer = node.buffer
   private val wireIn = node.wireIn
   private val wireOut = node.wireOut
@@ -108,23 +109,25 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun buffer() = buffer
 
-  override fun segment() = segment
+  override fun segmentR() = segmentR
+
+  override fun segmentW() = segmentW
 
   suspend override fun read(deadline: Long) = read(16384, deadline)
 
   suspend override fun read(bytes: Int, deadline: Long): ByteBuffer {
-    segment.rewind().limit(bytes)
-    if (bytes == 0) return segment.flip() as ByteBuffer
+    segmentR.rewind().limit(bytes)
+    if (bytes == 0) return segmentR.flip() as ByteBuffer
     val p = appIn.position()
     if (p > bytes) {
       appIn.rewind().limit(bytes)
-      segment.put(appIn)
+      segmentR.put(appIn)
       appIn.limit(p)
       if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
     }
     else if (p > 0) {
       appIn.flip()
-      segment.put(appIn)
+      segmentR.put(appIn)
       if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
     }
     else {
@@ -132,17 +135,17 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
       val p2 = appIn.position()
       if (p2 > bytes) {
         appIn.rewind().limit(bytes)
-        segment.put(appIn)
+        segmentR.put(appIn)
         appIn.limit(p2)
         if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
       }
       else if (p2 > 0) {
         appIn.flip()
-        segment.put(appIn)
+        segmentR.put(appIn)
         if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
       }
     }
-    return segment.flip() as ByteBuffer
+    return segmentR.flip() as ByteBuffer
   }
 
   suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
@@ -166,7 +169,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   }
 
   private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
-    internal val segment = ByteBuffer.allocateDirect(segmentSize)
+    internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
+    internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
     internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
     internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)

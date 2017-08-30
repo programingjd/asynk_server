@@ -20,10 +20,12 @@ abstract class Channel internal constructor() {
 
   abstract internal fun buffer(): ByteBuffer
 
-  abstract internal fun segment(): ByteBuffer
+  abstract internal fun segmentW(): ByteBuffer
+
+  abstract internal fun segmentR(): ByteBuffer
 
   suspend fun write(bytes: ByteArray, deadline: Long) {
-    val segment = segment()
+    val segment = segmentW()
     segment.rewind().limit(segment.capacity())
     val n = bytes.size
     if (n > segment.remaining()) {
@@ -49,7 +51,7 @@ abstract class Channel internal constructor() {
   }
 
   suspend fun write(headers: Headers, deadline: Long) {
-    val segment = segment()
+    val segment = segmentW()
     segment.rewind().limit(segment.capacity())
     headers.lines.forEach {
       val bytes = it.toByteArray(ISO_8859_1)
