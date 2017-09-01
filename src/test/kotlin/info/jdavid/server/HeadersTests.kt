@@ -1,5 +1,6 @@
 package info.jdavid.server
 
+import info.jdavid.server.http.Headers
 import kotlinx.coroutines.experimental.CommonPool
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.nio.aAccept

@@ -1,5 +1,7 @@
-package info.jdavid.server
+package info.jdavid.server.http
 
+import info.jdavid.server.Channel
+import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.launch
 import kotlin.coroutines.experimental.CoroutineContext
@@ -47,7 +49,7 @@ internal class Http2Connection(val context: CoroutineContext,
 
     }
     val server = async(context) {
-      //Frame.Settings(0, 0, Settings().write())
+      //Frame.Settings(0, 0, Settings().write(channel))
     }
   }
 

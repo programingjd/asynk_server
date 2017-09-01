@@ -1,5 +1,6 @@
-package info.jdavid.server
+package info.jdavid.server.http
 
+import info.jdavid.server.Channel
 import java.nio.ByteBuffer
 
 internal abstract class Frame(internal val streamId: Int,
@@ -37,6 +38,7 @@ internal abstract class Frame(internal val streamId: Int,
         (segment1.get().toInt() and 0xff)
       val type = segment1.get().toInt().and(0xff)
       val flags = segment1.get().toInt().and(0xff)
+      @Suppress("UsePropertyAccessSyntax")
       val streamId = segment1.getInt() and 0x7fffffff // ignore reserved bit
       val segment2 = channel.read(length, readDeadline)
       return when (type) {

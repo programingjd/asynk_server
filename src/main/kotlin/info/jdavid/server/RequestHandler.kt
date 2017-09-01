@@ -1,9 +1,12 @@
 package info.jdavid.server
 
+import info.jdavid.server.http.Headers
+import info.jdavid.server.http.HttpRequestHandler
 import kotlinx.coroutines.experimental.delay
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLParameters
 import kotlin.coroutines.experimental.CoroutineContext
 
 interface RequestHandler {
@@ -11,7 +14,7 @@ interface RequestHandler {
   suspend fun connection(context: CoroutineContext,
                          channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection?
 
-  fun enableHttp2(): Boolean
+  fun adjustSSLParameters(sslParameters: SSLParameters)
 
   suspend fun reject(address: InetSocketAddress): Boolean
 
@@ -20,7 +23,7 @@ interface RequestHandler {
                      maxHeaderSize: Int, buffer: ByteBuffer): Boolean
 
   companion object {
-    val DEFAULT = object: HttpRequestHandler() {
+    val DEFAULT = object: HttpRequestHandler(true) {
       suspend override fun reject(address: InetSocketAddress): Boolean {
         println("Client: ${address.address}")
         return false

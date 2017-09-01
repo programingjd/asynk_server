@@ -1,11 +1,18 @@
-package info.jdavid.server
+package info.jdavid.server.http
 
+import info.jdavid.server.Channel
+import info.jdavid.server.Connection
+import info.jdavid.server.RequestHandler
+import info.jdavid.server.SecureChannel
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
+import javax.net.ssl.SSLParameters
 import kotlin.coroutines.experimental.CoroutineContext
 
-abstract class HttpRequestHandler: RequestHandler {
+abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
+
+  private val protocols = if (enableHttp2) arrayOf("h2", "http/1.1") else arrayOf("http/1.1")
 
   suspend protected abstract fun handle(address: InetSocketAddress,
                                         method: String,
@@ -15,7 +22,9 @@ abstract class HttpRequestHandler: RequestHandler {
                                         deadline: Long,
                                         buffer: ByteBuffer)
 
-  override fun enableHttp2() = true
+  override fun adjustSSLParameters(sslParameters: SSLParameters) {
+    sslParameters.applicationProtocols = protocols
+  }
 
   // accept methods return values:
   //  -1       -> accept

@@ -1,4 +1,4 @@
-package info.jdavid.server
+package info.jdavid.server.http
 
 
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {

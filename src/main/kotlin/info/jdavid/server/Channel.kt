@@ -1,5 +1,6 @@
 package info.jdavid.server
 
+import info.jdavid.server.http.Headers
 import java.nio.ByteBuffer
 
 abstract class Channel internal constructor() {
