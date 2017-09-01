@@ -286,7 +286,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.writeAll(deadline, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -330,7 +330,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.writeAll(deadline, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -376,7 +376,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.writeAll(deadline, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -412,7 +412,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.writeAll(deadline, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).

@@ -25,7 +25,7 @@ abstract class Channel internal constructor() {
 
   abstract internal fun segmentR(): ByteBuffer
 
-  suspend fun writeAll(deadline: Long, vararg arrays: ByteArray) {
+  suspend fun write(deadline: Long, vararg arrays: ByteArray) {
     val segment = segmentW()
     segment.rewind().limit(segment.capacity())
     for (bytes in arrays) {
@@ -58,7 +58,7 @@ abstract class Channel internal constructor() {
     val array = Array(max + 1, {
       if (it == max || it % 2 != 0) CRLF else lines[it / 2].toByteArray(ISO_8859_1)
     })
-    writeAll(deadline, *array)
+    write(deadline, *array)
   }
 
   private companion object {

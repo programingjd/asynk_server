@@ -199,7 +199,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
-          channel.writeAll(writeDeadline, CONTINUE_RESPONSE)
+          channel.write(writeDeadline, CONTINUE_RESPONSE)
         }
         capacity = contentLength - length
         while (capacity > 0) {
@@ -232,7 +232,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0) return handleError(channel, writeDeadline, 400)
-          channel.writeAll(writeDeadline, CONTINUE_RESPONSE)
+          channel.write(writeDeadline, CONTINUE_RESPONSE)
         }
         val sb = StringBuilder(12)
         var k = 0
@@ -352,7 +352,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
 
   private suspend fun handleError(channel: Channel, writeDeadline: Long, code: Int): Boolean {
     val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
-    channel.writeAll(writeDeadline, "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS)
+    channel.write(writeDeadline, "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS)
     return false
   }
 
