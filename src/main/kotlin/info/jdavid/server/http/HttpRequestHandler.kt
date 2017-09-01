@@ -4,6 +4,8 @@ import info.jdavid.server.Channel
 import info.jdavid.server.Connection
 import info.jdavid.server.RequestHandler
 import info.jdavid.server.SecureChannel
+import info.jdavid.server.http.http11.Headers
+import info.jdavid.server.http.http2.Http2Connection
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
@@ -56,7 +58,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
                                     maxHeaderSize: Int,
                                     buffer: ByteBuffer): Boolean {
     return if (connection is Http2Connection) {
-      connection.readAll(readDeadline, writeDeadline)
+      // todo connection.readAll
       http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
     }
     else {
@@ -197,7 +199,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
-          channel.write(CONTINUE_RESPONSE, writeDeadline)
+          channel.writeAll(writeDeadline, CONTINUE_RESPONSE)
         }
         capacity = contentLength - length
         while (capacity > 0) {
@@ -230,7 +232,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0) return handleError(channel, writeDeadline, 400)
-          channel.write(CONTINUE_RESPONSE, writeDeadline)
+          channel.writeAll(writeDeadline, CONTINUE_RESPONSE)
         }
         val sb = StringBuilder(12)
         var k = 0
@@ -350,8 +352,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
 
   private suspend fun handleError(channel: Channel, writeDeadline: Long, code: Int): Boolean {
     val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
-    channel.write("HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), writeDeadline)
-    channel.write(ERROR_HEADERS, writeDeadline)
+    channel.writeAll(writeDeadline, "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS)
     return false
   }
 

@@ -1,6 +1,6 @@
 package info.jdavid.server
 
-import info.jdavid.server.http.Headers
+import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.HttpRequestHandler
 import org.junit.Test
 import org.junit.Assert.*
@@ -286,7 +286,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(buffer, deadline)
-          channel.write(array, deadline)
+          channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -330,7 +330,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(buffer, deadline)
-          channel.write(array, deadline)
+          channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -376,7 +376,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(buffer, deadline)
-          channel.write(array, deadline)
+          channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -412,7 +412,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(buffer, deadline)
-          channel.write(array, deadline)
+          channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).

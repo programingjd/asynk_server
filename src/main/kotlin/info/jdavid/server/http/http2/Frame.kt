@@ -1,4 +1,4 @@
-package info.jdavid.server.http
+package info.jdavid.server.http.http2
 
 import info.jdavid.server.Channel
 import java.nio.ByteBuffer
@@ -8,28 +8,35 @@ internal abstract class Frame(internal val streamId: Int,
                               internal val flags: Int,
                               internal val payload: ByteBuffer) {
 
-  internal class Data(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.DATA, flags, payload)
-  internal class Headers(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.HEADERS, flags, payload)
-  internal class Priority(streamId: Int, flags: Int, payload: ByteBuffer):
+  class Data(streamId: Int, flags: Int, payload: ByteBuffer):
+             Frame(streamId, Types.DATA, flags, payload)
+  class Headers(streamId: Int, flags: Int, payload: ByteBuffer):
+                Frame(streamId, Types.HEADERS, flags, payload)
+  class Priority(streamId: Int, flags: Int, payload: ByteBuffer):
                  Frame(streamId, Types.PRIORITY, flags, payload)
-  internal class RstStream(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.RST_STREAM, flags, payload)
-  internal class Settings(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.SETTINGS, flags, payload)
-  internal class PushPromise(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.PUSH_PROMISE, flags, payload)
-  internal class Ping(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.PING, flags, payload)
-  internal class GoAway(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.GOAWAY, flags, payload)
-  internal class WindowUpdate(streamId: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, Types.WINDOW_UPDATE, flags, payload)
-  internal class Unknown(streamId: Int, type: Int, flags: Int, payload: ByteBuffer):
-                 Frame(streamId, type, flags, payload)
+  class RstStream(streamId: Int, flags: Int, payload: ByteBuffer):
+                  Frame(streamId, Types.RST_STREAM, flags, payload)
+  class Settings(streamId: Int, flags: Int, payload: ByteBuffer):
+                 Frame(streamId, Types.SETTINGS, flags, payload) {
+    val isAck = flags == 0x01
+    init {
+      if (streamId != 0) throw ConnectionException.ProtocolError()
+      if (isAck && payload.remaining() != 0) throw ConnectionException.FrameSizeError()
+      if (payload.remaining() % 6 != 0) throw ConnectionException.FrameSizeError()
+    }
+  }
+  class PushPromise(streamId: Int, flags: Int, payload: ByteBuffer):
+                   Frame(streamId, Types.PUSH_PROMISE, flags, payload)
+  class Ping(streamId: Int, flags: Int, payload: ByteBuffer):
+             Frame(streamId, Types.PING, flags, payload)
+  class GoAway(streamId: Int, flags: Int, payload: ByteBuffer):
+               Frame(streamId, Types.GOAWAY, flags, payload)
+  class WindowUpdate(streamId: Int, flags: Int, payload: ByteBuffer):
+                     Frame(streamId, Types.WINDOW_UPDATE, flags, payload)
+  class Unknown(streamId: Int, type: Int, flags: Int, payload: ByteBuffer):
+                Frame(streamId, type, flags, payload)
 
-  internal companion object {
+  companion object {
     suspend fun frame(channel: Channel, readDeadline: Long): Frame {
       val segment1 = channel.read(9, readDeadline)
       segment1.rewind().limit(segment1.capacity())
@@ -56,7 +63,7 @@ internal abstract class Frame(internal val streamId: Int,
     }
   }
 
-  internal class Types {
+  class Types {
 
     companion object {
       internal val DATA = 0x00
@@ -82,7 +89,7 @@ internal abstract class Frame(internal val streamId: Int,
 
   }
 
-  internal class Flags {
+  class Flags {
 
     companion object {
       internal val END_STREAM = 0x01

@@ -1,6 +1,6 @@
 package info.jdavid.server
 
-import info.jdavid.server.http.Headers
+import info.jdavid.server.http.http11.Headers
 import java.nio.ByteBuffer
 
 abstract class Channel internal constructor() {
@@ -25,30 +25,31 @@ abstract class Channel internal constructor() {
 
   abstract internal fun segmentR(): ByteBuffer
 
-  suspend fun write(bytes: ByteArray, deadline: Long) {
+  suspend fun writeAll(deadline: Long, vararg arrays: ByteArray) {
     val segment = segmentW()
     segment.rewind().limit(segment.capacity())
-    val n = bytes.size
-    if (n > segment.remaining()) {
-      var offset = 0
-      while (true) {
-        val length = segment.remaining()
-        if ((length + offset) >= n) {
-          segment.put(bytes, offset, n - offset)
-          write(segment, deadline)
-          break
-        }
-        else {
-          segment.put(bytes, offset, length)
-          write(segment, deadline)
-          offset += length
+    for (bytes in arrays) {
+      val n = bytes.size
+      if (n > segment.remaining()) {
+        var offset = 0
+        while (true) {
+          val length = segment.remaining()
+          if ((length + offset) >= n) {
+            segment.put(bytes, offset, n - offset)
+            break
+          }
+          else {
+            segment.put(bytes, offset, length)
+            write(segment, deadline)
+            offset += length
+          }
         }
       }
+      else {
+        segment.put(bytes)
+      }
     }
-    else {
-      segment.put(bytes)
-      write(segment, deadline)
-    }
+    write(segment, deadline)
   }
 
   suspend fun write(headers: Headers, deadline: Long) {

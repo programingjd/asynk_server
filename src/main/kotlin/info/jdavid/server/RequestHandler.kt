@@ -1,6 +1,6 @@
 package info.jdavid.server
 
-import info.jdavid.server.http.Headers
+import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.HttpRequestHandler
 import kotlinx.coroutines.experimental.delay
 import java.net.InetSocketAddress

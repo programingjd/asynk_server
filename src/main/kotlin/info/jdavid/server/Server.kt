@@ -125,6 +125,7 @@ class Server internal constructor(address: InetSocketAddress,
       try {
         while (true) {
           val clientChannel = serverChannel.aAccept()
+          clientChannel.setOption(StandardSocketOptions.TCP_NODELAY, true)
           ++pending
           accepted.send(clientChannel)
         }

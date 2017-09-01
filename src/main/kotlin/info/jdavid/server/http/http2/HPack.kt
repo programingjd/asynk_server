@@ -1,8 +1,8 @@
-package info.jdavid.server.http
+package info.jdavid.server.http.http2
 
-class HPack() {
+internal class HPack() {
 
-  internal enum class StaticTable(internal val headerName: String, internal val headerValue: String?) {
+  enum class StaticTable(internal val headerName: String, internal val headerValue: String?) {
     NULL("", null),
     AUTHORITY(":authority", null),                                     //  1
     METHOD_GET(":method", "GET"),                                      //  2
