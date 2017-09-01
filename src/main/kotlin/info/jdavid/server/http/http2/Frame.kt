@@ -38,7 +38,7 @@ internal abstract class Frame(internal val streamId: Int,
 
   companion object {
     suspend fun frame(channel: Channel, readDeadline: Long): Frame {
-      val segment1 = channel.read(9, readDeadline)
+      val segment1 = channel.read(readDeadline, 9)
       segment1.rewind().limit(segment1.capacity())
       val length = (segment1.get().toInt() and 0xff shl 16) or
         (segment1.get().toInt() and 0xff shl 8) or
@@ -47,7 +47,7 @@ internal abstract class Frame(internal val streamId: Int,
       val flags = segment1.get().toInt().and(0xff)
       @Suppress("UsePropertyAccessSyntax")
       val streamId = segment1.getInt() and 0x7fffffff // ignore reserved bit
-      val segment2 = channel.read(length, readDeadline)
+      val segment2 = channel.read(readDeadline, 9)
       return when (type) {
         Http2Connection.Types.DATA -> Data(streamId, flags, segment2)
         Http2Connection.Types.HEADERS -> Headers(streamId, flags, segment2)

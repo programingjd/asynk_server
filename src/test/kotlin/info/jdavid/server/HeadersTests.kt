@@ -29,7 +29,7 @@ class HeadersTests {
       val s1: String = runBlocking(CommonPool) {
         val channel1 = channel0.aAccept()
         val channel = InsecureChannel(channel1, nodes, 8192)
-        channel.write(headers, Long.MAX_VALUE)
+        channel.write(Long.MAX_VALUE, headers)
         val buffer = ByteBuffer.allocate(1024)
         val n = channel2.aRead(buffer, Long.MAX_VALUE)
         channel1.close()

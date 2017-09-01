@@ -113,9 +113,9 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun segmentW() = segmentW
 
-  suspend override fun read(deadline: Long) = read(16384, deadline)
+  suspend override fun read(deadline: Long) = read(deadline,16384)
 
-  suspend override fun read(bytes: Int, deadline: Long): ByteBuffer {
+  suspend override fun read(deadline: Long, bytes: Int): ByteBuffer {
     segmentR.rewind().limit(bytes)
     if (bytes == 0) return segmentR.flip() as ByteBuffer
     val p = appIn.position()
@@ -148,7 +148,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     return segmentR.flip() as ByteBuffer
   }
 
-  suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
+  suspend override fun write(deadline: Long, byteBuffer: ByteBuffer) {
     byteBuffer.flip()
     val bytes = byteBuffer.remaining()
     if (bytes == 0) return

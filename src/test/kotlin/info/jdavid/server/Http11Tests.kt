@@ -33,7 +33,7 @@ open class Http11Tests {
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = true
       }).
@@ -59,7 +59,7 @@ open class Http11Tests {
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -85,7 +85,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -112,7 +112,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -148,7 +148,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -172,7 +172,7 @@ open class Http11Tests {
             "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -197,7 +197,7 @@ open class Http11Tests {
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -222,7 +222,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nCache-Control: no-store\r\n\r\nabcd".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -245,7 +245,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\na: b\r\nCache-Control: no-store\r\n\r\nabcd".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -285,7 +285,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
           channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
@@ -329,7 +329,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
           channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
@@ -375,7 +375,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
           channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
@@ -411,7 +411,7 @@ open class Http11Tests {
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
               toByteArray(HttpRequestHandler.ASCII)
           )
-          channel.write(buffer, deadline)
+          channel.write(deadline, buffer)
           channel.writeAll(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false

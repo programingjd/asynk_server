@@ -38,9 +38,9 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun segmentR() = segmentR
 
-  suspend override fun read(deadline: Long) = read(8192, deadline)
+  suspend override fun read(deadline: Long) = read(deadline, 8192)
 
-  suspend override fun read(bytes: Int, deadline: Long): ByteBuffer {
+  suspend override fun read(deadline: Long, bytes: Int): ByteBuffer {
     segmentR.rewind().limit(segmentR.capacity())
     if (exhausted) return segmentR.limit(0) as ByteBuffer
     val timeout = deadline - System.nanoTime()
@@ -52,7 +52,7 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
     return segmentR.flip() as ByteBuffer
   }
 
-  suspend override fun write(byteBuffer: ByteBuffer, deadline: Long) {
+  suspend override fun write(deadline: Long, byteBuffer: ByteBuffer) {
     byteBuffer.flip()
     val timeout = deadline - System.nanoTime()
     if (timeout < 0L) throw InterruptedByTimeoutException()

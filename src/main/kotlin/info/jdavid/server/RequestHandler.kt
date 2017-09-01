@@ -47,16 +47,16 @@ interface RequestHandler {
                                   buffer: ByteBuffer) {
         buffer.rewind().limit(buffer.capacity())
         buffer.put("HTTP/1.1 200 OK\r\n".toByteArray(ASCII))
-        channel.write(buffer, deadline)
+        channel.write(deadline, buffer)
         val h = Headers()
         h.add(Headers.CONTENT_TYPE, "text/plain; charset=utf-8")
         h.add(Headers.CONTENT_LENGTH, "6")
-        channel.write(h, deadline)
+        channel.write(deadline, h)
         buffer.put("body\n".toByteArray(UTF_8))
-        channel.write(buffer, deadline)
+        channel.write(deadline, buffer)
         delay(5, TimeUnit.SECONDS)
         buffer.put("\n".toByteArray(UTF_8))
-        channel.write(buffer, deadline)
+        channel.write(deadline, buffer)
       }
     }
   }

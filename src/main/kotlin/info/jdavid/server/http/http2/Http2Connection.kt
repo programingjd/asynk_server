@@ -32,7 +32,7 @@ internal class Http2Connection(val context: CoroutineContext,
 
   suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
     val client = async(context) {
-      val connectionPreface = channel.read(CONNECTION_PREFACE.size, readDeadline)
+      val connectionPreface = channel.read(readDeadline, CONNECTION_PREFACE.size)
       @Suppress("LoopToCallChain")
       for (i in 0 until CONNECTION_PREFACE.size) {
         if (connectionPreface[i] != CONNECTION_PREFACE[i]) {

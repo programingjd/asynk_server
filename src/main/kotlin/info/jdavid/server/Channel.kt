@@ -7,9 +7,9 @@ abstract class Channel internal constructor() {
 
   abstract suspend fun read(deadline: Long): ByteBuffer
 
-  abstract suspend fun read(bytes: Int, deadline: Long): ByteBuffer
+  abstract suspend fun read(deadline: Long, bytes: Int): ByteBuffer
 
-  abstract suspend fun write(byteBuffer: ByteBuffer, deadline: Long)
+  abstract suspend fun write(deadline: Long, byteBuffer: ByteBuffer)
 
   abstract internal fun next()
 
@@ -40,7 +40,7 @@ abstract class Channel internal constructor() {
           }
           else {
             segment.put(bytes, offset, length)
-            write(segment, deadline)
+            write(deadline, segment)
             offset += length
           }
         }
@@ -49,54 +49,16 @@ abstract class Channel internal constructor() {
         segment.put(bytes)
       }
     }
-    write(segment, deadline)
+    write(deadline, segment)
   }
 
-  suspend fun write(headers: Headers, deadline: Long) {
-    val segment = segmentW()
-    segment.rewind().limit(segment.capacity())
-    headers.lines.forEach {
-      val bytes = it.toByteArray(ISO_8859_1)
-      val n = bytes.size
-      if (n > segment.remaining()) {
-        var offset = 0
-        while (true) {
-          val length = segment.remaining()
-          if ((length + offset) >= n) {
-            segment.put(bytes, offset, n - offset)
-            if ((length + offset - 2) >= n) {
-              segment.put(CRLF)
-              write(segment, deadline)
-            }
-            else {
-              write(segment, deadline)
-              segment.put(CRLF)
-              write(segment, deadline)
-            }
-            break
-          }
-          else {
-            segment.put(bytes, offset, length)
-            write(segment, deadline)
-            offset += length
-          }
-        }
-      }
-      else {
-        segment.put(bytes)
-        if (segment.remaining() > 2) {
-          segment.put(CRLF)
-          write(segment, deadline)
-        }
-        else {
-          write(segment, deadline)
-          segment.put(CRLF)
-          write(segment, deadline)
-        }
-      }
-    }
-    segment.put(CRLF)
-    write(segment, deadline)
+  suspend fun write(deadline: Long, headers: Headers) {
+    val lines = headers.lines
+    val max = lines.size * 2
+    val array = Array(max + 1, {
+      if (it == max || it % 2 != 0) CRLF else lines[it / 2].toByteArray(ISO_8859_1)
+    })
+    writeAll(deadline, *array)
   }
 
   private companion object {
