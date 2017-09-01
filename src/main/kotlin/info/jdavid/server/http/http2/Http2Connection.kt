@@ -13,7 +13,9 @@ internal class Http2Connection(val context: CoroutineContext,
                                val channel: Channel,
                                val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
   private val settings = Settings().
-    set(Settings.HEADER_TABLE_SIZE, 65535).
+    set(Settings.HEADER_TABLE_SIZE, 4096).
+    set(Settings.MAX_CONCURRENT_STREAMS, 64).
+    set(Settings.INITIAL_WINDOW_SIZE, 65535).
     set(Settings.MAX_FRAME_SIZE, 16384)
 
   suspend fun start(): Http2Connection {
@@ -40,8 +42,9 @@ internal class Http2Connection(val context: CoroutineContext,
         }
       }
       val settings =
-        Frame.frame(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
-
+        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+      if (settings.isAck) throw ConnectionException.ProtocolError()
+      this@Http2Connection.settings.merge(settings)
     }
     val server = async(context) {
       //Frame.Settings(0, 0, Settings().write(channel))
@@ -124,11 +127,8 @@ internal class Http2Connection(val context: CoroutineContext,
 
     fun count() = values.size
 
-    fun merge(other: Settings) {
-      @Suppress("LoopToCallChain")
-      for (i in 0 until count()) {
-        if (other.isSet(i)) set(i, other[i])
-      }
+    fun merge(settings: Frame.Settings) {
+
     }
 
     companion object {

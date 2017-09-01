@@ -37,7 +37,7 @@ internal abstract class Frame(internal val streamId: Int,
                 Frame(streamId, type, flags, payload)
 
   companion object {
-    suspend fun frame(channel: Channel, readDeadline: Long): Frame {
+    suspend fun read(channel: Channel, readDeadline: Long): Frame {
       val segment1 = channel.read(readDeadline, 9)
       segment1.rewind().limit(segment1.capacity())
       val length = (segment1.get().toInt() and 0xff shl 16) or
@@ -47,7 +47,7 @@ internal abstract class Frame(internal val streamId: Int,
       val flags = segment1.get().toInt().and(0xff)
       @Suppress("UsePropertyAccessSyntax")
       val streamId = segment1.getInt() and 0x7fffffff // ignore reserved bit
-      val segment2 = channel.read(readDeadline, 9)
+      val segment2 = channel.read(readDeadline, length)
       return when (type) {
         Http2Connection.Types.DATA -> Data(streamId, flags, segment2)
         Http2Connection.Types.HEADERS -> Headers(streamId, flags, segment2)
@@ -60,6 +60,18 @@ internal abstract class Frame(internal val streamId: Int,
         Http2Connection.Types.WINDOW_UPDATE -> WindowUpdate(streamId, flags, segment2)
         else -> Unknown(streamId, type, flags, segment2)
       }
+    }
+    suspend fun write(channel: Channel, writeDeadline: Long, frame: Frame) {
+      val segment = channel.segmentW()
+      segment.rewind().limit(segment.capacity())
+      val length = frame.payload.remaining()
+      segment.put((length.ushr(16) and 0xff).toByte())
+      segment.put((length.ushr(8) and 0xff).toByte())
+      segment.put((length and 0xff).toByte())
+      segment.put((frame.type and 0xff).toByte())
+      segment.put((frame.flags and 0xff).toByte())
+      segment.putInt(frame.streamId and 0x7fffffff)
+
     }
   }
 
