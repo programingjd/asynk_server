@@ -49,12 +49,19 @@ class SSL {
       }
     }
 
-    fun createSSLEngine(context: SSLContext, enableHttp2: Boolean): SSLEngine {
+    fun parameters(): SSLParameters {
+      return SSLParameters().apply {
+        protocols = Platform.protocols
+        cipherSuites = Platform.cipherSuites
+      }
+    }
+
+    fun createSSLEngine(context: SSLContext, parameters: SSLParameters): SSLEngine {
       val engine = context.createSSLEngine()
       engine.useClientMode = false
       engine.wantClientAuth = false
       engine.enableSessionCreation = true
-      engine.sslParameters = if (enableHttp2) http2SslParameters else http11SslParameters
+      engine.sslParameters = parameters
       return engine
     }
 

@@ -8,7 +8,7 @@ import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
-class HttpsTests: HttpTests() {
+class HttpsTests: Http11Tests() {
   init {
     val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
       override fun getAcceptedIssuers() = arrayOf<X509Certificate>()
