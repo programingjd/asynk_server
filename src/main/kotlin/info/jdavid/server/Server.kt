@@ -39,8 +39,7 @@ class Server internal constructor(address: InetSocketAddress,
   private val acceptor = {
     val ssl = SSL.createSSLContext(cert())
     println("Started listening on ${address.hostName}:${address.port}")
-    val channelBuffers = LockFreeLinkedListHead()
-    val connectionBuffers = LockFreeLinkedListHead()
+    val nodes = LockFreeLinkedListHead()
     val accepted = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
     val closing = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
     launch(handleDispatcher) outer@ {
@@ -51,22 +50,21 @@ class Server internal constructor(address: InetSocketAddress,
             val clientAddress = clientChannel.remoteAddress as InetSocketAddress
             if (requestHandler.reject(clientAddress)) return@inner
             val channel = if (ssl == null) {
-              InsecureChannel(clientChannel)
+              InsecureChannel(clientChannel, nodes, maxRequestSize)
             }
             else {
               SecureChannel(clientChannel,
                             SSL.createSSLEngine(ssl, SSL.parameters().apply {
                               requestHandler.adjustSSLParameters(this)
                             }),
-                            channelBuffers)
+                            nodes, maxRequestSize)
             }
             try {
               val start = System.nanoTime()
               channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                             start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-              val connection = requestHandler.connection(coroutineContext, connectionBuffers, channel,
-                                                         maxRequestSize,
-                                                         readTimeoutMillis, writeTimeoutMillis)
+              val connection = requestHandler.connection(coroutineContext,
+                                                         channel, readTimeoutMillis, writeTimeoutMillis)
               try {
                 while (!accepted.isClosedForSend) {
                   try {
@@ -74,12 +72,12 @@ class Server internal constructor(address: InetSocketAddress,
                     if (!requestHandler.handle(channel, connection, clientAddress,
                                                now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                                                now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
-                                               maxHeaderSize)) {
+                                               maxHeaderSize, channel.buffer())) {
                       break
                     }
                   }
                   finally {
-                    connection.next()
+                    channel.next()
                   }
                 }
               }
@@ -90,15 +88,10 @@ class Server internal constructor(address: InetSocketAddress,
                 println("Timeout")
               }
               finally {
-                try {
-                  val stop = System.nanoTime()
-                  connection.close()
-                  channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                               stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-                }
-                finally {
-                  connection.recycle()
-                }
+                val stop = System.nanoTime()
+                connection?.close()
+                channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
+                             stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
               }
             }
             catch (ignored: InterruptedByTimeoutException) {

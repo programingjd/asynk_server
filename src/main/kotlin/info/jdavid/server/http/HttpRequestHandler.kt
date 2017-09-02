@@ -5,9 +5,7 @@ import info.jdavid.server.Connection
 import info.jdavid.server.RequestHandler
 import info.jdavid.server.SecureChannel
 import info.jdavid.server.http.http11.Headers
-import info.jdavid.server.http.http11.Http11Connection
 import info.jdavid.server.http.http2.Http2Connection
-import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
@@ -24,8 +22,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
                                         headers: Headers,
                                         channel: Channel,
                                         deadline: Long,
-                                        buffer: ByteBuffer,
-                                        segment: ByteBuffer)
+                                        buffer: ByteBuffer)
 
   override fun adjustSSLParameters(sslParameters: SSLParameters) {
     sslParameters.applicationProtocols = protocols
@@ -46,36 +43,33 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
 
   protected open fun acceptBody(method: String): Int = -1
 
-  suspend final override fun connection(context: CoroutineContext,
-                                        buffers: LockFreeLinkedListHead,
-                                        channel: Channel,
-                                        maxRequestSize: Int,
-                                        readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection {
+  suspend final override fun connection(context: CoroutineContext, channel: Channel,
+                                        readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection? {
     return if (channel is SecureChannel && channel.applicationProtocol() == "h2") {
-      Http2Connection(context, channel, buffers,
-                      maxRequestSize, readTimeoutMillis, writeTimeoutMillis).start()
+      Http2Connection(context, channel, readTimeoutMillis, writeTimeoutMillis).start()
     }
-    else Http11Connection(buffers, maxRequestSize)
+    else null
   }
 
   suspend final override fun handle(channel: Channel,
-                                    connection: Connection,
+                                    connection: Connection?,
                                     address: InetSocketAddress,
                                     readDeadline: Long, writeDeadline: Long,
-                                    maxHeaderSize: Int): Boolean {
+                                    maxHeaderSize: Int,
+                                    buffer: ByteBuffer): Boolean {
     return if (connection is Http2Connection) {
-      http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, connection)
+      // todo connection.readAll
+      http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
     }
-    else if (connection is Http11Connection) {
-      http11(channel, address, readDeadline, writeDeadline, maxHeaderSize, connection)
+    else {
+      http11(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
     }
-    else throw RuntimeException()
   }
 
   suspend private fun http2(channel: Channel, address: InetSocketAddress,
                             readDeadline: Long, writeDeadline: Long,
                             maxHeaderSize: Int,
-                            connection: Http2Connection): Boolean {
+                            buffer: ByteBuffer): Boolean {
     try {
       return true
     }
@@ -87,18 +81,16 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
   suspend private fun http11(channel: Channel, address: InetSocketAddress,
                              readDeadline: Long, writeDeadline: Long,
                              maxHeaderSize: Int,
-                             connection: Http11Connection): Boolean {
+                             buffer: ByteBuffer): Boolean {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // 1. look for first space -> METHOD
     // 2. look for second space -> URI
     // 3. check that rest of line is correct.
-    val buffer = connection.buffer
-    val segmentR = connection.segmentR
-    val segmentW = connection.segmentW
+
     try {
       var capacity = buffer.capacity()
-      var segment = channel.read(readDeadline, segmentR)
+      var segment = channel.read(readDeadline)
       var length = segment.remaining()
       // shortest possible request line is 16 bytes long.
       if (length < 16) return false
@@ -121,7 +113,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
       // 2. look for second space to extract URI
       var j = i
       while (true) {
-        if (i == length) return handleError(channel, segmentW, writeDeadline, 414)
+        if (i == length) return handleError(channel, writeDeadline, 414)
         val b = segment[i++]
         if (validUrl(b)) continue
         if (b == SPACE) break
@@ -133,7 +125,7 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
       segment.get()
 
       // 3. HTTP/1.1\r\n should follow
-      if (abort(channel, segmentW, writeDeadline, acceptUri(method, uri))) return false
+      if (abort(channel, writeDeadline, acceptUri(method, uri))) return false
       if (segment.get() != H_UPPER ||
           segment.get() != T_UPPER ||
           segment.get() != T_UPPER ||
@@ -160,16 +152,16 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
       j = 0
       while (true) {
         if (i == length) {
-          if (i > maxHeaderSize) return handleError(channel, segmentW, writeDeadline, 431)
-          segment = channel.read(readDeadline, segmentR)
+          if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
+          segment = channel.read(readDeadline)
           length = segment.remaining()
-          if (length == 0) return handleError(channel, segmentW, writeDeadline, 400)
+          if (length == 0) return handleError(channel, writeDeadline, 400)
           buffer.put(segment)
           length = buffer.position()
         }
         if (when (buffer[i++]) {
           LF -> {
-            if (buffer[i - 2] != CR) return handleError(channel, segmentW, writeDeadline, 400)
+            if (buffer[i - 2] != CR) return handleError(channel, writeDeadline, 400)
             if (i - 2 == j) {
               buffer.get()
               buffer.get()
@@ -188,36 +180,36 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
           else -> false
         }) break
       }
-      if (i > maxHeaderSize) return handleError(channel, segmentW, writeDeadline, 431)
-      if (abort(channel, segmentW, writeDeadline, acceptHeaders(method, uri, headers))) return false
+      if (i > maxHeaderSize) return handleError(channel, writeDeadline, 431)
+      if (abort(channel, writeDeadline, acceptHeaders(method, uri, headers))) return false
       buffer.compact()
 
       // Body
       length = buffer.position()
       capacity -= length
-      if (capacity < 0) return handleError(channel, segmentW, writeDeadline, 413)
+      if (capacity < 0) return handleError(channel, writeDeadline, 413)
       val encoding = headers.value(Headers.TRANSFER_ENCODING)
 
       if (encoding == null || encoding == IDENTITY) {
         // Body with no encoding
         // Content-Length header specifies the amount of bytes to read.
         val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
-        if (contentLength > 0 && abort(channel, segmentW, writeDeadline, acceptBody(method))) return false
-        if (contentLength > length + capacity) return handleError(channel, segmentW, writeDeadline, 413)
+        if (contentLength > 0 && abort(channel, writeDeadline, acceptBody(method))) return false
+        if (contentLength > length + capacity) return handleError(channel, writeDeadline, 413)
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
-          if (length > 0 || contentLength == 0) return handleError(channel, segmentW, writeDeadline, 400)
-          channel.write(writeDeadline, segmentW, CONTINUE_RESPONSE)
+          if (length > 0 || contentLength == 0) return handleError(channel, writeDeadline, 400)
+          channel.write(writeDeadline, CONTINUE_RESPONSE)
         }
         capacity = contentLength - length
         while (capacity > 0) {
-          segment = channel.read(readDeadline, segmentR)
+          segment = channel.read(readDeadline)
           length = segment.remaining()
           if (length == 0) {
             break
           }
           capacity -= length
-          if (capacity < 0) return handleError(channel, segmentW, writeDeadline, 400)
+          if (capacity < 0) return handleError(channel, writeDeadline, 400)
           buffer.put(segment)
         }
         buffer.limit(buffer.position())
@@ -236,11 +228,11 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
         // FIELD_NAME_N: FIELD_VALUE_N\r\n
         // \r\n
         // Trailing header fields are ignored.
-        if (abort(channel, segmentW, writeDeadline, acceptBody(method))) return false
+        if (abort(channel, writeDeadline, acceptBody(method))) return false
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
-          if (length > 0) return handleError(channel, segmentW, writeDeadline, 400)
-          channel.write(writeDeadline, segmentW, CONTINUE_RESPONSE)
+          if (length > 0) return handleError(channel, writeDeadline, 400)
+          channel.write(writeDeadline, CONTINUE_RESPONSE)
         }
         val sb = StringBuilder(12)
         var k = 0
@@ -251,18 +243,18 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
           // Look for \r\n to extract the chunk length
           while (true) {
             if (k > max) {
-              segment = channel.read(readDeadline, segmentR)
+              segment = channel.read(readDeadline)
               length = segment.remaining()
-              if (length == 0) return handleError(channel, segmentW, writeDeadline, 400)
+              if (length == 0) return handleError(channel, writeDeadline, 400)
               capacity -= length
-              if (capacity < 0) return handleError(channel, segmentW, writeDeadline, 413)
+              if (capacity < 0) return handleError(channel, writeDeadline, 413)
               buffer.put(segment)
               max += length
             }
             val b = buffer[k++]
             sb.append(b.toChar())
             if (b == LF) {
-              if (buffer[k - 2] != CR) return handleError(channel, segmentW, writeDeadline, 400)
+              if (buffer[k - 2] != CR) return handleError(channel, writeDeadline, 400)
               var end = sb.length - 2
               var start = 0
               while (start < end) {
@@ -280,11 +272,11 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
           }
           // Read chunk bytes
           while (max < k + n + 1) {
-            segment = channel.read(readDeadline, segmentR)
+            segment = channel.read(readDeadline)
             length = segment.remaining()
-            if (length == 0) return handleError(channel, segmentW, writeDeadline, 400)
+            if (length == 0) return handleError(channel, writeDeadline, 400)
             capacity -= length
-            if (capacity < 0) return handleError(channel, segmentW, writeDeadline, 413)
+            if (capacity < 0) return handleError(channel, writeDeadline, 413)
             buffer.put(segment)
             max += length
           }
@@ -294,21 +286,21 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
             // skip trailing fields and look for \r\n\r\n sequence
             while (true) {
               if (k > max) {
-                segment = channel.read(readDeadline, segmentR)
+                segment = channel.read(readDeadline)
                 length = segment.remaining()
-                if (length == 0) return handleError(channel, segmentW, writeDeadline, 400)
+                if (length == 0) return handleError(channel, writeDeadline, 400)
                 capacity -= length
-                if (capacity < 0) return handleError(channel, segmentW, writeDeadline, 413)
+                if (capacity < 0) return handleError(channel, writeDeadline, 413)
                 buffer.put(segment)
                 max += length
               }
               val b = buffer[k++]
               if (b == LF) {
-                if (buffer[k - 2] != CR) return handleError(channel, segmentW, writeDeadline, 400)
+                if (buffer[k - 2] != CR) return handleError(channel, writeDeadline, 400)
                 if (buffer[k - 3] == LF) break
               }
             }
-            if (k < max) return handleError(channel, segmentW, writeDeadline, 400)
+            if (k < max) return handleError(channel, writeDeadline, 400)
             buffer.limit(p)
             break
           }
@@ -323,16 +315,14 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
             p += n
             buffer.limit(buffer.capacity())
             buffer.position(position)
-            if (buffer[k++] != CR || buffer[k++] != LF) {
-              return handleError(channel, segmentW, writeDeadline, 400)
-            }
+            if (buffer[k++] != CR || buffer[k++] != LF) return handleError(channel, writeDeadline, 400)
           }
         }
         buffer.limit(buffer.position())
         buffer.position(0)
       }
       else {
-        return handleError(channel, segmentW, writeDeadline, 501)
+        return handleError(channel, writeDeadline, 501)
       }
 
       // Log body (TODO: remove)
@@ -341,29 +331,28 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
       println("Body:")
       println(String(bytes))
 
-      handle(address, method, uri, headers, channel, writeDeadline, buffer, segmentR)
+      handle(address, method, uri, headers, channel, writeDeadline, buffer)
       return headers.value(Headers.CONNECTION) == CLOSE
     }
     catch (e: InterruptedByTimeoutException) {
-      return handleError(channel, segmentW, writeDeadline, 408)
+      return handleError(channel, writeDeadline, 408)
     }
   }
 
-  suspend private fun abort(channel: Channel, segment: ByteBuffer, writeDeadline: Long,
+  suspend private fun abort(channel: Channel, writeDeadline: Long,
                             acceptValue: Int): Boolean {
     if (acceptValue == -1) return false
     if (acceptValue == 0) return true
     else if (acceptValue in 100..500) {
-      handleError(channel, segment, writeDeadline, acceptValue)
+      handleError(channel, writeDeadline, acceptValue)
       return true
     }
     throw IllegalArgumentException()
   }
 
-  private suspend fun handleError(channel: Channel, segment: ByteBuffer,
-                                  writeDeadline: Long, code: Int): Boolean {
+  private suspend fun handleError(channel: Channel, writeDeadline: Long, code: Int): Boolean {
     val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
-    channel.write(writeDeadline, segment, "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS)
+    channel.write(writeDeadline, "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS)
     return false
   }
 

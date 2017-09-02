@@ -27,8 +27,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
@@ -54,8 +53,7 @@ open class Http11Tests {
       requestHandler(object: HttpRequestHandler(false) {
         override fun acceptUri(method: String, uri: String) = 404
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
@@ -81,8 +79,7 @@ open class Http11Tests {
       requestHandler(object: HttpRequestHandler(false) {
         override fun acceptHeaders(method: String, uri: String, headers: Headers) = 403
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
@@ -109,8 +106,7 @@ open class Http11Tests {
         override fun acceptBody(method: String) = 400
         override fun acceptUri(method: String, uri: String) = -1
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
@@ -146,8 +142,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\n\r\n".
@@ -171,8 +166,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".
@@ -197,8 +191,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
@@ -223,8 +216,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nCache-Control: no-store\r\n\r\nabcd".
@@ -247,8 +239,7 @@ open class Http11Tests {
     val server = config().
       requestHandler(object: HttpRequestHandler(false) {
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\na: b\r\nCache-Control: no-store\r\n\r\nabcd".
@@ -286,8 +277,7 @@ open class Http11Tests {
       requestHandler(object: HttpRequestHandler(false) {
         override fun acceptUri(method: String, uri: String) = -1
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           val array = ByteArray(buffer.remaining())
           buffer.get(array)
           buffer.rewind().limit(buffer.capacity())
@@ -296,7 +286,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.write(deadline, segment, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -331,8 +321,7 @@ open class Http11Tests {
       requestHandler(object: HttpRequestHandler(false) {
         override fun acceptUri(method: String, uri: String) = -1
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           val array = ByteArray(buffer.remaining())
           buffer.get(array)
           buffer.rewind().limit(buffer.capacity())
@@ -341,7 +330,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.write(deadline, segment, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -378,8 +367,7 @@ open class Http11Tests {
         override fun acceptUri(method: String, uri: String) = -1
         override fun acceptHeaders(method: String, uri: String, headers: Headers) = 401
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           val array = ByteArray(buffer.remaining())
           buffer.get(array)
           buffer.rewind().limit(buffer.capacity())
@@ -388,7 +376,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.write(deadline, segment, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
@@ -415,8 +403,7 @@ open class Http11Tests {
       requestHandler(object: HttpRequestHandler(false) {
         override fun acceptUri(method: String, uri: String) = -1
         suspend override fun handle(address: InetSocketAddress, method: String, uri: String, headers: Headers,
-                                    channel: Channel, deadline: Long,
-                                    buffer: ByteBuffer, segment: ByteBuffer) {
+                                    channel: Channel, deadline: Long, buffer: ByteBuffer) {
           val array = ByteArray(buffer.remaining())
           buffer.get(array)
           buffer.rewind().limit(buffer.capacity())
@@ -425,7 +412,7 @@ open class Http11Tests {
               toByteArray(HttpRequestHandler.ASCII)
           )
           channel.write(deadline, buffer)
-          channel.write(deadline, segment, array)
+          channel.write(deadline, array)
         }
         suspend override fun reject(address: InetSocketAddress) = false
       }).
