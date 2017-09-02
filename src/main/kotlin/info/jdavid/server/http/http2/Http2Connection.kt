@@ -3,6 +3,7 @@ package info.jdavid.server.http.http2
 import info.jdavid.server.Channel
 import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.io.IOException
 import kotlin.coroutines.experimental.CoroutineContext
 import java.util.concurrent.TimeUnit
@@ -11,18 +12,32 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("UsePropertyAccessSyntax")
 internal class Http2Connection(val context: CoroutineContext,
                                val channel: Channel,
-                               val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
+                               buffers: LockFreeLinkedListHead,
+                               val maxRequestSize: Int,
+                               val readTimeoutMillis: Long,
+                               val writeTimeoutMillis: Long): Connection(buffers) {
   private val settings = Settings().
     set(Settings.HEADER_TABLE_SIZE, 4096).
     set(Settings.MAX_CONCURRENT_STREAMS, 64).
     set(Settings.INITIAL_WINDOW_SIZE, 65535).
     set(Settings.MAX_FRAME_SIZE, 16384)
+  private val streams = LockFreeLinkedListHead()
+
+  override fun next() {
+    streams.forEach<Stream> { it.recycle() }
+  }
+
+  override fun recycle() {
+    streams.forEach<Stream> {
+      // todo, put back into buffers
+    }
+  }
 
   suspend fun start(): Http2Connection {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
 
-    val stream = connectionPreface(readDeadline, writeDeadline)
+//    val stream = connectionPreface(readDeadline, writeDeadline)
 
     return this
   }
@@ -32,25 +47,26 @@ internal class Http2Connection(val context: CoroutineContext,
   }
 
 
-  suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
-    val client = async(context) {
-      val connectionPreface = channel.read(readDeadline, CONNECTION_PREFACE.size)
-      @Suppress("LoopToCallChain")
-      for (i in 0 until CONNECTION_PREFACE.size) {
-        if (connectionPreface[i] != CONNECTION_PREFACE[i]) {
-          throw IOException("Invalid connection preface.")
-        }
-      }
-      val settings =
-        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
-      if (settings.isAck) throw ConnectionException.ProtocolError()
-      this@Http2Connection.settings.merge(settings)
-    }
-    val server = async(context) {
-      //Frame.Settings(0, 0, Settings().write(channel))
-    }
-    return Stream(0)
-  }
+//  suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
+//    val stream = Stream(0, buffers, maxRequestSize)
+//    val client = async(context) {
+//      val connectionPreface = channel.read(readDeadline, stream.segmentR, CONNECTION_PREFACE.size)
+//      @Suppress("LoopToCallChain")
+//      for (i in 0 until CONNECTION_PREFACE.size) {
+//        if (connectionPreface[i] != CONNECTION_PREFACE[i]) {
+//          throw IOException("Invalid connection preface.")
+//        }
+//      }
+//      val settings =
+//        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+//      if (settings.isAck) throw ConnectionException.ProtocolError()
+//      this@Http2Connection.settings.merge(settings)
+//    }
+//    val server = async(context) {
+//      //Frame.Settings(0, 0, Settings().write(channel))
+//    }
+//    return Stream(0)
+//  }
 
   companion object {
     val ASCII = Charsets.US_ASCII

@@ -1,23 +1,28 @@
-package info.jdavid.server.http.http2
+package info.jdavid.server.http.http11
 
-import info.jdavid.server.http.http11.Http11Connection
+import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListNode
 import java.nio.ByteBuffer
 
-internal class Stream(val id: Int,
-                      buffers: LockFreeLinkedListHead, maxRequestSize: Int): LockFreeLinkedListNode() {
+class Http11Connection(buffers: LockFreeLinkedListHead, maxRequestSize: Int): Connection(buffers) {
   private val node = buffers.removeFirstOrNull() as? Node ?: Node(8192, maxRequestSize)
 
-  var state = State.IDLE
+  internal val segmentR = node.segmentR
+  internal val segmentW = node.segmentW
+  internal val buffer = node.buffer
 
-  internal fun recycle() {
-
+  override fun next() {
+    segmentW.rewind().limit(segmentW.capacity())
+    segmentR.rewind().limit(segmentR.capacity())
+    buffer.rewind().limit(buffer.capacity())
   }
 
-  enum class State {
-    IDLE, OPEN, RESERVED, HALF_CLOSED, CLOSED
+  override fun recycle() {
+    buffers.addLast(node)
   }
+
+  suspend override fun close() {}
 
   private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)

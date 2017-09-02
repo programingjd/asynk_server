@@ -3,6 +3,7 @@ package info.jdavid.server
 import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.HttpRequestHandler
 import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
@@ -12,15 +13,18 @@ import kotlin.coroutines.experimental.CoroutineContext
 interface RequestHandler {
 
   suspend fun connection(context: CoroutineContext,
-                         channel: Channel, readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection?
+                         buffers: LockFreeLinkedListHead,
+                         channel: Channel,
+                         maxRequestSize: Int,
+                         readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection
 
   fun adjustSSLParameters(sslParameters: SSLParameters)
 
   suspend fun reject(address: InetSocketAddress): Boolean
 
-  suspend fun handle(channel: Channel, connection: Connection?, address: InetSocketAddress,
+  suspend fun handle(channel: Channel, connection: Connection, address: InetSocketAddress,
                      readDeadline: Long, writeDeadline: Long,
-                     maxHeaderSize: Int, buffer: ByteBuffer): Boolean
+                     maxHeaderSize: Int): Boolean
 
   companion object {
     val DEFAULT = object: HttpRequestHandler(true) {
@@ -44,14 +48,15 @@ interface RequestHandler {
                                   headers: Headers,
                                   channel: Channel,
                                   deadline: Long,
-                                  buffer: ByteBuffer) {
+                                  buffer: ByteBuffer,
+                                  segment: ByteBuffer) {
         buffer.rewind().limit(buffer.capacity())
         buffer.put("HTTP/1.1 200 OK\r\n".toByteArray(ASCII))
         channel.write(deadline, buffer)
         val h = Headers()
         h.add(Headers.CONTENT_TYPE, "text/plain; charset=utf-8")
         h.add(Headers.CONTENT_LENGTH, "6")
-        channel.write(deadline, h)
+        channel.write(deadline, segment, h)
         buffer.put("body\n".toByteArray(UTF_8))
         channel.write(deadline, buffer)
         delay(5, TimeUnit.SECONDS)

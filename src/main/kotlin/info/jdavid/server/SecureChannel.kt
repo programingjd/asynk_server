@@ -13,21 +13,16 @@ import javax.net.ssl.SSLEngineResult
 
 internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                              private val engine: SSLEngine,
-                             private val nodes: LockFreeLinkedListHead,
-                             maxRequestSize: Int): Channel() {
-  private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize,
-                                                                Math.max(
-                                                                  engine.session.packetBufferSize,
-                                                                  engine.session.applicationBufferSize))
-  private val segmentR = node.segmentR
-  private val segmentW = node.segmentW
-  private val buffer = node.buffer
+                             private val nodes: LockFreeLinkedListHead): Channel() {
+  private val node = nodes.removeFirstOrNull() as? Node ?: Node(
+    Math.max(engine.session.packetBufferSize, engine.session.applicationBufferSize)
+  )
   private val wireIn = node.wireIn
   private val wireOut = node.wireOut
   private val appIn = node.appIn
   private val appOut = node.appOut
 
-  fun applicationProtocol() = engine.applicationProtocol
+  fun applicationProtocol(): String = engine.applicationProtocol
 
   suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,
@@ -95,10 +90,6 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
   }
 
-  override fun next() {
-    buffer.rewind().limit(buffer.capacity())
-  }
-
   override fun recycle() {
     wireIn.rewind().limit(0)
     wireOut.rewind().limit(wireOut.capacity())
@@ -107,27 +98,19 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     nodes.addLast(node)
   }
 
-  override fun buffer() = buffer
-
-  override fun segmentR() = segmentR
-
-  override fun segmentW() = segmentW
-
-  suspend override fun read(deadline: Long) = read(deadline,16384)
-
-  suspend override fun read(deadline: Long, bytes: Int): ByteBuffer {
-    segmentR.rewind().limit(bytes)
-    if (bytes == 0) return segmentR.flip() as ByteBuffer
+  suspend override fun read(deadline: Long, bytes: Int, segment: ByteBuffer): ByteBuffer {
+    segment.rewind().limit(bytes)
+    if (bytes == 0) return segment.flip() as ByteBuffer
     val p = appIn.position()
     if (p > bytes) {
       appIn.rewind().limit(bytes)
-      segmentR.put(appIn)
+      segment.put(appIn)
       appIn.limit(p)
       if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
     }
     else if (p > 0) {
       appIn.flip()
-      segmentR.put(appIn)
+      segment.put(appIn)
       if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
     }
     else {
@@ -135,17 +118,17 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
       val p2 = appIn.position()
       if (p2 > bytes) {
         appIn.rewind().limit(bytes)
-        segmentR.put(appIn)
+        segment.put(appIn)
         appIn.limit(p2)
         if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
       }
       else if (p2 > 0) {
         appIn.flip()
-        segmentR.put(appIn)
+        segment.put(appIn)
         if (appIn.position() == 0) appIn.limit(appIn.capacity()) else appIn.compact()
       }
     }
-    return segmentR.flip() as ByteBuffer
+    return segment.flip() as ByteBuffer
   }
 
   suspend override fun write(deadline: Long, byteBuffer: ByteBuffer) {
@@ -168,10 +151,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     byteBuffer.rewind().limit(byteBuffer.capacity())
   }
 
-  private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
-    internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
-    internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
-    internal val buffer = ByteBuffer.allocateDirect(bufferSize)
+  private class Node(engineBufferSize: Int): LockFreeLinkedListNode() {
     internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
     internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)
     internal val appIn = ByteBuffer.allocateDirect(engineBufferSize)

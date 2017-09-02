@@ -5,28 +5,19 @@ import java.nio.ByteBuffer
 
 abstract class Channel internal constructor() {
 
-  abstract suspend fun read(deadline: Long): ByteBuffer
+  abstract fun recycle()
 
-  abstract suspend fun read(deadline: Long, bytes: Int): ByteBuffer
+  suspend fun read(deadline: Long, segment: ByteBuffer) = read(deadline, segment.capacity(), segment)
+
+  abstract suspend fun read(deadline: Long, bytes: Int, segment: ByteBuffer): ByteBuffer
 
   abstract suspend fun write(deadline: Long, byteBuffer: ByteBuffer)
-
-  abstract internal fun next()
 
   abstract suspend internal fun start(readDeadline: Long, writeDeadline: Long)
 
   abstract suspend internal fun stop(readDeadline: Long, writeDeadline: Long)
 
-  abstract internal fun recycle()
-
-  abstract internal fun buffer(): ByteBuffer
-
-  abstract internal fun segmentW(): ByteBuffer
-
-  abstract internal fun segmentR(): ByteBuffer
-
-  suspend fun write(deadline: Long, vararg arrays: ByteArray) {
-    val segment = segmentW()
+  suspend fun write(deadline: Long, segment: ByteBuffer, vararg arrays: ByteArray) {
     segment.rewind().limit(segment.capacity())
     for (bytes in arrays) {
       val n = bytes.size
@@ -52,13 +43,13 @@ abstract class Channel internal constructor() {
     write(deadline, segment)
   }
 
-  suspend fun write(deadline: Long, headers: Headers) {
+  suspend fun write(deadline: Long, segment: ByteBuffer, headers: Headers) {
     val lines = headers.lines
     val max = lines.size * 2
     val array = Array(max + 1, {
       if (it == max || it % 2 != 0) CRLF else lines[it / 2].toByteArray(ISO_8859_1)
     })
-    write(deadline, *array)
+    write(deadline, segment, *array)
   }
 
   private companion object {
