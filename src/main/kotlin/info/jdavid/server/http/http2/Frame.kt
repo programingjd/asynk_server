@@ -21,8 +21,8 @@ internal abstract class Frame(internal val streamId: Int,
     val isAck = flags == 0x01
     init {
       if (streamId != 0) throw ConnectionException.ProtocolError()
-      if (isAck && (payload?.remaining() ?: 0) != 0) throw ConnectionException.FrameSizeError()
-      if ((payload?.remaining() ?: 0) % 6 != 0) throw ConnectionException.FrameSizeError()
+      if (isAck && (payload?.position() ?: 0) != 0) throw ConnectionException.FrameSizeError()
+      if ((payload?.position() ?: 0) % 6 != 0) throw ConnectionException.FrameSizeError()
     }
   }
   class PushPromise(streamId: Int, flags: Int, payload: ByteBuffer?):

@@ -168,7 +168,7 @@ internal class Http2Connection(val context: CoroutineContext,
           segment.putInt(get(i))
         }
       }
-      return segment
+      return segment.flip()
     }
 
     companion object {
