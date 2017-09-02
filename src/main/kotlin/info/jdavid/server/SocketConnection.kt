@@ -3,7 +3,7 @@ package info.jdavid.server
 import info.jdavid.server.http.http11.Headers
 import java.nio.ByteBuffer
 
-abstract class Channel internal constructor() {
+abstract class SocketConnection internal constructor() {
 
   abstract suspend fun read(deadline: Long): ByteBuffer
 
@@ -11,15 +11,11 @@ abstract class Channel internal constructor() {
 
   abstract suspend fun write(deadline: Long, byteBuffer: ByteBuffer)
 
-  abstract internal fun next()
-
   abstract suspend internal fun start(readDeadline: Long, writeDeadline: Long)
 
   abstract suspend internal fun stop(readDeadline: Long, writeDeadline: Long)
 
-  abstract internal fun recycle()
-
-  abstract internal fun buffer(): ByteBuffer
+  abstract internal fun recycleBuffers()
 
   abstract internal fun segment(): ByteBuffer
 

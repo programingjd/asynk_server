@@ -9,12 +9,12 @@ class Config {
 
   private var port = 8080  // 80
   private var hostname: String? = null
-  private var certificate: () -> ByteArray? = { null }
-  private var readTimeoutMillis: Long = 30000L
-  private var writeTimeoutMillis: Long = 30000L
-  private var maxHeaderSize: Int = 8192
-  private var maxRequestSize: Int = 65536
-  private var connectionHandler: ConnectionHandler = ConnectionHandler.DEFAULT
+  internal var sslCertificate: () -> ByteArray? = { null }
+  internal var readTimeoutMillis: Long = 30000L
+  internal var writeTimeoutMillis: Long = 30000L
+  internal var maxHeaderSize: Int = 8192
+  internal var maxRequestSize: Int = 65536
+  internal var connectionHandler: ConnectionHandler = ConnectionHandler.DEFAULT
 
   fun port(port: Int): Config {
     if (port < 0) throw IllegalArgumentException("Invalid port number: $port")
@@ -27,13 +27,13 @@ class Config {
     return this
   }
 
-  fun certificate(bytes: ByteArray): Config {
-    this.certificate = { bytes }
+  fun certificate(p12: ByteArray): Config {
+    this.sslCertificate = { p12 }
     return this
   }
 
   fun certificate(file: File): Config {
-    this.certificate = { file.readBytes() }
+    this.sslCertificate = { file.readBytes() }
     return this
   }
 
@@ -69,14 +69,12 @@ class Config {
     val address = InetSocketAddress(hostname?.with { InetAddress.getByName(it) }, port)
     return Server(
       address,
-      readTimeoutMillis, writeTimeoutMillis,
-      maxHeaderSize, maxRequestSize,
-      connectionHandler,
-      Runtime.getRuntime().availableProcessors() - 1,
-      certificate
+      this,
+      Runtime.getRuntime().availableProcessors() - 1
     )
   }
 
-  private inline fun <T, U> T?.with(t: (T) -> U): U? = if (this == null) null else t(this)
+  private inline
+  fun <T, U> T?.with(t: (T) -> U): U? = if (this == null) null else t(this)
 
 }

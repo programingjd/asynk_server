@@ -1,6 +1,6 @@
 package info.jdavid.server.http.http2
 
-import info.jdavid.server.Channel
+import info.jdavid.server.SocketConnection
 import java.nio.ByteBuffer
 
 internal abstract class Frame(internal val streamId: Int,
@@ -44,8 +44,8 @@ internal abstract class Frame(internal val streamId: Int,
                 Frame(streamId, type, flags, payload)
 
   companion object {
-    suspend fun read(channel: Channel, deadline: Long): Frame {
-      val segment = channel.read(deadline, 9)
+    suspend fun read(socketConnection: SocketConnection, deadline: Long): Frame {
+      val segment = socketConnection.read(deadline, 9)
       segment.rewind().limit(segment.capacity())
       val length = (segment.get().toInt() and 0xff shl 16) or
         (segment.get().toInt() and 0xff shl 8) or
@@ -54,7 +54,7 @@ internal abstract class Frame(internal val streamId: Int,
       val flags = segment.get().toInt().and(0xff)
       @Suppress("UsePropertyAccessSyntax")
       val streamId = segment.getInt() and 0x7fffffff // ignore reserved bit
-      val payload = if (length == 0) null else channel.read(deadline, length)
+      val payload = if (length == 0) null else socketConnection.read(deadline, length)
       return when (type) {
         Http2Connection.Types.DATA -> Data(streamId, flags, payload)
         Http2Connection.Types.HEADERS -> Headers(streamId, flags, payload)
@@ -69,8 +69,8 @@ internal abstract class Frame(internal val streamId: Int,
         else -> Unknown(streamId, type, flags, payload)
       }
     }
-    suspend fun write(channel: Channel, deadline: Long, frame: Frame) {
-      val segment = channel.segment()
+    suspend fun write(socketConnection: SocketConnection, deadline: Long, frame: Frame) {
+      val segment = socketConnection.segment()
       segment.rewind().limit(segment.capacity())
       val length = frame.payload?.remaining() ?: 0
       segment.put((length.ushr(16) and 0xff).toByte())
@@ -80,20 +80,20 @@ internal abstract class Frame(internal val streamId: Int,
       segment.put((frame.flags and 0xff).toByte())
       segment.putInt(frame.streamId and 0x7fffffff)
       if (frame.payload == null) {
-        channel.write(deadline, segment)
+        socketConnection.write(deadline, segment)
       }
       else if (length + 9 <= segment.capacity()) {
         segment.put(frame.payload)
-        channel.write(deadline, segment)
+        socketConnection.write(deadline, segment)
       }
       else {
         frame.payload.limit(segment.capacity() - 9)
         segment.put(frame.payload)
-        channel.write(deadline, segment)
+        socketConnection.write(deadline, segment)
         segment.rewind().limit(segment.capacity())
         frame.payload.limit(length)
         segment.put(frame.payload)
-        channel.write(deadline, segment)
+        socketConnection.write(deadline, segment)
       }
     }
   }

@@ -1,6 +1,6 @@
 package info.jdavid.server.http.http2
 
-import info.jdavid.server.Channel
+import info.jdavid.server.SocketConnection
 import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("UsePropertyAccessSyntax")
 internal class Http2Connection(val context: CoroutineContext,
-                               val channel: Channel,
+                               val socketConnection: SocketConnection,
                                val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
   private val settings = Settings().
     set(Settings.HEADER_TABLE_SIZE, 4096).
@@ -34,7 +34,7 @@ internal class Http2Connection(val context: CoroutineContext,
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     val requestHeaders = async(context) {
       val headers =
-        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+        Frame.read(socketConnection, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
       val stream = streams.next as Stream
     }
   }
@@ -49,7 +49,7 @@ internal class Http2Connection(val context: CoroutineContext,
     // followed by a SETTINGS frame.
     // Server should send a SETTINGS frame and acknowledge the client SETTINGS frame.
     val clientSettings = async(context) {
-      val connectionPreface = channel.read(readDeadline, CONNECTION_PREFACE.size)
+      val connectionPreface = socketConnection.read(readDeadline, CONNECTION_PREFACE.size)
       @Suppress("LoopToCallChain")
       for (i in 0 until CONNECTION_PREFACE.size) {
         if (connectionPreface[i] != CONNECTION_PREFACE[i]) {
@@ -57,18 +57,18 @@ internal class Http2Connection(val context: CoroutineContext,
         }
       }
       val settings =
-        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+        Frame.read(socketConnection, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
       if (settings.ack) throw ConnectionException.ProtocolError() else settings
     }
     val server = async(context) {
-      Frame.write(channel, writeDeadline, Frame.Settings(0, 0, settings.write(channel.buffer())))
+      Frame.write(socketConnection, writeDeadline, Frame.Settings(0, 0, settings.write(socketConnection.buffer())))
     }
     // wait for server SETTINGS frame to be sent
     server.await()
     // wait for client SETTINGS frame to be received
     settings.merge(clientSettings.await())
     // send ACK
-    Frame.write(channel, writeDeadline, Frame.Settings(0, 0x01, null))
+    Frame.write(socketConnection, writeDeadline, Frame.Settings(0, 0x01, null))
     return Stream(0)
   }
 

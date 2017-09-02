@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLEngine
 import javax.net.ssl.SSLEngineResult
 
-internal class SecureChannel(private val channel: AsynchronousSocketChannel,
-                             private val engine: SSLEngine,
-                             private val nodes: LockFreeLinkedListHead,
-                             maxRequestSize: Int): Channel() {
+internal class SecureSocketConnection(private val channel: AsynchronousSocketChannel,
+                                      private val nodes: LockFreeLinkedListHead,
+                                      maxRequestSize: Int,
+                                      private val engine: SSLEngine): SocketConnection() {
   private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize,
                                                                 Math.max(
                                                                   engine.session.packetBufferSize,
@@ -96,11 +96,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
     handshake(channel, null, SSLEngineResult.HandshakeStatus.NEED_WRAP, readDeadline, writeDeadline)
   }
 
-  override fun next() {
-    buffer.rewind().limit(buffer.capacity())
-  }
-
-  override fun recycle() {
+  override fun recycleBuffers() {
     wireIn.rewind().limit(0)
     wireOut.rewind().limit(wireOut.capacity())
     appIn.rewind().limit(appIn.capacity())

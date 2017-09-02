@@ -19,62 +19,69 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
-class Server internal constructor(address: InetSocketAddress,
-                                  readTimeoutMillis: Long, writeTimeoutMillis: Long,
-                                  maxHeaderSize: Int, maxRequestSize: Int,
-                                  connectionHandler: ConnectionHandler,
-                                  cores: Int, sslCertificate: () -> ByteArray?) {
+class Server internal constructor(address: InetSocketAddress, config: Config, cores: Int) {
+
   private val socketAcceptThread = singleThreadWithMaxPriority(address)
   private val socketAcceptDispatcher = socketAcceptThread.asCoroutineDispatcher()
 
   private val connectionHandleThreads = Executors.newScheduledThreadPool(cores * 2)
   private val connectionHandleDispatcher = connectionHandleThreads.asCoroutineDispatcher()
 
-  private val socketChannel = bind(address)
+  private val socket = bind(address)
+
+  fun stop() {
+    socketAcceptLoop.cancel()
+    try { socket.close() } catch (ignore: IOException) {}
+    awaitTermination(socketAcceptThread)
+  }
 
   private val socketAcceptLoop = {
-    val ssl = SSL.context(sslCertificate())
-    println("Started listening on ${address.hostName}:${address.port}")
-    val nodes = LockFreeLinkedListHead()
+    val sslContext = SSL.context(config.sslCertificate())
+    val connectionHandler = config.connectionHandler
+    val readTimeoutMillis = config.readTimeoutMillis
+    val writeTimeoutMillis = config.writeTimeoutMillis
+    val maxRequestSize = config.maxRequestSize
+    val maxHeaderSize = config.maxHeaderSize
 
-    val accepted = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
-    val closing = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
+    println("Started listening on ${address.hostName}:${address.port}")
+
+    val segmentPool = LockFreeLinkedListHead()
+    val bufferPool = LockFreeLinkedListHead()
+
+    val acceptedSockets = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
+    val closingSockets = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
     launch(connectionHandleDispatcher) outer@ {
+
       while (true) {
-        val clientChannel = accepted.receiveOrNull() ?: break
+        val clientChannel = acceptedSockets.receiveOrNull() ?: break
+
         launch(coroutineContext) inner@ {
           try {
             val clientAddress = clientChannel.remoteAddress as InetSocketAddress
             if (connectionHandler.reject(clientAddress)) return@inner
-            val channel = if (ssl == null) {
-              InsecureChannel(clientChannel, nodes, maxRequestSize)
+
+            val socketConnection = if (sslContext == null) {
+              InsecureSocketConnection(clientChannel, segmentPool, maxRequestSize)
             }
             else {
-              SecureChannel(clientChannel,
-                            SSL.engine(ssl, SSL.parameters().apply {
-                              connectionHandler.adjustSSLParameters(this)
-                            }),
-                            nodes, maxRequestSize)
+              val sslParameters = connectionHandler.sslParameters(SSL.parameters())
+              val sslEngine = SSL.engine(sslContext, sslParameters)
+              SecureSocketConnection(clientChannel, segmentPool, maxRequestSize, sslEngine)
             }
+
             try {
-              val start = System.nanoTime()
-              channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                            start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-              val connection = connectionHandler.connection(coroutineContext,
-                                                            channel, readTimeoutMillis, writeTimeoutMillis)
+              start(socketConnection, readTimeoutMillis, writeTimeoutMillis)
+              val connection = connectionHandler.connect(
+                coroutineContext, socketConnection, bufferPool,
+                readTimeoutMillis, writeTimeoutMillis
+              )
               try {
-                while (!accepted.isClosedForSend) {
-                  try {
-                    if (!connectionHandler.handle(channel, connection, clientAddress,
-                                                  readTimeoutMillis,
-                                                  writeTimeoutMillis,
-                                                  maxHeaderSize, channel.buffer())) {
-                      break
-                    }
-                  }
-                  finally {
-                    channel.next()
+                while (!acceptedSockets.isClosedForSend) {
+                  if (!connectionHandler.handle(socketConnection, clientAddress, connection,
+                                                readTimeoutMillis, writeTimeoutMillis,
+                                                maxHeaderSize)) {
+                    break
                   }
                 }
               }
@@ -85,57 +92,62 @@ class Server internal constructor(address: InetSocketAddress,
                 println("Timeout")
               }
               finally {
-                val stop = System.nanoTime()
-                connection?.close()
-                channel.stop(stop + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                             stop + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
+                connection.close()
+                stop(socketConnection, readTimeoutMillis, writeTimeoutMillis)
               }
             }
             catch (ignored: InterruptedByTimeoutException) {
               println("Timeout")
             }
             finally {
-              channel.recycle()
+              socketConnection.recycleBuffers()
             }
+
           }
           finally {
-            closing.send(clientChannel)
+            closingSockets.send(clientChannel)
           }
         }
+
       }
+
     }
+
     var pending = 0
-    val closer = launch(socketAcceptDispatcher) {
+    val closeLoop = launch(socketAcceptDispatcher) {
       run(NonCancellable) {
-        while (isActive || pending > 0 || !closing.isEmpty) {
-          val clientChannel = closing.receiveOrNull() ?: break
+        while (isActive || pending > 0 || !closingSockets.isEmpty) {
+          val clientChannel = closingSockets.receiveOrNull() ?: break
           --pending
           try { clientChannel.close() } catch (ignore: IOException) {}
         }
         connectionHandleThreads.shutdownNow()
-        while (!connectionHandleThreads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
-        closing.close()
+        awaitTermination(connectionHandleThreads)
+        closingSockets.close()
         socketAcceptThread.shutdownNow()
       }
     }
+
     launch(socketAcceptDispatcher) {
       try {
         while (true) {
-          val clientChannel = socketChannel.aAccept()
+          val clientChannel = socket.aAccept()
           clientChannel.setOption(StandardSocketOptions.TCP_NODELAY, true)
           ++pending
-          accepted.send(clientChannel)
+          acceptedSockets.send(clientChannel)
         }
       }
       catch (ignore: CancellationException) {
-        accepted.close()
-        closer.cancel()
-        if (pending == 0) closing.close()
+        acceptedSockets.close()
+        closeLoop.cancel()
+        if (pending == 0) closingSockets.close()
       }
     }
+
   }()
 
   companion object {
+
     fun singleThreadWithMaxPriority(address: InetSocketAddress): ExecutorService {
       return Executors.newSingleThreadExecutor(
         @Suppress("ObjectLiteralToLambda") object: ThreadFactory {
@@ -147,18 +159,34 @@ class Server internal constructor(address: InetSocketAddress,
         }
       )
     }
+
     fun bind(address: InetSocketAddress): AsynchronousServerSocketChannel {
       val serverChannel = AsynchronousServerSocketChannel.open()
       serverChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true)
       serverChannel.bind(address)
       return serverChannel
     }
-  }
 
-  fun stop() {
-    socketAcceptLoop.cancel()
-    try { socketChannel.close() } catch (ignore: IOException) {}
-    while (!socketAcceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
+    fun awaitTermination(threads: ExecutorService) {
+      while (!threads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
+    }
+
+    suspend private fun start(socketConnection: SocketConnection,
+                                   readTimeoutMillis: Long, writeTimeoutMillis: Long) {
+      val now = System.nanoTime()
+      val readDeadline = now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+      val writeDeadline = now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+      socketConnection.start(readDeadline, writeDeadline)
+    }
+
+    suspend private fun stop(socketConnection: SocketConnection,
+                             readTimeoutMillis: Long, writeTimeoutMillis: Long) {
+      val now = System.nanoTime()
+      val readDeadline = now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+      val writeDeadline = now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+      socketConnection.stop(readDeadline, writeDeadline)
+    }
+
   }
 
 }

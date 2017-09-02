@@ -9,29 +9,22 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.InterruptedByTimeoutException
 import java.util.concurrent.TimeUnit
 
-internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
-                               private val nodes: LockFreeLinkedListHead,
-                               maxRequestSize: Int): Channel() {
+internal class InsecureSocketConnection(private val channel: AsynchronousSocketChannel,
+                                        private val nodes: LockFreeLinkedListHead,
+                                        maxRequestSize: Int): SocketConnection() {
   private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize)
   private val segmentRead = node.segmentR
   private val segmentWrite = node.segmentW
   private val segment = node.segment
-  private val buffer = node.buffer
   private var exhausted = false
-
-  override fun next() {
-    buffer.rewind().limit(buffer.capacity())
-  }
 
   suspend override fun start(readDeadline: Long, writeDeadline: Long) {}
 
   suspend override fun stop(readDeadline: Long, writeDeadline: Long) {}
 
-  override fun recycle() {
+  override fun recycleBuffers() {
     nodes.addLast(node)
   }
-
-  override fun buffer() = buffer
 
   override fun segment() = segment
 
@@ -66,7 +59,6 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
-    internal val buffer = ByteBuffer.allocateDirect(bufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")
 //    }
