@@ -1,9 +1,10 @@
 package info.jdavid.server.http.http2
 
 import com.sun.net.httpserver.Headers
+import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListNode
 
-internal class Stream(val id: Int): LockFreeLinkedListNode() {
+internal class Stream(val id: Int, val buffers: Connection.Buffers): LockFreeLinkedListNode() {
   var state = State.IDLE
 
   var method: String? = null

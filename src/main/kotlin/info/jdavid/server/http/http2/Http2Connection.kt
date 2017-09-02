@@ -37,18 +37,23 @@ internal class Http2Connection(bufferPool: LockFreeLinkedListHead,
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
     val requestHeaders = async(context) {
       val headers =
-        Frame.read(socketConnection, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+        Frame.read(
+          socketConnection,
+          readDeadline
+        ) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
       val stream = streams.next as Stream
     }
   }
 
   suspend override fun close() {
-    TODO("not implemented")
+    TODO("close all streams, recycle their buffers")
   }
 
 
-  suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
-    // Client should send 0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n
+  suspend private fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
+    val buffers = buffers()
+    // Client should send 0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
+    // (PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n)
     // followed by a SETTINGS frame.
     // Server should send a SETTINGS frame and acknowledge the client SETTINGS frame.
     val clientSettings = async(context) {
@@ -60,26 +65,35 @@ internal class Http2Connection(bufferPool: LockFreeLinkedListHead,
         }
       }
       val settings =
-        Frame.read(socketConnection, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+        Frame.read(
+          socketConnection,
+          readDeadline
+        ) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
       if (settings.ack) throw ConnectionException.ProtocolError() else settings
     }
     val server = async(context) {
-      Frame.write(socketConnection, writeDeadline, Frame.Settings(0, 0, settings.write(socketConnection.buffer())))
+      Frame.write(
+        socketConnection,
+        writeDeadline,
+        Frame.Settings(0, 0, settings.write(buffers.buffer))
+      )
     }
     // wait for server SETTINGS frame to be sent
     server.await()
     // wait for client SETTINGS frame to be received
     settings.merge(clientSettings.await())
     // send ACK
-    Frame.write(socketConnection, writeDeadline, Frame.Settings(0, 0x01, null))
-    return Stream(0)
+    Frame.write(
+      socketConnection,
+      writeDeadline,
+      Frame.Settings(0, 0x01, null)
+    )
+    return Stream(0, buffers)
   }
 
   companion object {
     val ASCII = Charsets.US_ASCII
     private val CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".toByteArray(ASCII)
-
-
   }
 
   class Types {
