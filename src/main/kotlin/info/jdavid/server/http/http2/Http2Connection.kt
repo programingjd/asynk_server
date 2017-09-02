@@ -4,6 +4,7 @@ import info.jdavid.server.Channel
 import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.async
 import java.io.IOException
+import java.nio.ByteBuffer
 import kotlin.coroutines.experimental.CoroutineContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -14,7 +15,7 @@ internal class Http2Connection(val context: CoroutineContext,
                                val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
   private val settings = Settings().
     set(Settings.HEADER_TABLE_SIZE, 4096).
-    set(Settings.MAX_CONCURRENT_STREAMS, 64).
+    set(Settings.MAX_CONCURRENT_STREAMS, 128).
     set(Settings.INITIAL_WINDOW_SIZE, 65535).
     set(Settings.MAX_FRAME_SIZE, 16384)
 
@@ -33,7 +34,10 @@ internal class Http2Connection(val context: CoroutineContext,
 
 
   suspend fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
-    val client = async(context) {
+    // Client should send 0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n
+    // followed by a SETTINGS frame.
+    // Server should send a SETTINGS frame and acknowledge the client SETTINGS frame.
+    val clientSettings = async(context) {
       val connectionPreface = channel.read(readDeadline, CONNECTION_PREFACE.size)
       @Suppress("LoopToCallChain")
       for (i in 0 until CONNECTION_PREFACE.size) {
@@ -43,12 +47,17 @@ internal class Http2Connection(val context: CoroutineContext,
       }
       val settings =
         Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
-      if (settings.isAck) throw ConnectionException.ProtocolError()
-      this@Http2Connection.settings.merge(settings)
+      if (settings.isAck) throw ConnectionException.ProtocolError() else settings
     }
     val server = async(context) {
-      //Frame.Settings(0, 0, Settings().write(channel))
+      Frame.write(channel, writeDeadline, Frame.Settings(0, 0, settings.write(channel.buffer())))
     }
+    // wait for server SETTINGS frame to be sent
+    server.await()
+    // wait for client SETTINGS frame to be received
+    settings.merge(clientSettings.await())
+    // send ACK
+    Frame.write(channel, writeDeadline, Frame.Settings(0, 0x01, null))
     return Stream(0)
   }
 
@@ -128,7 +137,38 @@ internal class Http2Connection(val context: CoroutineContext,
     fun count() = values.size
 
     fun merge(settings: Frame.Settings) {
+      val payload = settings.payload
+      if (payload != null) {
+        val length = payload.remaining()
+        for (i in 0 until length) {
+          val id = payload.getShort().toInt()
+          val value = payload.getInt()
+          if (isSet(id)) {
+            when (id) {
+              HEADER_TABLE_SIZE,
+              MAX_CONCURRENT_STREAMS,
+              INITIAL_WINDOW_SIZE,
+              MAX_FRAME_SIZE,
+              MAX_HEADER_LIST_SIZE -> if (get(id) > value) set(id, value)
+              else -> set(id, value)
+            }
+          }
+          else {
+            set(id, value)
+          }
+        }
+      }
+    }
 
+    fun write(segment: ByteBuffer): ByteBuffer {
+      segment.rewind().limit(segment.capacity())
+      for (i in 1..count()) {
+        if (isSet(i)) {
+          segment.putShort(i.toShort())
+          segment.putInt(get(i))
+        }
+      }
+      return segment
     }
 
     companion object {

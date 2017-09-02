@@ -12,15 +12,14 @@ import java.util.concurrent.TimeUnit
 internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
                                private val nodes: LockFreeLinkedListHead,
                                maxRequestSize: Int): Channel() {
-  private val node = nodes.removeFirstOrNull() as? Node ?: Node(8192, maxRequestSize)
-  private val segmentR = node.segmentR
-  private val segmentW = node.segmentW
+  private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize)
+  private val segmentRead = node.segmentR
+  private val segmentWrite = node.segmentW
+  private val segment = node.segment
   private val buffer = node.buffer
   private var exhausted = false
 
   override fun next() {
-    segmentW.rewind().limit(segmentW.capacity())
-    segmentR.rewind().limit(segmentR.capacity())
     buffer.rewind().limit(buffer.capacity())
   }
 
@@ -34,22 +33,25 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun buffer() = buffer
 
-  override fun segmentW() = segmentW
+  override fun segment() = segment
 
-  override fun segmentR() = segmentR
+  override fun segmentW() = segmentWrite
 
-  suspend override fun read(deadline: Long) = read(deadline, 8192)
+  override fun segmentR() = segmentRead
+
+  suspend override fun read(deadline: Long) = read(deadline, 16384)
 
   suspend override fun read(deadline: Long, bytes: Int): ByteBuffer {
-    segmentR.rewind().limit(segmentR.capacity())
-    if (exhausted) return segmentR.limit(0) as ByteBuffer
+    segmentRead.rewind().limit(segmentRead.capacity())
+    if (bytes > segmentRead.capacity()) throw IllegalArgumentException("Too many bytes requested.")
+    if (exhausted) return segmentRead.limit(segmentRead.position()) as ByteBuffer
     val timeout = deadline - System.nanoTime()
     if (timeout < 0L) throw InterruptedByTimeoutException()
-    val n = channel.aRead(segmentR, timeout, TimeUnit.NANOSECONDS)
+    val n = channel.aRead(segmentRead, timeout, TimeUnit.NANOSECONDS)
     if (n == -1) {
       exhausted = true
     }
-    return segmentR.flip() as ByteBuffer
+    return segmentRead.flip() as ByteBuffer
   }
 
   suspend override fun write(deadline: Long, byteBuffer: ByteBuffer) {
@@ -63,6 +65,7 @@ internal class InsecureChannel(private val channel: AsynchronousSocketChannel,
   private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
+    internal val segment = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
 //    init {
 //      println("[${counter.incrementAndGet()}]")

@@ -21,6 +21,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
                                                                   engine.session.applicationBufferSize))
   private val segmentR = node.segmentR
   private val segmentW = node.segmentW
+  private val segment = node.segment
   private val buffer = node.buffer
   private val wireIn = node.wireIn
   private val wireOut = node.wireOut
@@ -109,6 +110,8 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
 
   override fun buffer() = buffer
 
+  override fun segment() = segment
+
   override fun segmentR() = segmentR
 
   override fun segmentW() = segmentW
@@ -171,6 +174,7 @@ internal class SecureChannel(private val channel: AsynchronousSocketChannel,
   private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
+    internal val segment = ByteBuffer.allocateDirect(segmentSize)
     internal val buffer = ByteBuffer.allocateDirect(bufferSize)
     internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
     internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)

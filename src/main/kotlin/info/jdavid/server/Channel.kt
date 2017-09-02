@@ -21,9 +21,11 @@ abstract class Channel internal constructor() {
 
   abstract internal fun buffer(): ByteBuffer
 
-  abstract internal fun segmentW(): ByteBuffer
+  abstract internal fun segment(): ByteBuffer
 
-  abstract internal fun segmentR(): ByteBuffer
+  abstract protected fun segmentW(): ByteBuffer
+
+  abstract protected fun segmentR(): ByteBuffer
 
   suspend fun write(deadline: Long, vararg arrays: ByteArray) {
     val segment = segmentW()
