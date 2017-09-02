@@ -1,10 +1,8 @@
 package info.jdavid.server
 
 import java.security.cert.X509Certificate
-import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
-import javax.net.ssl.SSLSession
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
@@ -18,9 +16,7 @@ class HttpsTests: Http11Tests() {
     val sc = SSLContext.getInstance("SSL")
     sc.init(null, trustAllCerts, java.security.SecureRandom())
     HttpsURLConnection.setDefaultSSLSocketFactory(sc.socketFactory)
-    HttpsURLConnection.setDefaultHostnameVerifier(object: HostnameVerifier {
-      override fun verify(hostname: String?, session: SSLSession?) = true
-    })
+    HttpsURLConnection.setDefaultHostnameVerifier { _, _ -> true }
   }
 
   override fun scheme() = "https"

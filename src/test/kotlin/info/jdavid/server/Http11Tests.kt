@@ -2,6 +2,7 @@ package info.jdavid.server
 
 import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.HttpConnectionHandler
+import info.jdavid.server.http.http11.Http11Connection
 import org.junit.Test
 import org.junit.Assert.*
 import org.junit.FixMethodOrder
@@ -31,7 +32,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -57,7 +58,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -83,7 +84,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -110,7 +111,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -146,7 +147,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nCache-Control: no-store\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -170,7 +171,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -195,7 +196,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -220,7 +221,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nCache-Control: no-store\r\n\r\nabcd".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -243,7 +244,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\na: b\r\nCache-Control: no-store\r\n\r\nabcd".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
         }
@@ -283,7 +284,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
           socketConnection.write(deadline, array)
@@ -327,7 +328,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
           socketConnection.write(deadline, array)
@@ -373,7 +374,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
           socketConnection.write(deadline, array)
@@ -409,7 +410,7 @@ open class Http11Tests {
           buffer.rewind().limit(buffer.capacity())
           buffer.put(
             "HTTP/1.1 200 OK\r\nContent-Length: ${array.size}\r\nCache-Control: no-store\r\n\r\n".
-              toByteArray(HttpConnectionHandler.ASCII)
+              toByteArray(Http11Connection.ASCII)
           )
           socketConnection.write(deadline, buffer)
           socketConnection.write(deadline, array)

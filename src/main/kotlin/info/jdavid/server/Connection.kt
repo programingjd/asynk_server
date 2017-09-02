@@ -14,6 +14,7 @@ abstract class Connection(private val bufferPool: LockFreeLinkedListHead,
   }
 
   internal fun recycle(buffers: Buffers) {
+    buffers.buffer.rewind().limit(buffers.buffer.capacity())
     bufferPool.addLast(buffers)
   }
 

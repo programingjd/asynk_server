@@ -11,9 +11,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 @Suppress("UsePropertyAccessSyntax")
-internal class Http2Connection(val context: CoroutineContext,
+internal class Http2Connection(bufferPool: LockFreeLinkedListHead,
+                               maxRequestSize: Int,
+                               val context: CoroutineContext,
                                val socketConnection: SocketConnection,
-                               val readTimeoutMillis: Long, val writeTimeoutMillis: Long): Connection {
+                               val readTimeoutMillis: Long,
+                               val writeTimeoutMillis: Long): Connection(bufferPool, maxRequestSize) {
   private val settings = Settings().
     set(Settings.HEADER_TABLE_SIZE, 4096).
     set(Settings.MAX_CONCURRENT_STREAMS, 128).

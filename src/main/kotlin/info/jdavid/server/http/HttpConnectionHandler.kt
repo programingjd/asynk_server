@@ -52,7 +52,11 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
                                maxRequestSize: Int): Connection {
     return if (socketConnection is SecureSocketConnection &&
                socketConnection.applicationProtocol() == "h2") {
-      Http2Connection(context, socketConnection, readTimeoutMillis, writeTimeoutMillis).start()
+      Http2Connection(
+        bufferPool, maxRequestSize,
+        context, socketConnection,
+        readTimeoutMillis, writeTimeoutMillis
+      ).start()
     }
     else {
       Http11Connection(bufferPool, maxRequestSize)
