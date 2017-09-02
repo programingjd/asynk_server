@@ -9,12 +9,12 @@ class Config {
 
   private var port = 8080  // 80
   private var hostname: String? = null
-  private var cert: () -> ByteArray? = { null }
+  private var certificate: () -> ByteArray? = { null }
   private var readTimeoutMillis: Long = 30000L
   private var writeTimeoutMillis: Long = 30000L
   private var maxHeaderSize: Int = 8192
   private var maxRequestSize: Int = 65536
-  private var requestHandler: RequestHandler = RequestHandler.DEFAULT
+  private var connectionHandler: ConnectionHandler = ConnectionHandler.DEFAULT
 
   fun port(port: Int): Config {
     if (port < 0) throw IllegalArgumentException("Invalid port number: $port")
@@ -28,12 +28,12 @@ class Config {
   }
 
   fun certificate(bytes: ByteArray): Config {
-    this.cert = { bytes }
+    this.certificate = { bytes }
     return this
   }
 
   fun certificate(file: File): Config {
-    this.cert = { file.readBytes() }
+    this.certificate = { file.readBytes() }
     return this
   }
 
@@ -57,8 +57,8 @@ class Config {
     return this
   }
 
-  fun requestHandler(handler: RequestHandler): Config {
-    this.requestHandler = handler
+  fun requestHandler(handler: ConnectionHandler): Config {
+    this.connectionHandler = handler
     return this
   }
 
@@ -71,9 +71,9 @@ class Config {
       address,
       readTimeoutMillis, writeTimeoutMillis,
       maxHeaderSize, maxRequestSize,
-      requestHandler,
+      connectionHandler,
       Runtime.getRuntime().availableProcessors() - 1,
-      cert
+      certificate
     )
   }
 

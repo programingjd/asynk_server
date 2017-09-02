@@ -11,17 +11,22 @@ internal abstract class Frame(internal val streamId: Int,
   class Data(streamId: Int, flags: Int, payload: ByteBuffer?):
              Frame(streamId, Types.DATA, flags, payload)
   class Headers(streamId: Int, flags: Int, payload: ByteBuffer?):
-                Frame(streamId, Types.HEADERS, flags, payload)
+                Frame(streamId, Types.HEADERS, flags, payload) {
+    val pad = flags and Flags.PADDED != 0
+    val priority = flags and Flags.PRIORITY != 0
+    val endHeaders = flags and Flags.END_HEADERS != 0
+    val endStream = flags and Flags.END_STREAM != 0
+  }
   class Priority(streamId: Int, flags: Int, payload: ByteBuffer?):
                  Frame(streamId, Types.PRIORITY, flags, payload)
   class RstStream(streamId: Int, flags: Int, payload: ByteBuffer?):
                   Frame(streamId, Types.RST_STREAM, flags, payload)
   class Settings(streamId: Int, flags: Int, payload: ByteBuffer?):
                  Frame(streamId, Types.SETTINGS, flags, payload) {
-    val isAck = flags == 0x01
+    val ack = flags and Flags.ACK != 0
     init {
       if (streamId != 0) throw ConnectionException.ProtocolError()
-      if (isAck && (payload?.position() ?: 0) != 0) throw ConnectionException.FrameSizeError()
+      if (ack && (payload?.position() ?: 0) != 0) throw ConnectionException.FrameSizeError()
       if ((payload?.position() ?: 0) % 6 != 0) throw ConnectionException.FrameSizeError()
     }
   }
@@ -33,6 +38,8 @@ internal abstract class Frame(internal val streamId: Int,
                Frame(streamId, Types.GOAWAY, flags, payload)
   class WindowUpdate(streamId: Int, flags: Int, payload: ByteBuffer?):
                      Frame(streamId, Types.WINDOW_UPDATE, flags, payload)
+  class Continuation(streamId: Int, flags: Int, payload: ByteBuffer?):
+                     Frame(streamId, Types.CONTINUATION, flags, payload)
   class Unknown(streamId: Int, type: Int, flags: Int, payload: ByteBuffer?):
                 Frame(streamId, type, flags, payload)
 
@@ -58,6 +65,7 @@ internal abstract class Frame(internal val streamId: Int,
         Http2Connection.Types.PING -> Ping(streamId, flags, payload)
         Http2Connection.Types.GOAWAY -> GoAway(streamId, flags, payload)
         Http2Connection.Types.WINDOW_UPDATE -> WindowUpdate(streamId, flags, payload)
+        Http2Connection.Types.CONTINUATION -> Continuation(streamId, flags, payload)
         else -> Unknown(streamId, type, flags, payload)
       }
     }
@@ -119,6 +127,7 @@ internal abstract class Frame(internal val streamId: Int,
   class Flags {
 
     companion object {
+      internal val ACK = 0x01
       internal val END_STREAM = 0x01
       internal val END_HEADERS = 0x04
       internal val PADDED = 0x08

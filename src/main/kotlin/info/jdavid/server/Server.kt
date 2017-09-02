@@ -14,6 +14,7 @@ import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.InterruptedByTimeoutException
 import java.util.concurrent.CancellationException
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
@@ -21,41 +22,38 @@ import java.util.concurrent.TimeUnit
 class Server internal constructor(address: InetSocketAddress,
                                   readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                   maxHeaderSize: Int, maxRequestSize: Int,
-                                  requestHandler: RequestHandler,
-                                  cores: Int, cert: () -> ByteArray?) {
-  @Suppress("ObjectLiteralToLambda")
-  private val acceptThread = Executors.newSingleThreadExecutor(object: ThreadFactory {
-    override fun newThread(r: Runnable): Thread {
-      val t = Thread(null, r, "Socket ${address.hostName}:${address.port}")
-      t.priority = Thread.MAX_PRIORITY
-      return t
-    }
-  })
-  private val acceptDispatcher = acceptThread.asCoroutineDispatcher()
-  private val serverChannel = openChannel(address)
-  private val handleThreads = Executors.newScheduledThreadPool(cores * 2)
-  private val handleDispatcher = handleThreads.asCoroutineDispatcher()
+                                  connectionHandler: ConnectionHandler,
+                                  cores: Int, sslCertificate: () -> ByteArray?) {
+  private val socketAcceptThread = singleThreadWithMaxPriority(address)
+  private val socketAcceptDispatcher = socketAcceptThread.asCoroutineDispatcher()
 
-  private val acceptor = {
-    val ssl = SSL.createSSLContext(cert())
+  private val connectionHandleThreads = Executors.newScheduledThreadPool(cores * 2)
+  private val connectionHandleDispatcher = connectionHandleThreads.asCoroutineDispatcher()
+
+  private val socketChannel = bind(address)
+
+  private val socketAcceptLoop = {
+    val ssl = SSL.context(sslCertificate())
     println("Started listening on ${address.hostName}:${address.port}")
     val nodes = LockFreeLinkedListHead()
+
     val accepted = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
     val closing = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
-    launch(handleDispatcher) outer@ {
+
+    launch(connectionHandleDispatcher) outer@ {
       while (true) {
         val clientChannel = accepted.receiveOrNull() ?: break
         launch(coroutineContext) inner@ {
           try {
             val clientAddress = clientChannel.remoteAddress as InetSocketAddress
-            if (requestHandler.reject(clientAddress)) return@inner
+            if (connectionHandler.reject(clientAddress)) return@inner
             val channel = if (ssl == null) {
               InsecureChannel(clientChannel, nodes, maxRequestSize)
             }
             else {
               SecureChannel(clientChannel,
-                            SSL.createSSLEngine(ssl, SSL.parameters().apply {
-                              requestHandler.adjustSSLParameters(this)
+                            SSL.engine(ssl, SSL.parameters().apply {
+                              connectionHandler.adjustSSLParameters(this)
                             }),
                             nodes, maxRequestSize)
             }
@@ -63,16 +61,15 @@ class Server internal constructor(address: InetSocketAddress,
               val start = System.nanoTime()
               channel.start(start + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
                             start + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis))
-              val connection = requestHandler.connection(coroutineContext,
-                                                         channel, readTimeoutMillis, writeTimeoutMillis)
+              val connection = connectionHandler.connection(coroutineContext,
+                                                            channel, readTimeoutMillis, writeTimeoutMillis)
               try {
                 while (!accepted.isClosedForSend) {
                   try {
-                    val now = System.nanoTime()
-                    if (!requestHandler.handle(channel, connection, clientAddress,
-                                               now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis),
-                                               now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis),
-                                               maxHeaderSize, channel.buffer())) {
+                    if (!connectionHandler.handle(channel, connection, clientAddress,
+                                                  readTimeoutMillis,
+                                                  writeTimeoutMillis,
+                                                  maxHeaderSize, channel.buffer())) {
                       break
                     }
                   }
@@ -108,23 +105,23 @@ class Server internal constructor(address: InetSocketAddress,
       }
     }
     var pending = 0
-    val closer = launch(acceptDispatcher) {
+    val closer = launch(socketAcceptDispatcher) {
       run(NonCancellable) {
         while (isActive || pending > 0 || !closing.isEmpty) {
           val clientChannel = closing.receiveOrNull() ?: break
           --pending
           try { clientChannel.close() } catch (ignore: IOException) {}
         }
-        handleThreads.shutdownNow()
-        while (!handleThreads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
+        connectionHandleThreads.shutdownNow()
+        while (!connectionHandleThreads.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
         closing.close()
-        acceptThread.shutdownNow()
+        socketAcceptThread.shutdownNow()
       }
     }
-    launch(acceptDispatcher) {
+    launch(socketAcceptDispatcher) {
       try {
         while (true) {
-          val clientChannel = serverChannel.aAccept()
+          val clientChannel = socketChannel.aAccept()
           clientChannel.setOption(StandardSocketOptions.TCP_NODELAY, true)
           ++pending
           accepted.send(clientChannel)
@@ -139,19 +136,29 @@ class Server internal constructor(address: InetSocketAddress,
   }()
 
   companion object {
-    fun openChannel(address: InetSocketAddress): AsynchronousServerSocketChannel {
+    fun singleThreadWithMaxPriority(address: InetSocketAddress): ExecutorService {
+      return Executors.newSingleThreadExecutor(
+        @Suppress("ObjectLiteralToLambda") object: ThreadFactory {
+          override fun newThread(r: Runnable): Thread {
+            val t = Thread(null, r, "Socket ${address.hostName}:${address.port}")
+            t.priority = Thread.MAX_PRIORITY
+            return t
+          }
+        }
+      )
+    }
+    fun bind(address: InetSocketAddress): AsynchronousServerSocketChannel {
       val serverChannel = AsynchronousServerSocketChannel.open()
       serverChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true)
       serverChannel.bind(address)
       return serverChannel
     }
-//    val counter = AtomicInteger(0)
   }
 
   fun stop() {
-    acceptor.cancel()
-    try { serverChannel.close() } catch (ignore: IOException) {}
-    while (!acceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
+    socketAcceptLoop.cancel()
+    try { socketChannel.close() } catch (ignore: IOException) {}
+    while (!socketAcceptThread.awaitTermination(1000, TimeUnit.MILLISECONDS)) {}
   }
 
 }

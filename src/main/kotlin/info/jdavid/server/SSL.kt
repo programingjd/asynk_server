@@ -14,18 +14,7 @@ class SSL {
 
   companion object {
 
-    val http11SslParameters = SSLParameters().apply {
-      protocols = Platform.protocols
-      cipherSuites = Platform.cipherSuites
-      applicationProtocols = arrayOf("http/1.1")
-    }
-    val http2SslParameters = SSLParameters().apply {
-      protocols = Platform.protocols
-      cipherSuites = Platform.cipherSuites
-      applicationProtocols = arrayOf("h2", "http/1.1")
-    }
-
-    fun createSSLContext(certificate: ByteArray?): SSLContext? {
+    fun context(certificate: ByteArray?): SSLContext? {
       if (certificate == null) return null
       val cert = ByteArrayInputStream(certificate)
       try {
@@ -56,7 +45,7 @@ class SSL {
       }
     }
 
-    fun createSSLEngine(context: SSLContext, parameters: SSLParameters): SSLEngine {
+    fun engine(context: SSLContext, parameters: SSLParameters): SSLEngine {
       val engine = context.createSSLEngine()
       engine.useClientMode = false
       engine.wantClientAuth = false

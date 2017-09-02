@@ -2,17 +2,18 @@ package info.jdavid.server.http
 
 import info.jdavid.server.Channel
 import info.jdavid.server.Connection
-import info.jdavid.server.RequestHandler
+import info.jdavid.server.ConnectionHandler
 import info.jdavid.server.SecureChannel
 import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.http2.Http2Connection
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLParameters
 import kotlin.coroutines.experimental.CoroutineContext
 
-abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
+abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
 
   private val protocols = if (enableHttp2) arrayOf("h2", "http/1.1") else arrayOf("http/1.1")
 
@@ -54,20 +55,22 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
   suspend final override fun handle(channel: Channel,
                                     connection: Connection?,
                                     address: InetSocketAddress,
-                                    readDeadline: Long, writeDeadline: Long,
+                                    readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                     maxHeaderSize: Int,
                                     buffer: ByteBuffer): Boolean {
     return if (connection is Http2Connection) {
-      // todo connection.readAll
-      http2(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
+      connection.stream(readTimeoutMillis, writeTimeoutMillis)
+      return false
+//        { http2(channel, address, readTimeoutMillis, writeTimeoutMillis, maxHeaderSize, buffer) }
+//      )
     }
     else {
-      http11(channel, address, readDeadline, writeDeadline, maxHeaderSize, buffer)
+      http11(channel, address, readTimeoutMillis, writeTimeoutMillis, maxHeaderSize, buffer)
     }
   }
 
   suspend private fun http2(channel: Channel, address: InetSocketAddress,
-                            readDeadline: Long, writeDeadline: Long,
+                            readTimeoutMillis: Long, writeTimeoutMillis: Long,
                             maxHeaderSize: Int,
                             buffer: ByteBuffer): Boolean {
     try {
@@ -79,9 +82,13 @@ abstract class HttpRequestHandler(enableHttp2: Boolean): RequestHandler {
   }
 
   suspend private fun http11(channel: Channel, address: InetSocketAddress,
-                             readDeadline: Long, writeDeadline: Long,
+                             readTimeoutMillis: Long, writeTimeoutMillis: Long,
                              maxHeaderSize: Int,
                              buffer: ByteBuffer): Boolean {
+    val now = System.nanoTime()
+    val readDeadline = now + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+    val writeDeadline = now + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // 1. look for first space -> METHOD

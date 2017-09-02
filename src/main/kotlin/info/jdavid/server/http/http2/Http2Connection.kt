@@ -3,6 +3,7 @@ package info.jdavid.server.http.http2
 import info.jdavid.server.Channel
 import info.jdavid.server.Connection
 import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.io.IOException
 import java.nio.ByteBuffer
 import kotlin.coroutines.experimental.CoroutineContext
@@ -18,14 +19,24 @@ internal class Http2Connection(val context: CoroutineContext,
     set(Settings.MAX_CONCURRENT_STREAMS, 128).
     set(Settings.INITIAL_WINDOW_SIZE, 65535).
     set(Settings.MAX_FRAME_SIZE, 16384)
+  private val streams = LockFreeLinkedListHead()
 
   suspend fun start(): Http2Connection {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
 
-    val stream = connectionPreface(readDeadline, writeDeadline)
-
+    streams.addLast(connectionPreface(readDeadline, writeDeadline))
     return this
+  }
+
+  suspend fun stream(readTimeoutMillis: Long, writeTimeoutMillis: Long) {
+    val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
+    val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
+    val requestHeaders = async(context) {
+      val headers =
+        Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
+      val stream = streams.next as Stream
+    }
   }
 
   suspend override fun close() {
@@ -47,7 +58,7 @@ internal class Http2Connection(val context: CoroutineContext,
       }
       val settings =
         Frame.read(channel, readDeadline) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
-      if (settings.isAck) throw ConnectionException.ProtocolError() else settings
+      if (settings.ack) throw ConnectionException.ProtocolError() else settings
     }
     val server = async(context) {
       Frame.write(channel, writeDeadline, Frame.Settings(0, 0, settings.write(channel.buffer())))
