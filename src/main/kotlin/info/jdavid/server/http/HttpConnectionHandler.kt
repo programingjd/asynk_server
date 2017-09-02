@@ -5,7 +5,9 @@ import info.jdavid.server.Connection
 import info.jdavid.server.ConnectionHandler
 import info.jdavid.server.SecureSocketConnection
 import info.jdavid.server.http.http11.Headers
+import info.jdavid.server.http.http11.Http11Connection
 import info.jdavid.server.http.http2.Http2Connection
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.InterruptedByTimeoutException
@@ -32,8 +34,6 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
   }
 
 
-
-
   // accept methods return values:
   //  -1       -> accept
   //   0       -> drop connection
@@ -49,20 +49,22 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
 
   protected open fun acceptBody(method: String): Int = -1
 
-  suspend final override fun connect(context: CoroutineContext, socketConnection: SocketConnection,
-                                     readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection? {
+  suspend override fun connect(context: CoroutineContext, socketConnection: SocketConnection,
+                               bufferPool: LockFreeLinkedListHead,
+                               readTimeoutMillis: Long, writeTimeoutMillis: Long,
+                               maxRequestSize: Int): Connection {
     return if (socketConnection is SecureSocketConnection && socketConnection.applicationProtocol() == "h2") {
       Http2Connection(context, socketConnection, readTimeoutMillis, writeTimeoutMillis).start()
+    } else {
+      Http11Connection(bufferPool, maxRequestSize)
     }
-    else null
   }
 
   suspend final override fun handle(socketConnection: SocketConnection,
-                                    connection: Connection?,
+                                    connection: Connection,
                                     address: InetSocketAddress,
                                     readTimeoutMillis: Long, writeTimeoutMillis: Long,
-                                    maxHeaderSize: Int,
-                                    buffer: ByteBuffer): Boolean {
+                                    maxHeaderSize: Int): Boolean {
     return if (connection is Http2Connection) {
       connection.stream(readTimeoutMillis, writeTimeoutMillis)
       return false

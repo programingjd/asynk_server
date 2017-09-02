@@ -62,19 +62,20 @@ class Server internal constructor(address: InetSocketAddress, config: Config, co
             if (connectionHandler.reject(clientAddress)) return@inner
 
             val socketConnection = if (sslContext == null) {
-              InsecureSocketConnection(clientChannel, segmentPool, maxRequestSize)
+              InsecureSocketConnection(clientChannel, segmentPool)
             }
             else {
               val sslParameters = connectionHandler.sslParameters(SSL.parameters())
               val sslEngine = SSL.engine(sslContext, sslParameters)
-              SecureSocketConnection(clientChannel, segmentPool, maxRequestSize, sslEngine)
+              SecureSocketConnection(clientChannel, segmentPool, sslEngine)
             }
 
             try {
               start(socketConnection, readTimeoutMillis, writeTimeoutMillis)
               val connection = connectionHandler.connect(
                 coroutineContext, socketConnection, bufferPool,
-                readTimeoutMillis, writeTimeoutMillis
+                readTimeoutMillis, writeTimeoutMillis,
+                maxRequestSize
               )
               try {
                 while (!acceptedSockets.isClosedForSend) {

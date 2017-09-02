@@ -12,23 +12,18 @@ import javax.net.ssl.SSLEngine
 import javax.net.ssl.SSLEngineResult
 
 internal class SecureSocketConnection(private val channel: AsynchronousSocketChannel,
-                                      private val nodes: LockFreeLinkedListHead,
-                                      maxRequestSize: Int,
+                                      private val segmentPool: LockFreeLinkedListHead,
                                       private val engine: SSLEngine): SocketConnection() {
-  private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize,
-                                                                Math.max(
-                                                                  engine.session.packetBufferSize,
-                                                                  engine.session.applicationBufferSize))
-  private val segmentR = node.segmentR
-  private val segmentW = node.segmentW
-  private val segment = node.segment
-  private val buffer = node.buffer
-  private val wireIn = node.wireIn
-  private val wireOut = node.wireOut
-  private val appIn = node.appIn
-  private val appOut = node.appOut
+  private val segments = segments(segmentPool, engine)
+  private val segmentR = segments.segmentR
+  private val segmentW = segments.segmentW
+  private val segment = segments.segment
+  private val wireIn = segments.wireIn
+  private val wireOut = segments.wireOut
+  private val appIn = segments.appIn
+  private val appOut = segments.appOut
 
-  fun applicationProtocol() = engine.applicationProtocol
+  fun applicationProtocol(): String = engine.applicationProtocol
 
   suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,
@@ -101,16 +96,14 @@ internal class SecureSocketConnection(private val channel: AsynchronousSocketCha
     wireOut.rewind().limit(wireOut.capacity())
     appIn.rewind().limit(appIn.capacity())
     appOut.rewind().limit(appOut.capacity())
-    nodes.addLast(node)
+    segmentPool.addLast(segments)
   }
 
-  override fun buffer() = buffer
+  override fun segment(): ByteBuffer = segment
 
-  override fun segment() = segment
+  override fun segmentR(): ByteBuffer = segmentR
 
-  override fun segmentR() = segmentR
-
-  override fun segmentW() = segmentW
+  override fun segmentW(): ByteBuffer = segmentW
 
   suspend override fun read(deadline: Long) = read(deadline,16384)
 
@@ -167,11 +160,22 @@ internal class SecureSocketConnection(private val channel: AsynchronousSocketCha
     byteBuffer.rewind().limit(byteBuffer.capacity())
   }
 
-  private class Node(segmentSize: Int, bufferSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
+  private companion object {
+
+    fun segments(segmentPool: LockFreeLinkedListHead, engine: SSLEngine): Segments {
+      return segmentPool.removeFirstOrNull() as? Segments ?: Segments(16384, bufferSize(engine))
+    }
+
+    fun bufferSize(engine: SSLEngine): Int {
+      return Math.max(engine.session.packetBufferSize, engine.session.applicationBufferSize)
+    }
+
+  }
+
+  private class Segments(segmentSize: Int, engineBufferSize: Int): LockFreeLinkedListNode() {
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
-    internal val buffer = ByteBuffer.allocateDirect(bufferSize)
     internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
     internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)
     internal val appIn = ByteBuffer.allocateDirect(engineBufferSize)

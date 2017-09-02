@@ -1,4 +1,4 @@
-package info.jdavid.server
+package info.jdavid.server.http.http2
 
 object Huffman {
   private val CODES = intArrayOf(

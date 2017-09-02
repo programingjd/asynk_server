@@ -10,12 +10,11 @@ import java.nio.channels.InterruptedByTimeoutException
 import java.util.concurrent.TimeUnit
 
 internal class InsecureSocketConnection(private val channel: AsynchronousSocketChannel,
-                                        private val nodes: LockFreeLinkedListHead,
-                                        maxRequestSize: Int): SocketConnection() {
-  private val node = nodes.removeFirstOrNull() as? Node ?: Node(16384, maxRequestSize)
-  private val segmentRead = node.segmentR
-  private val segmentWrite = node.segmentW
-  private val segment = node.segment
+                                        private val segmentPool: LockFreeLinkedListHead): SocketConnection() {
+  private val segments = segments(segmentPool)
+  private val segmentRead = segments.segmentR
+  private val segmentWrite = segments.segmentW
+  private val segment = segments.segment
   private var exhausted = false
 
   suspend override fun start(readDeadline: Long, writeDeadline: Long) {}
@@ -23,14 +22,14 @@ internal class InsecureSocketConnection(private val channel: AsynchronousSocketC
   suspend override fun stop(readDeadline: Long, writeDeadline: Long) {}
 
   override fun recycleBuffers() {
-    nodes.addLast(node)
+    segmentPool.addLast(segments)
   }
 
-  override fun segment() = segment
+  override fun segment(): ByteBuffer = segment
 
-  override fun segmentW() = segmentWrite
+  override fun segmentW(): ByteBuffer = segmentWrite
 
-  override fun segmentR() = segmentRead
+  override fun segmentR(): ByteBuffer = segmentRead
 
   suspend override fun read(deadline: Long) = read(deadline, 16384)
 
@@ -55,7 +54,15 @@ internal class InsecureSocketConnection(private val channel: AsynchronousSocketC
     byteBuffer.rewind().limit(byteBuffer.capacity())
   }
 
-  private class Node(segmentSize: Int, bufferSize: Int): LockFreeLinkedListNode() {
+  private companion object {
+
+    fun segments(segmentPool: LockFreeLinkedListHead): Segments {
+      return segmentPool.removeFirstOrNull() as? Segments ?: Segments(16384)
+    }
+
+  }
+
+  private class Segments(segmentSize: Int): LockFreeLinkedListNode() {
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
