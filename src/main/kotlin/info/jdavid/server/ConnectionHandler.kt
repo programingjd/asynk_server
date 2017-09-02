@@ -19,7 +19,8 @@ interface ConnectionHandler {
   suspend fun connect(context: CoroutineContext,
                       socketConnection: SocketConnection,
                       bufferPool: LockFreeLinkedListHead,
-                      readTimeoutMillis: Long, writeTimeoutMillis: Long): Connection
+                      readTimeoutMillis: Long, writeTimeoutMillis: Long,
+                      maxRequestSize: Int): Connection
 
   suspend fun handle(socketConnection: SocketConnection, address: InetSocketAddress, connection: Connection,
                      readTimeoutMillis: Long, writeTimeoutMillis: Long,
