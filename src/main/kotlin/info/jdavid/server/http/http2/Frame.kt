@@ -39,7 +39,9 @@ internal abstract class Frame(internal val streamId: Int,
   class WindowUpdate(streamId: Int, flags: Int, payload: ByteBuffer?):
                      Frame(streamId, Types.WINDOW_UPDATE, flags, payload)
   class Continuation(streamId: Int, flags: Int, payload: ByteBuffer?):
-                     Frame(streamId, Types.CONTINUATION, flags, payload)
+                     Frame(streamId, Types.CONTINUATION, flags, payload) {
+    val endHeaders = flags and Flags.END_HEADERS != 0
+  }
   class Unknown(streamId: Int, type: Int, flags: Int, payload: ByteBuffer?):
                 Frame(streamId, type, flags, payload)
 

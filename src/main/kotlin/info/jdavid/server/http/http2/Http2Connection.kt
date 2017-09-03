@@ -17,38 +17,53 @@ internal class Http2Connection(bufferPool: LockFreeLinkedListHead,
                                val socketConnection: SocketConnection,
                                val readTimeoutMillis: Long,
                                val writeTimeoutMillis: Long): Connection(bufferPool, maxRequestSize) {
+  private val hpack = HPack()
   private val settings = Settings().
-    set(Settings.HEADER_TABLE_SIZE, 4096).
+    set(Settings.HEADER_TABLE_SIZE, hpack.getMaxSize()).
     set(Settings.MAX_CONCURRENT_STREAMS, 128).
     set(Settings.INITIAL_WINDOW_SIZE, 65535).
     set(Settings.MAX_FRAME_SIZE, 16384)
-  private val streams = LockFreeLinkedListHead()
+
+  private val streams = mutableMapOf<Int, Stream>()
 
   suspend fun start(): Http2Connection {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
 
-    streams.addLast(connectionPreface(readDeadline, writeDeadline))
+    streams.put(0, connectionPreface(readDeadline, writeDeadline))
     return this
   }
 
   suspend fun stream(readTimeoutMillis: Long, writeTimeoutMillis: Long) {
     val writeDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(writeTimeoutMillis)
     val readDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
-    val requestHeaders = async(context) {
-      val headers =
-        Frame.read(
-          socketConnection,
-          readDeadline
-        ) as? Frame.Settings ?: throw ConnectionException.ProtocolError()
-      val stream = streams.next as Stream
+
+    val headers: Frame.Headers =
+      Frame.read(
+        socketConnection,
+        readDeadline
+      ) as? Frame.Headers ?: throw ConnectionException.ProtocolError()
+    val stream = (streams[0] ?: throw NullPointerException())
+    stream.unpackRequestHeaders(headers)
+
+    if (!headers.endHeaders) {
+      while (true) {
+        val continuation =
+          Frame.read(
+            socketConnection,
+            readDeadline
+          ) as? Frame.Continuation ?: throw ConnectionException.ProtocolError()
+        if (stream.id != headers.streamId) throw ConnectionException.ProtocolError()
+        stream.unpackRequestHeaders(continuation)
+        if (continuation.endHeaders) break
+      }
     }
+
   }
 
   suspend override fun close() {
     TODO("close all streams, recycle their buffers")
   }
-
 
   suspend private fun connectionPreface(readDeadline: Long, writeDeadline: Long): Stream {
     val buffers = buffers()

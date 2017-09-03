@@ -1,5 +1,7 @@
 package info.jdavid.server.http.http2
 
+import java.util.*
+
 internal class HPack() {
 
   enum class StaticTable(internal val headerName: String, internal val headerValue: String?) {
@@ -65,6 +67,41 @@ internal class HPack() {
     VARY("vary", null),                                                // 59
     VIA("via", null),                                                  // 60
     WWW_AUTHENTICATE("www-authenticate", null),                        // 61
+  }
+
+  private val staticTableMaxIndex = 61
+
+  private val dynamicTable = LinkedList<ByteArray>()
+
+  private var maxSize = 4096
+
+  fun insert(line: ByteArray) {
+    val i = dynamicTable.iterator()
+    var size = line.size
+    while (i.hasNext()) {
+      size += i.next().size + 32
+      if (size > maxSize) i.remove()
+    }
+    dynamicTable.addFirst(line)
+  }
+
+  fun getMaxSize() = maxSize
+
+  fun setMaxSize(maxSize: Int) {
+    if (maxSize < this.maxSize) {
+      if (maxSize == 0) {
+        dynamicTable.clear()
+      }
+      else {
+        val i = dynamicTable.iterator()
+        var size = 0
+        while (i.hasNext()) {
+          size += i.next().size + 32
+          if (size > maxSize) i.remove()
+        }
+      }
+    }
+    this.maxSize = maxSize
   }
 
 }
