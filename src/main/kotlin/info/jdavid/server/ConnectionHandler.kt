@@ -1,8 +1,8 @@
 package info.jdavid.server
 
+import info.jdavid.server.http.Encodings
 import info.jdavid.server.http.http11.Headers
 import info.jdavid.server.http.HttpConnectionHandler
-import info.jdavid.server.http.http11.Http11Connection
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.net.InetSocketAddress
@@ -51,16 +51,16 @@ interface ConnectionHandler {
                                   deadline: Long,
                                   buffer: ByteBuffer) {
         buffer.rewind().limit(buffer.capacity())
-        buffer.put("HTTP/1.1 200 OK\r\n".toByteArray(Http11Connection.ASCII))
+        buffer.put("HTTP/1.1 200 OK\r\n".toByteArray(Encodings.ASCII))
         socketConnection.write(deadline, buffer)
         val h = Headers()
         h.add(Headers.CONTENT_TYPE, "text/plain; charset=utf-8")
         h.add(Headers.CONTENT_LENGTH, "6")
         socketConnection.write(deadline, h)
-        buffer.put("body\n".toByteArray(Http11Connection.UTF_8))
+        buffer.put("body\n".toByteArray(Encodings.UTF_8))
         socketConnection.write(deadline, buffer)
         delay(5, TimeUnit.SECONDS)
-        buffer.put("\n".toByteArray(Http11Connection.UTF_8))
+        buffer.put("\n".toByteArray(Encodings.UTF_8))
         socketConnection.write(deadline, buffer)
       }
     }

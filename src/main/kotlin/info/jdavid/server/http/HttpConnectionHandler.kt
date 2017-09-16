@@ -46,10 +46,10 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
 
   open fun acceptBody(method: String): Int = -1
 
-  suspend override fun connect(context: CoroutineContext, socketConnection: SocketConnection,
-                               bufferPool: LockFreeLinkedListHead,
-                               readTimeoutMillis: Long, writeTimeoutMillis: Long,
-                               maxRequestSize: Int): Connection {
+  suspend final override fun connect(context: CoroutineContext, socketConnection: SocketConnection,
+                                     bufferPool: LockFreeLinkedListHead,
+                                     readTimeoutMillis: Long, writeTimeoutMillis: Long,
+                                     maxRequestSize: Int): Connection {
     return if (socketConnection is SecureSocketConnection &&
                socketConnection.applicationProtocol() == "h2") {
       Http2Connection(

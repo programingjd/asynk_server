@@ -3,9 +3,15 @@ package info.jdavid.server.http.http11
 
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
-  internal fun add(line: String) = lines.add(line)
+  internal fun add(line: String): Headers {
+    lines.add(line)
+    return this
+  }
 
-  fun add(name: String, value: String) = lines.add("${name}: ${value}")
+  fun add(name: String, value: String): Headers {
+    lines.add("${name}: ${value}")
+    return this
+  }
 
   fun value(name: String): String? {
     val lower = name.toLowerCase()
@@ -38,6 +44,8 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     val CONTENT_TYPE = "Content-Type"
     val EXPECT = "Expect"
     val CONNECTION = "Connection"
+    val LOCATION = "Location"
+
     internal val UPGRADE = "Upgrade"
     internal val HTTP2_SETTINGS = "HTTP2-Settings"
 

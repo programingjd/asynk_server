@@ -2,7 +2,9 @@ package info.jdavid.server.http.http11
 
 import info.jdavid.server.Connection
 import info.jdavid.server.SocketConnection
+import info.jdavid.server.http.Encodings
 import info.jdavid.server.http.HttpConnectionHandler
+import info.jdavid.server.http.Statuses
 import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -47,13 +49,13 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
       }
       val methodBytes = ByteArray(i-1)
       segment.get(methodBytes)
-      val method = String(methodBytes, ASCII)
+      val method = String(methodBytes, Encodings.ASCII)
       segment.get()
 
       // 2. look for second space to extract URI
       var j = i
       while (true) {
-        if (i == length) return handleError(socketConnection, writeDeadline, 414)
+        if (i == length) return handleError(socketConnection, writeDeadline, Statuses.NOT_FOUND)
         val b = segment[i++]
         if (validUrl(b)) continue
         if (b == SPACE) break
@@ -95,12 +97,12 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
       while (true) {
         if (i == length) {
           if (i > maxHeaderSize) {
-            return handleError(socketConnection, writeDeadline, 431)
+            return handleError(socketConnection, writeDeadline, Statuses.REQUEST_HEADER_FIELDS_TOO_LARGE)
           }
           segment = socketConnection.read(readDeadline)
           length = segment.remaining()
           if (length == 0) {
-            return handleError(socketConnection, writeDeadline, 400)
+            return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
           }
           buffer.put(segment)
           length = buffer.position()
@@ -108,7 +110,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
         if (when (buffer[i++]) {
           LF -> {
             if (buffer[i - 2] != CR) {
-              return handleError(socketConnection, writeDeadline, 400)
+              return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
             }
             if (i - 2 == j) {
               buffer.get()
@@ -118,7 +120,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
             else {
               val headerBytes = ByteArray(i-j-2)
               buffer.get(headerBytes)
-              headers.add(String(headerBytes, ISO_8859_1))
+              headers.add(String(headerBytes, Encodings.ISO_8859_1))
               buffer.get()
               buffer.get()
               j = i
@@ -128,7 +130,9 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
           else -> false
         }) break
       }
-      if (i > maxHeaderSize) return handleError(socketConnection, writeDeadline, 431)
+      if (i > maxHeaderSize) {
+        return handleError(socketConnection, writeDeadline, Statuses.REQUEST_HEADER_FIELDS_TOO_LARGE)
+      }
       if (abort(socketConnection, writeDeadline,
                 connectionHandler.acceptHeaders(method, uri, headers))) {
         return false
@@ -138,7 +142,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
       // Body
       length = buffer.position()
       capacity -= length
-      if (capacity < 0) return handleError(socketConnection, writeDeadline, 413)
+      if (capacity < 0) return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
       val encoding = headers.value(Headers.TRANSFER_ENCODING)
 
       if (encoding == null || encoding == IDENTITY) {
@@ -150,12 +154,12 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
           return false
         }
         if (contentLength > length + capacity) {
-          return handleError(socketConnection, writeDeadline, 413)
+          return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
         }
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
           if (length > 0 || contentLength == 0) {
-            return handleError(socketConnection, writeDeadline, 400)
+            return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
           }
           socketConnection.write(writeDeadline, CONTINUE_RESPONSE)
         }
@@ -168,7 +172,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
           }
           capacity -= length
           if (capacity < 0) {
-            return handleError(socketConnection, writeDeadline, 400)
+            return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
           }
           buffer.put(segment)
         }
@@ -193,7 +197,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
         }
         if (headers.value(Headers.EXPECT)?.toLowerCase() == CONTINUE) {
           // Special case for Expect: continue, intermediate 100 Continue response might be needed.
-          if (length > 0) return handleError(socketConnection, writeDeadline, 400)
+          if (length > 0) return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
           socketConnection.write(writeDeadline, CONTINUE_RESPONSE)
         }
         val sb = StringBuilder(12)
@@ -207,9 +211,9 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
             if (k > max) {
               segment = socketConnection.read(readDeadline)
               length = segment.remaining()
-              if (length == 0) return handleError(socketConnection, writeDeadline, 400)
+              if (length == 0) return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
               capacity -= length
-              if (capacity < 0) return handleError(socketConnection, writeDeadline, 413)
+              if (capacity < 0) return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
               buffer.put(segment)
               max += length
             }
@@ -217,7 +221,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
             sb.append(b.toChar())
             if (b == LF) {
               if (buffer[k - 2] != CR) {
-                return handleError(socketConnection, writeDeadline, 400)
+                return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
               }
               var end = sb.length - 2
               var start = 0
@@ -239,11 +243,11 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
             segment = socketConnection.read(readDeadline)
             length = segment.remaining()
             if (length == 0) {
-              return handleError(socketConnection, writeDeadline, 400)
+              return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
             }
             capacity -= length
             if (capacity < 0) {
-              return handleError(socketConnection, writeDeadline, 413)
+              return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
             }
             buffer.put(segment)
             max += length
@@ -257,11 +261,11 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
                 segment = socketConnection.read(readDeadline)
                 length = segment.remaining()
                 if (length == 0) {
-                  return handleError(socketConnection, writeDeadline, 400)
+                  return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
                 }
                 capacity -= length
                 if (capacity < 0) {
-                  return handleError(socketConnection, writeDeadline, 413)
+                  return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
                 }
                 buffer.put(segment)
                 max += length
@@ -269,13 +273,13 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
               val b = buffer[k++]
               if (b == LF) {
                 if (buffer[k - 2] != CR) {
-                  return handleError(socketConnection, writeDeadline, 400)
+                  return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
                 }
                 if (buffer[k - 3] == LF) break
               }
             }
             if (k < max) {
-              return handleError(socketConnection, writeDeadline, 400)
+              return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
             }
             buffer.limit(p)
             break
@@ -292,7 +296,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
             buffer.limit(buffer.capacity())
             buffer.position(position)
             if (buffer[k++] != CR || buffer[k++] != LF) {
-              return handleError(socketConnection, writeDeadline, 400)
+              return handleError(socketConnection, writeDeadline, Statuses.BAD_REQUEST)
             }
           }
         }
@@ -300,7 +304,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
         buffer.position(0)
       }
       else {
-        return handleError(socketConnection, writeDeadline, 501)
+        return handleError(socketConnection, writeDeadline, Statuses.NOT_IMPLEMENTED)
       }
 
       // Log body (TODO: remove)
@@ -314,7 +318,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
       return headers.value(Headers.CONNECTION) == CLOSE
     }
     catch (e: InterruptedByTimeoutException) {
-      return handleError(socketConnection, writeDeadline, 408)
+      return handleError(socketConnection, writeDeadline, Statuses.REQUEST_TIMEOUT)
     }
   }
 
@@ -329,46 +333,9 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
     throw IllegalArgumentException()
   }
 
-  private suspend fun handleError(socketConnection: SocketConnection,
-                                  writeDeadline: Long,
-                                  code: Int): Boolean {
-    val message = HTTP_STATUSES[code] ?: throw IllegalArgumentException()
-    socketConnection.write(
-      writeDeadline,
-      "HTTP/1.1 ${code} ${message}\r\n".toByteArray(ASCII), ERROR_HEADERS
-    )
-    return false
-  }
-
   companion object {
-    val HTTP_STATUSES = mapOf(
-      100 to "Continue",
-      200 to "OK",
-      301 to "Moved Permanently",
-      302 to "Found",
-      304 to "Not Modified",
-      307 to "Temporary Redirect",
-      308 to "Permanent Redirect",
-      400 to "Bad Request",
-      401 to "Unauthorized",
-      403 to "Forbidden",
-      404 to "Not Found",
-      405 to "Method Not Allowed",
-      408 to "Request Timeout",
-      410 to "Gone",
-      413 to "Payload Too Large",
-      414 to "URI Too Long",
-      431 to "Request Header Fields Too Large",
-      500 to "Internal Server Error",
-      501 to "Not Implemented"
-    )
-
-    val ASCII = Charsets.US_ASCII
-    val UTF_8 = Charsets.UTF_8
-    val ISO_8859_1 = Charsets.ISO_8859_1
-
-    private val CONTINUE_RESPONSE = "HTTP/1.1 100 Continue\r\n\r\n".toByteArray(ASCII)
-    private val ERROR_HEADERS = "Content-Length: 0\r\nConnection: close\r\n\r\n".toByteArray(ASCII)
+    private val CONTINUE_RESPONSE = "HTTP/1.1 100 Continue\r\n\r\n".toByteArray(Encodings.ASCII)
+    private val ERROR_HEADERS = "Content-Length: 0\r\nConnection: close\r\n\r\n".toByteArray(Encodings.ASCII)
 
     private val CONTINUE = "100-continue"
     private val IDENTITY = "identity"
@@ -412,6 +379,17 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
       return b == EXCLAMATION_POINT || (b > DOUBLE_QUOTE && b < LOWER_THAN) || b == EQUALS ||
         (b > GREATER_THAN && b < BACKSLASH) || b == RIGHT_SQUARE_BRACKET || b == UNDERSCORE ||
         (b > BACKTICK && b < LEFT_CURLY_BRACE) || b == TILDA
+    }
+
+    internal suspend fun handleError(socketConnection: SocketConnection,
+                                    writeDeadline: Long,
+                                    code: Int): Boolean {
+      val message = Statuses.message(code) ?: throw IllegalArgumentException()
+      socketConnection.write(
+        writeDeadline,
+        "HTTP/1.1 ${code} ${message}\r\n".toByteArray(Encodings.ASCII), ERROR_HEADERS
+      )
+      return false
     }
   }
 
