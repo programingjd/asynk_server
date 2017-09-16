@@ -34,9 +34,10 @@ interface Handler {
                      buffer: ByteBuffer,
                      params: Array<String>): Response
 
-  class Response constructor(val status: Int, val headers: Headers,
-                             private val writeBody: (suspend (socketConnection: SocketConnection,
-                                                              buffer: ByteBuffer, deadline: Long) -> Unit)?) {
+  class Response constructor(
+    val status: Int, val headers: Headers,
+    internal val writeBody: (suspend (socketConnection: SocketConnection,
+                                      buffer: ByteBuffer, deadline: Long) -> Unit)?) {
     constructor(status: Int, headers: Headers, body: ByteArray):
       this(status, headers, { socketConnection: SocketConnection, buffer: ByteBuffer, deadline: Long ->
         socketConnection.write(deadline, body)

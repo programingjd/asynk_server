@@ -54,6 +54,8 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
       deadline,
       "HTTP/1.1 ${response.status} ${Statuses.message(response.status)}\\r\\n".toByteArray(Encodings.ASCII)
     )
+    socketConnection.write(deadline, headers)
+    if (response.writeBody != null) response.writeBody.invoke(socketConnection, buffer, deadline)
   }
 
   suspend private fun chain(method: String, uri: String, headers: Headers,
