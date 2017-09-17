@@ -45,6 +45,7 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     val EXPECT = "Expect"
     val CONNECTION = "Connection"
     val LOCATION = "Location"
+    val ACCEPT_ENCODING = "Accept-Encoding"
 
     internal val UPGRADE = "Upgrade"
     internal val HTTP2_SETTINGS = "HTTP2-Settings"

@@ -1,4 +1,4 @@
-package info.jdavid.server.http
+package info.jdavid.server.http.handler
 
 import info.jdavid.server.SocketConnection
 import info.jdavid.server.http.http11.Headers
@@ -42,8 +42,8 @@ interface Handler {
       this(status, headers, { socketConnection: SocketConnection, buffer: ByteBuffer, deadline: Long ->
         socketConnection.write(deadline, body)
       })
-    constructor(status: Int, headers: Headers):
-      this(status, headers, null)
+    constructor(status: Int, headers: Headers = Headers()):
+      this(status, headers.add(Headers.CONTENT_LENGTH, "0"), null)
     internal operator fun component1() = status
     internal operator fun component2() = headers
     internal operator fun component3() = writeBody

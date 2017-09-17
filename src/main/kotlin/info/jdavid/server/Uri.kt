@@ -68,6 +68,26 @@ class Uri private constructor() {
       }
     }
 
+    internal fun parent(uri: String): String {
+      val index = uri.indexOf('/')
+      val start = uri.indexOf('/', index + 2)
+      if (start == -1) return ""
+      val stop = uri.indexOf('?', start + 1)
+      val end = if (stop == -1) uri.indexOf('#', start + 1) else stop
+      val slash = if (end == -1) uri.lastIndexOf('/') else uri.lastIndexOf('/', end - 1)
+      return if (end == -1) uri.substring(0, slash + 1) else uri.substring(0, slash + 1) + uri.substring(end)
+    }
+
+    internal fun lastPathSegment(uri: String): String {
+      val index = uri.indexOf('/')
+      val start = uri.indexOf('/', index + 2)
+      if (start == -1) return ""
+      val stop = uri.indexOf('?', start + 1)
+      val end = if (stop == -1) uri.indexOf('#', start + 1) else stop
+      val slash = if (end == -1) uri.lastIndexOf('/') else uri.lastIndexOf('/', end - 1)
+      return if (end == -1) uri.substring(slash + 1) else uri.substring(slash + 1, end)
+    }
+
   }
 
 }

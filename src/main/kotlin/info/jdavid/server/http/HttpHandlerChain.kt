@@ -3,6 +3,7 @@ package info.jdavid.server.http
 import info.jdavid.server.SecureSocketConnection
 import info.jdavid.server.SocketConnection
 import info.jdavid.server.Uri
+import info.jdavid.server.http.handler.Handler
 import info.jdavid.server.http.http11.Headers
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -29,7 +30,7 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
     else if (isAcmeChallenge(method, uri, headers)) {
       val acmeHandlerParams = acmeHandler?.matches(method, uri)
       if (acmeHandlerParams == null) {
-        Handler.Response(Statuses.NOT_FOUND, Headers())
+        Handler.Response(Statuses.NOT_FOUND)
       }
       else {
         acmeHandler!!.handle(method, uri, headers, socketConnection, deadline, buffer, acmeHandlerParams)
@@ -68,7 +69,7 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
         return handler.handle(method, uri, headers, socketConnection, deadline, buffer, params)
       }
     }
-    return Handler.Response(Statuses.NOT_FOUND, Headers())
+    return Handler.Response(Statuses.NOT_FOUND)
   }
 
   open fun extraHeaders(headers: Headers) {}

@@ -63,4 +63,22 @@ class UriTests {
     assertEquals("https://example.com:8181", Uri.https("http://example.com:8080"))
   }
 
+  @Test fun testParent() {
+    assertEquals("https://example.com/", Uri.parent("https://example.com/a"))
+    assertEquals("http://example.com/a/", Uri.parent("http://example.com/a/b"))
+    assertEquals("http://example.com/?q=1", Uri.parent("http://example.com/a?q=1"))
+    assertEquals("http://example.com/#/p1/p2", Uri.parent("http://example.com/a#/p1/p2"))
+    assertEquals("http://example.com/a/?q=1#h", Uri.parent("http://example.com/a/b?q=1#h"))
+  }
+
+  @Test fun testLastPathSegment() {
+    assertEquals("", Uri.lastPathSegment("https://example.com/"))
+    assertEquals("", Uri.lastPathSegment("https://example.com/a/"))
+    assertEquals("a", Uri.lastPathSegment("https://example.com/a"))
+    assertEquals("b", Uri.lastPathSegment("http://example.com/a/b"))
+    assertEquals("a", Uri.lastPathSegment("http://example.com/a?q=1"))
+    assertEquals("a", Uri.lastPathSegment("http://example.com/a#/p1/p2"))
+    assertEquals("b", Uri.lastPathSegment("http://example.com/a/b?q=1#h"))
+  }
+
 }
