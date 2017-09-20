@@ -1,6 +1,6 @@
 package info.jdavid.server.http.handler
 
-import info.jdavid.server.Uri
+import info.jdavid.server.http.Uri
 import java.util.*
 import java.util.regex.Pattern
 

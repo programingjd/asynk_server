@@ -1,7 +1,7 @@
 package info.jdavid.server.http.handler
 
 import info.jdavid.server.SocketConnection
-import info.jdavid.server.Uri
+import info.jdavid.server.http.Uri
 import info.jdavid.server.http.MediaTypes
 import info.jdavid.server.http.Statuses
 import info.jdavid.server.http.http11.Headers

@@ -1,13 +1,22 @@
 package info.jdavid.server.http
 
+import info.jdavid.server.Config
 import info.jdavid.server.SecureSocketConnection
 import info.jdavid.server.SocketConnection
-import info.jdavid.server.Uri
+import info.jdavid.server.http.handler.FileHandler
 import info.jdavid.server.http.handler.Handler
 import info.jdavid.server.http.http11.Headers
+import java.io.File
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.util.*
+import java.util.LinkedList
+
+
+fun main(args: Array<String>) {
+  Config().port(8080).requestHandler(
+    HttpHandlerChain().add(FileHandler(File("i:/jdavid/ezpzjapanez.com/www")))
+  ).startServer()
+}
 
 open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler(false) {
   private val acmeHandler: Handler? = acmeHandler?.setup()
@@ -19,10 +28,10 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
   }
 
   suspend final override fun handle(address: InetSocketAddress,
-                              method: String, uri: String, headers: Headers,
-                              socketConnection: SocketConnection,
-                              deadline: Long,
-                              buffer: ByteBuffer) {
+                                    method: String, uri: String, headers: Headers,
+                                    socketConnection: SocketConnection,
+                                    deadline: Long,
+                                    buffer: ByteBuffer) {
     val secure = socketConnection is SecureSocketConnection
     val response = if (secure) {
       chain(method, uri, headers, socketConnection, deadline, buffer)
@@ -41,11 +50,12 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
         chain(method, uri, headers, socketConnection, deadline, buffer)
       }
       else {
+        val host = headers.value("Host") ?: throw RuntimeException("Host header is missing.")
+        val h = if (host[host.length - 1] == '/') host.substring(0, host.length - 1) else host
         Handler.Response(
           Statuses.PERMANENT_REDIRECT,
           Headers().
-            add(Headers.LOCATION, Uri.https(uri)).
-            add(HSTS).
+            add(Headers.LOCATION, Url.https("${h}${uri}")).
             add(CLOSE)
         )
       }
@@ -97,7 +107,7 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
   private companion object {
     val EMPTY = "Content-Length: 0"
     val CLOSE = "Connection: close"
-    val HSTS = "Strict-Transport-Security: max-age=31536000"
+    val HSTS = "Strict-Transport-Security: max-age=31536000" //; includeSubDomain; preload"
   }
 
 }

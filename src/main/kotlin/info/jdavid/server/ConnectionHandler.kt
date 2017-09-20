@@ -35,7 +35,7 @@ interface ConnectionHandler {
       }
       override fun acceptUri(method: String, uri: String): Int {
         println("Method: ${method}")
-        println("Uri: ${uri}")
+        println("Url: ${uri}")
         return super.acceptUri(method, uri)
       }
       override fun acceptHeaders(method: String, uri: String, headers: Headers): Int {
