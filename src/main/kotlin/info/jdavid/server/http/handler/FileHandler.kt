@@ -6,9 +6,12 @@ import info.jdavid.server.http.Uri
 import info.jdavid.server.http.MediaTypes
 import info.jdavid.server.http.Statuses
 import info.jdavid.server.http.http11.Headers
+import kotlinx.coroutines.experimental.nio.aRead
 import java.io.File
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousFileChannel
+import java.nio.file.StandardOpenOption
 
 open class FileHandler(regex: String,
                        protected val webRoot: File,
@@ -78,16 +81,86 @@ open class FileHandler(regex: String,
             if (etag != null) h.add(Headers.ETAG, etag)
           }
         }
-//        if (config.ranges) {
-//
-//        }
-//        else {
-//
-//        }
-
-        return Handler.Response(Statuses.OK, Headers().add(Headers.CONTENT_LENGTH, "${file.length()}"),
-                                f.readBytes())
-
+        val fileLength = f.length()
+        if (config.ranges) {
+          h.add(Headers.ACCEPT_RANGES, "bytes")
+          val rangeHeaderValue = headers.value(Headers.RANGE)
+          if (rangeHeaderValue == null) {
+            // TODO(full response)
+          }
+          else {
+            if (!rangeHeaderValue.startsWith("bytes")) return Handler.Response(Statuses.BAD_REQUEST)
+            if (etag != null) {
+              val ifRange = headers.value(Headers.IF_RANGE)
+              if (ifRange != null) {
+                val firstQuote = ifRange.indexOf('"')
+                val lastQuote = ifRange.lastIndexOf('"')
+                if (firstQuote != -1 && lastQuote > firstQuote) {
+                  if (etag != ifRange.substring(firstQuote + 1, lastQuote)) {
+                    // TODO(full response)
+                  }
+                }
+              }
+            }
+            val ranges = rangeHeaderValue.substring("bytes".length + 1).split(", ")
+            when (ranges.size) {
+              0 -> return Handler.Response(Statuses.BAD_REQUEST)
+              1 -> {
+                val range = ranges[0]
+                val dash = range.indexOf('-')
+                if (dash == -1 || range.indexOf('-', dash + 1) == -1) {
+                  return Handler.Response(Statuses.BAD_REQUEST)
+                }
+                val start = if (dash == 0) 0 else {
+                  try { range.substring(0, dash).toLong() }
+                  catch (e: NumberFormatException) { return Handler.Response(Statuses.BAD_REQUEST) }
+                }
+                if (start > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                val end = if (dash == range.length - 1) fileLength else {
+                  try { range.substring(dash + 1).toLong() }
+                  catch (e: NumberFormatException) { return Handler.Response(Statuses.BAD_REQUEST) }
+                }
+                if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                h.add(Headers.CONTENT_RANGE, "bytes ${start}-${end}/${fileLength}")
+                return Handler.Response(Statuses.PARTIAL_CONTENT, h,
+                                        f.readBytes().sliceArray(start.toInt() until end.toInt()))
+              }
+              else -> {
+                for (range in ranges) {
+                  val dash = range.indexOf('-')
+                  if (dash == -1 || range.indexOf('-', dash + 1) == -1) {
+                    return Handler.Response(Statuses.BAD_REQUEST)
+                  }
+                  val start = if (dash == 0) 0 else {
+                    try { range.substring(0, dash).toLong() }
+                    catch (e: NumberFormatException) { return Handler.Response(Statuses.BAD_REQUEST) }
+                  }
+                  if (start > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                  val end = if (dash == range.length - 1) fileLength else {
+                    try { range.substring(dash + 1).toLong() }
+                    catch (e: NumberFormatException) { return Handler.Response(Statuses.BAD_REQUEST) }
+                  }
+                  if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                  if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
+                  // TODO(multipart)
+                }
+              }
+            }
+          }
+        }
+        else {
+          return Handler.Response(Statuses.OK, Headers().add(Headers.CONTENT_LENGTH, "${f.length()}"),
+                                  { socketConnect: SocketConnection, buffer: ByteBuffer, deadline: Long ->
+                                    val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
+                                    var pos = 0L
+                                    while (pos < fileLength) {
+                                      buffer.rewind().limit(buffer.capacity())
+                                      pos -= c.aRead(buffer, pos)
+                                      socketConnect.write(deadline, buffer)
+                                    }
+                                  })
+        }
       }
       catch (e: FileNotFoundException) {
         return Handler.Response(Statuses.NOT_FOUND)

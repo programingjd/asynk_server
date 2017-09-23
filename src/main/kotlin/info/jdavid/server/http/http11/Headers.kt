@@ -50,6 +50,10 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     val ETAG = "ETag"
     val IF_MATCH = "If-Match"
     val IF_NONE_MATCH = "If-None-Match"
+    val ACCEPT_RANGES = "Accept-Ranges"
+    val CONTENT_RANGE = "Content-Range"
+    val RANGE = "Range"
+    val IF_RANGE = "If-Range"
 
     internal val UPGRADE = "Upgrade"
     internal val HTTP2_SETTINGS = "HTTP2-Settings"
