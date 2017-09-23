@@ -1,5 +1,7 @@
 package info.jdavid.server
 
+import javax.net.ssl.SSLEngine
+
 internal class Platform {
 
   companion object {
@@ -14,7 +16,10 @@ internal class Platform {
       "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256",
       "TLS_RSA_WITH_AES_128_CBC_SHA256"
     )
-
+    fun isHttp2(engine: SSLEngine): Boolean {
+      return false
+      //return engine.applicationProtocol == "h2"
+    }
   }
 
 

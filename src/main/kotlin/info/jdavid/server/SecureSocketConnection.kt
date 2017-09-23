@@ -23,7 +23,7 @@ internal class SecureSocketConnection(private val channel: AsynchronousSocketCha
   private val appIn = segments.appIn
   private val appOut = segments.appOut
 
-  fun applicationProtocol(): String = engine.applicationProtocol
+  fun isHttp2(): Boolean = Platform.isHttp2(engine)
 
   suspend private fun handshake(channel: AsynchronousSocketChannel,
                                 status: SSLEngineResult.Status?,

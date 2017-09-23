@@ -46,6 +46,10 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     val CONNECTION = "Connection"
     val LOCATION = "Location"
     val ACCEPT_ENCODING = "Accept-Encoding"
+    val CACHE_CONTROL = "Cache_Control"
+    val ETAG = "ETag"
+    val IF_MATCH = "If-Match"
+    val IF_NONE_MATCH = "If-None-Match"
 
     internal val UPGRADE = "Upgrade"
     internal val HTTP2_SETTINGS = "HTTP2-Settings"

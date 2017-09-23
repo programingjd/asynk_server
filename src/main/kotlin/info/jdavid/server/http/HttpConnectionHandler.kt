@@ -50,8 +50,7 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
                                      bufferPool: LockFreeLinkedListHead,
                                      readTimeoutMillis: Long, writeTimeoutMillis: Long,
                                      maxRequestSize: Int): Connection {
-    return if (socketConnection is SecureSocketConnection &&
-               socketConnection.applicationProtocol() == "h2") {
+    return if (socketConnection is SecureSocketConnection && socketConnection.isHttp2()) {
       Http2Connection(
         bufferPool, maxRequestSize,
         context, socketConnection,

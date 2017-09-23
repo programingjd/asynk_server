@@ -1,5 +1,6 @@
 package info.jdavid.server.http.handler
 
+import info.jdavid.server.Base64
 import info.jdavid.server.SocketConnection
 import info.jdavid.server.http.Uri
 import info.jdavid.server.http.MediaTypes
@@ -10,16 +11,19 @@ import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 
 open class FileHandler(regex: String,
-                       private val webRoot: File,
+                       protected val webRoot: File,
                        indexNames: List<String> = DEFAULT_INDEX_NAMES): RegexHandler(METHODS, regex) {
   constructor(webRoot: File, indexNames: List<String>): this("(.*)", webRoot, indexNames)
   constructor(webRoot: File): this("(.*)", webRoot)
 
   private val indexNames = indexNames.asSequence()
+  private val allowedMediaTypes = mutableSetOf<String>()
+  private var compress = false
 
   override fun setup(): FileHandler {
     super.setup()
-
+    allowedMediaTypes.addAll(allowedMediaTypes())
+    compress = compress()
     return this
   }
 
@@ -49,17 +53,40 @@ open class FileHandler(regex: String,
     }
     else {
       f = file
+      if (!isAllowed(mediaType)) return Handler.Response(Statuses.FORBIDDEN)
       m = mediaType
     }
-
+    val etag = etag(f)
+    if (etag != null && etag == headers.value(Headers.IF_NONE_MATCH)) {
+      return Handler.Response(Statuses.NOT_MODIFIED)
+    }
     if (f.exists()) {
       try {
         val config = config(mediaType)
-        val compress = config.compress
+        val compress = this.compress && config.compress
         val gzip = compress && headers.value(Headers.ACCEPT_ENCODING) == GZIP
+        val h = Headers()
+        when (config.maxAge) {
+          -1 -> h.add(Headers.CACHE_CONTROL, "no-store")
+          0  -> {
+            h.add(Headers.CACHE_CONTROL, "no-cache")
+            if (etag != null) h.add(Headers.ETAG, etag)
+          }
+          else -> {
+            h.add(Headers.CACHE_CONTROL, "max-age=" + config.maxAge +
+              (if (config.immutable) ", immutable" else ", must-revalidate"))
+            if (etag != null) h.add(Headers.ETAG, etag)
+          }
+        }
+//        if (config.ranges) {
+//
+//        }
+//        else {
+//
+//        }
 
         return Handler.Response(Statuses.OK, Headers().add(Headers.CONTENT_LENGTH, "${file.length()}"),
-                                file.readBytes())
+                                f.readBytes())
 
       }
       catch (e: FileNotFoundException) {
@@ -71,7 +98,32 @@ open class FileHandler(regex: String,
     }
   }
 
-  protected fun config(mediaType: String): MediaTypeConfig {
+  protected open fun isAllowed(mediaType: String): Boolean {
+    return allowedMediaTypes.contains(mediaType)
+  }
+
+  protected open fun isIndexFile(file: File): Boolean {
+    val filename = file.name
+    if (file.isFile && indexNames.contains(filename)) {
+      val index = index(file.parentFile)
+      if (index != null && index.name == filename) return true
+    }
+    return false
+  }
+
+  protected open fun imageMaxAge() = 31536000 // one year
+
+  protected open fun largeFileMaxAge() = 0 // always re-validate
+
+  protected open fun smallFileMaxAge() = -1 // don't cache
+
+  protected open fun cssMaxAge() = 0 // always re-validate
+
+  protected open fun jsMaxAge() = 0 // always re-validate
+
+  protected open fun htmlMaxAge() = 0 // always re-validate
+
+  protected open fun config(mediaType: String): MediaTypeConfig {
     return when (mediaType) {
       MediaTypes.HTML, MediaTypes.XHTML, MediaTypes.WEB_MANIFEST ->
         MediaTypeConfig(true, false, false, htmlMaxAge())
@@ -102,36 +154,23 @@ open class FileHandler(regex: String,
     }
   }
 
+  protected open fun allowedMediaTypes() = MediaTypes.defaultAllowedMediaTypes()
 
-  protected fun imageMaxAge() = 31536000 // one year
+  protected open fun compress() = false
 
-  protected fun largeFileMaxAge() = 0 // always re-validate
+  protected open fun mediaType(file: File): String? {
+    return MediaTypes.fromFile(file)
+  }
 
-  protected fun smallFileMaxAge() = -1 // don't cache
-
-  protected fun cssMaxAge() = 0 // always re-validate
-
-  protected fun jsMaxAge() = 0 // always re-validate
-
-  protected fun htmlMaxAge() = 0 // always re-validate
+  protected open fun etag(file: File): String? {
+    val path = file.absolutePath.substring(webRoot.absolutePath.length).replace('\\', '/')
+    return Base64().encode(path) + String.format("%012x", file.lastModified())
+  }
 
   private fun index(file: File): File? {
     return indexNames
       .map { File(file, it) }
       .firstOrNull { it.exists() }
-  }
-
-  private fun isIndexFile(file: File): Boolean {
-    val filename = file.name
-    if (file.isFile && indexNames.contains(filename)) {
-      val index = index(file.parentFile)
-      if (index != null && index.name == filename) return true
-    }
-    return false
-  }
-
-  private fun mediaType(file: File): String? {
-    return MediaTypes.fromFile(file)
   }
 
   protected class MediaTypeConfig(internal val compress: Boolean, internal val ranges: Boolean,
