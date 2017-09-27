@@ -86,7 +86,7 @@ open class FileHandler(regex: String,
           h.add(Headers.ACCEPT_RANGES, "bytes")
           val rangeHeaderValue = headers.value(Headers.RANGE)
           if (rangeHeaderValue == null) {
-            // TODO(full response)
+            return fileResponse(f, fileLength, h)
           }
           else {
             if (!rangeHeaderValue.startsWith("bytes")) return Handler.Response(Statuses.BAD_REQUEST)
@@ -97,7 +97,7 @@ open class FileHandler(regex: String,
                 val lastQuote = ifRange.lastIndexOf('"')
                 if (firstQuote != -1 && lastQuote > firstQuote) {
                   if (etag != ifRange.substring(firstQuote + 1, lastQuote)) {
-                    // TODO(full response)
+                    return fileResponse(f, fileLength, h)
                   }
                 }
               }
@@ -143,23 +143,14 @@ open class FileHandler(regex: String,
                   }
                   if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                   if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
-                  // TODO(multipart)
+                  TODO("multipart")
                 }
               }
             }
           }
         }
         else {
-          return Handler.Response(Statuses.OK, Headers().add(Headers.CONTENT_LENGTH, "${f.length()}"),
-                                  { socketConnect: SocketConnection, buffer: ByteBuffer, deadline: Long ->
-                                    val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
-                                    var pos = 0L
-                                    while (pos < fileLength) {
-                                      buffer.rewind().limit(buffer.capacity())
-                                      pos -= c.aRead(buffer, pos)
-                                      socketConnect.write(deadline, buffer)
-                                    }
-                                  })
+          return fileResponse(f, fileLength, h)
         }
       }
       catch (e: FileNotFoundException) {
@@ -169,6 +160,19 @@ open class FileHandler(regex: String,
     else {
       return Handler.Response(Statuses.NOT_FOUND)
     }
+  }
+
+  private fun fileResponse(f: File, fileLength: Long, h: Headers): Handler.Response {
+    return Handler.Response(Statuses.OK, h.add(Headers.CONTENT_LENGTH, "${f.length()}"),
+                            { s: SocketConnection, b: ByteBuffer, d: Long ->
+                              val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
+                              var pos = 0L
+                              while (pos < fileLength) {
+                                b.rewind().limit(b.capacity())
+                                pos -= c.aRead(b, pos)
+                                s.write(d, b)
+                              }
+                            })
   }
 
   protected open fun isAllowed(mediaType: String): Boolean {
