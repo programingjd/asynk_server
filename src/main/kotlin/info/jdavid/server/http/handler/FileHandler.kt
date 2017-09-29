@@ -67,7 +67,7 @@ open class FileHandler(regex: String,
       try {
         val config = config(mediaType)
         val compress = this.compress && config.compress
-        val gzip = compress && headers.value(Headers.ACCEPT_ENCODING) == GZIP
+        val gzip = compress && (headers.value(Headers.ACCEPT_ENCODING)?.contains(GZIP) ?: false)
         val h = Headers()
         h.add(Headers.CACHE_CONTROL, config.cacheControl)
         if (config.maxAge != -1) if (etag != null) h.add(Headers.ETAG, etag)
@@ -112,7 +112,7 @@ open class FileHandler(regex: String,
                 }
                 if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                 if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
-                return partialResponse(f, fileLength, h, compress, start, end)
+                return partialResponse(f, fileLength, h, start, end, compress)
               }
               else -> {
                 for (it in ranges) {
@@ -152,32 +152,36 @@ open class FileHandler(regex: String,
     }
   }
 
-  private fun fullResponse(f: File, fileLength: Long, h: Headers, compress: Boolean): Handler.Response {
-    return Handler.Response(Statuses.OK, h.add(Headers.CONTENT_LENGTH, "${f.length()}"),
+  private suspend fun fileContent(file: File, start: Long, end: Long,
+                                  socketConnection: SocketConnection, buffer: ByteBuffer,
+                                  deadlone: Long) {
+    val channel = AsynchronousFileChannel.open(file.toPath(), StandardOpenOption.READ)
+    var position = start
+    while (position < end) {
+      buffer.rewind().limit(buffer.capacity())
+      position += channel.aRead(buffer, position)
+      socketConnection.write(deadlone, buffer)
+    }
+  }
+
+  protected open fun fullResponse(f: File, fileLength: Long, h: Headers,
+                                  compress: Boolean): Handler.Response {
+    // compression is not supported by default because we need to know the Content-Type ahead of time.
+    h.add(Headers.CONTENT_LENGTH, "${f.length()}")
+    return Handler.Response(Statuses.OK, h,
                             { s: SocketConnection, b: ByteBuffer, d: Long ->
-                              val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
-                              var pos = 0L
-                              while (pos < fileLength) {
-                                b.rewind().limit(b.capacity())
-                                pos += c.aRead(b, pos)
-                                s.write(d, b)
-                              }
+                              fileContent(f, 0, fileLength, s, b, d)
                             })
   }
 
-  private fun partialResponse(f: File, fileLength: Long, h: Headers, compress: Boolean,
-                              start: Long, end: Long): Handler.Response {
+  protected open fun partialResponse(f: File, fileLength: Long, h: Headers, start: Long, end: Long,
+                                     compress: Boolean): Handler.Response {
+    // compression is not supported by default because we need to know the Content-Type ahead of time.
     h.add(Headers.CONTENT_RANGE, "${BYTES} ${start}-${end}/${fileLength}")
-    return Handler.Response(Statuses.PARTIAL_CONTENT, h.add(Headers.CONTENT_RANGE,
-                                                            "${BYTES} ${start}-${end}/${fileLength}"),
+    h.add(Headers.CONTENT_LENGTH, "${end-start}")
+    return Handler.Response(Statuses.PARTIAL_CONTENT, h,
                             { s: SocketConnection, b: ByteBuffer, d: Long ->
-                              val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
-                              var pos = start
-                              while (pos < end) {
-                                b.rewind().limit(b.capacity())
-                                pos += c.aRead(b, pos)
-                                s.write(d, b)
-                              }
+                              fileContent(f, start, end, s, b, d)
                             })
   }
 
