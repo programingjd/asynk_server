@@ -16,19 +16,19 @@ class Base64: AbstractPreferences(null, "") {
     return value
   }
 
-  override fun put(key: String, value: String) {
+  override fun put(key: String?, value: String) {
     mValue = value
   }
 
-  override fun putSpi(key: String, value: String) {}
-  override fun getSpi(key: String) = null
+  override fun putSpi(key: String?, value: String) {}
+  override fun getSpi(key: String?) = null
 
-  override fun removeSpi(key: String) {}
+  override fun removeSpi(key: String?) {}
   override fun removeNodeSpi() {}
 
   override fun keysSpi(): Array<String?> = arrayOfNulls(0)
   override fun childrenNamesSpi(): Array<String?> = arrayOfNulls(0)
-  override fun childSpi(name: String) = null
+  override fun childSpi(name: String?) = null
   override fun syncSpi() {}
   override fun flushSpi() {}
 
