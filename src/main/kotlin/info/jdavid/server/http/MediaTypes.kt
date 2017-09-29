@@ -157,7 +157,7 @@ class MediaTypes private constructor() {
       CSS, JAVASCRIPT, TEXT, CSV,
       PNG, JPG, GIF, ICO, WEBP, SVG,
       WOFF, WOFF2, TTF, OTF, EOT,
-      PDF, OCTET_STREAM, ZIP, SEVENZ, TAR, GZIP, XZ,
+      PDF, OCTET_STREAM, ZIP, SEVENZ, TAR, XZ,
       MP4, OGV, WEBM, MP3, OGG
     )
 

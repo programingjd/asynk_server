@@ -2,6 +2,7 @@ package info.jdavid.server.http.handler
 
 import info.jdavid.server.Base64
 import info.jdavid.server.SocketConnection
+import info.jdavid.server.http.Encodings
 import info.jdavid.server.http.Uri
 import info.jdavid.server.http.MediaTypes
 import info.jdavid.server.http.Statuses
@@ -12,6 +13,7 @@ import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.file.StandardOpenOption
+import java.util.*
 
 open class FileHandler(regex: String,
                        protected val webRoot: File,
@@ -21,12 +23,10 @@ open class FileHandler(regex: String,
 
   private val indexNames = indexNames.asSequence()
   private val allowedMediaTypes = mutableSetOf<String>()
-  private var compress = false
 
   override fun setup(): FileHandler {
     super.setup()
     allowedMediaTypes.addAll(allowedMediaTypes())
-    compress = compress()
     return this
   }
 
@@ -66,8 +66,9 @@ open class FileHandler(regex: String,
     if (f.exists()) {
       try {
         val config = config(mediaType)
-        val compress = this.compress && config.compress
-        val gzip = compress && (headers.value(Headers.ACCEPT_ENCODING)?.contains(GZIP) ?: false)
+        val compression = if (config.compress) {
+          selectCompression(f, headers.value(Headers.ACCEPT_ENCODING))
+        } else null
         val h = Headers()
         h.add(Headers.CACHE_CONTROL, config.cacheControl)
         if (config.maxAge != -1) if (etag != null) h.add(Headers.ETAG, etag)
@@ -76,7 +77,7 @@ open class FileHandler(regex: String,
           h.add(Headers.ACCEPT_RANGES, BYTES)
           val rangeHeaderValue = headers.value(Headers.RANGE)
           if (rangeHeaderValue == null) {
-            return fullResponse(f, fileLength, h, compress)
+            return fullResponse(f, fileLength, m, h, compression)
           }
           else {
             if (!rangeHeaderValue.startsWith(BYTES)) return Handler.Response(Statuses.BAD_REQUEST)
@@ -87,7 +88,7 @@ open class FileHandler(regex: String,
                 val lastQuote = ifRange.lastIndexOf(QUOTE)
                 if (firstQuote != -1 && lastQuote > firstQuote) {
                   if (etag != ifRange.substring(firstQuote + 1, lastQuote)) {
-                    return fullResponse(f, fileLength, h, compress)
+                    return fullResponse(f, fileLength, m, h, compression)
                   }
                 }
               }
@@ -112,9 +113,10 @@ open class FileHandler(regex: String,
                 }
                 if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                 if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
-                return partialResponse(f, fileLength, h, start, end, compress)
+                return partialResponse(f, fileLength, m, h, start, end, compression)
               }
               else -> {
+                val multipart = ArrayList<LongRange>(ranges.size)
                 for (it in ranges) {
                   val range = it.trim()
                   val dash = range.indexOf(DASH)
@@ -132,15 +134,15 @@ open class FileHandler(regex: String,
                   }
                   if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                   if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
-                  TODO("multipart")
+                  multipart.add(start..end)
                 }
-                TODO("multipart")
+                return rangesResponse(f, fileLength, m, h, multipart, compression)
               }
             }
           }
         }
         else {
-          return fullResponse(f, fileLength, h, compress)
+          return fullResponse(f, fileLength, m, h, compression)
         }
       }
       catch (e: FileNotFoundException) {
@@ -152,36 +154,97 @@ open class FileHandler(regex: String,
     }
   }
 
+  protected open fun preCompressedFile(file: File, compression: String): File? {
+    return when (compression) {
+      BROTLI -> File(file.parent, "${file.name}.br")
+      GZIP -> File(file.parent, "${file.name}.gz")
+      else -> null
+    }
+  }
+
+  protected open fun selectCompression(file: File, accepted: String?): String? {
+    if (accepted == null) return null
+    if (accepted.contains(BROTLI) && preCompressedFile(file, BROTLI) != null) return BROTLI
+    if (accepted.contains(GZIP) && preCompressedFile(file, GZIP) != null) return GZIP
+    return null
+  }
+
   private suspend fun fileContent(file: File, start: Long, end: Long,
                                   socketConnection: SocketConnection, buffer: ByteBuffer,
-                                  deadlone: Long) {
+                                  deadline: Long) {
     val channel = AsynchronousFileChannel.open(file.toPath(), StandardOpenOption.READ)
     var position = start
     while (position < end) {
       buffer.rewind().limit(buffer.capacity())
       position += channel.aRead(buffer, position)
-      socketConnection.write(deadlone, buffer)
+      socketConnection.write(deadline, buffer)
     }
   }
 
-  protected open fun fullResponse(f: File, fileLength: Long, h: Headers,
-                                  compress: Boolean): Handler.Response {
+  protected open fun fullResponse(file: File, fileLength: Long, mediaType: String, headers: Headers,
+                                  compression: String?): Handler.Response {
+    headers.add(Headers.CONTENT_TYPE, mediaType)
+    if (compression == null) {
+      headers.add(Headers.CONTENT_LENGTH, "${fileLength}")
+      return Handler.Response(Statuses.OK, headers,
+                              { s: SocketConnection, b: ByteBuffer, d: Long ->
+                                fileContent(file, 0, fileLength, s, b, d)
+                              })
+    }
+    else {
+      val compressedFile = preCompressedFile(file, compression) ?: throw NullPointerException()
+      val compressedFileLength = compressedFile.length()
+      headers.add(Headers.CONTENT_ENCODING, compression)
+      headers.add(Headers.CONTENT_LENGTH, "${compressedFileLength}")
+      return Handler.Response(Statuses.OK, headers,
+                              { s: SocketConnection, b: ByteBuffer, d: Long ->
+                                fileContent(compressedFile, 0, compressedFileLength, s, b, d)
+                              })
+    }
+  }
+
+  protected open fun partialResponse(file: File, fileLength: Long, mediaType: String, headers: Headers,
+                                     start: Long, end: Long, compression: String?): Handler.Response {
     // compression is not supported by default because we need to know the Content-Type ahead of time.
-    h.add(Headers.CONTENT_LENGTH, "${f.length()}")
-    return Handler.Response(Statuses.OK, h,
+    headers.add(Headers.CONTENT_TYPE, mediaType)
+    headers.add(Headers.CONTENT_RANGE, "${BYTES} ${start}-${end}/${fileLength}")
+    headers.add(Headers.CONTENT_LENGTH, "${end-start}")
+    return Handler.Response(Statuses.PARTIAL_CONTENT, headers,
                             { s: SocketConnection, b: ByteBuffer, d: Long ->
-                              fileContent(f, 0, fileLength, s, b, d)
+                              fileContent(file, start, end, s, b, d)
                             })
   }
 
-  protected open fun partialResponse(f: File, fileLength: Long, h: Headers, start: Long, end: Long,
-                                     compress: Boolean): Handler.Response {
+  protected open fun rangesResponse(file: File, fileLength: Long, mediaType: String, headers: Headers,
+                                    ranges: List<LongRange>, compression: String?): Handler.Response {
     // compression is not supported by default because we need to know the Content-Type ahead of time.
-    h.add(Headers.CONTENT_RANGE, "${BYTES} ${start}-${end}/${fileLength}")
-    h.add(Headers.CONTENT_LENGTH, "${end-start}")
-    return Handler.Response(Statuses.PARTIAL_CONTENT, h,
+    val m = mediaType.toByteArray(Encodings.ASCII)
+    val n = "${fileLength}".toByteArray(Encodings.ASCII)
+    headers.add(Headers.CONTENT_TYPE, BYTE_RANGES_MULTIPART_CONTENT_TYPE)
+    var contentLength = (BYTE_RANGES_MULTIPART_0.size + n.size).toLong()
+    for (range in ranges) {
+      contentLength += BYTE_RANGES_MULTIPART_1.size
+      contentLength += m.size
+      contentLength += BYTE_RANGES_MULTIPART_2.size
+      contentLength += stringSize(range.first) + 1 + stringSize(range.last) + 1 + n.size
+      contentLength += BYTE_RANGES_MULTIPART_3.size
+      contentLength += range.last - range.first
+    }
+    headers.add(Headers.CONTENT_LENGTH, "${contentLength}")
+    return Handler.Response(Statuses.PARTIAL_CONTENT, headers,
                             { s: SocketConnection, b: ByteBuffer, d: Long ->
-                              fileContent(f, start, end, s, b, d)
+                              b.rewind().limit(b.capacity())
+                              b.put(BYTE_RANGES_MULTIPART_0)
+                              for (range in ranges) {
+                                b.put(BYTE_RANGES_MULTIPART_1)
+                                b.put(m)
+                                b.put(BYTE_RANGES_MULTIPART_2)
+                                b.put("${range.first}-${range.last}/".toByteArray(Encodings.ASCII))
+                                b.put(n)
+                                b.put(BYTE_RANGES_MULTIPART_3)
+                                s.write(d, b)
+                                fileContent(file, range.first, range.last, s, b, d)
+                              }
                             })
   }
 
@@ -243,8 +306,6 @@ open class FileHandler(regex: String,
 
   protected open fun allowedMediaTypes() = MediaTypes.defaultAllowedMediaTypes()
 
-  protected open fun compress() = false
-
   protected open fun mediaType(file: File): String? {
     return MediaTypes.fromFile(file)
   }
@@ -261,7 +322,7 @@ open class FileHandler(regex: String,
   }
 
   protected class MediaTypeConfig(internal val compress: Boolean, internal val ranges: Boolean,
-                                  val immutable: Boolean, internal val maxAge: Int) {
+                                  immutable: Boolean, internal val maxAge: Int) {
     internal val cacheControl = when (maxAge) {
       -1 -> NO_STORE
       0  -> NO_CACHE
@@ -275,11 +336,40 @@ open class FileHandler(regex: String,
     val NO_STORE = "no-store"
     val NO_CACHE = "no-cache"
     val GZIP = "gzip"
+    val BROTLI = "br"
     val BYTES = "bytes"
     val SLASH='/'
     val QUOTE = '"'
     val DASH = '-'
     val COMMA = ','
+    val BYTE_RANGES_MULTIPART_CONTENT_TYPE = "multipart/byteranges; boundary=__Multipart_Boundary__"
+    val BYTE_RANGES_MULTIPART_0 = "\r\n--__Multipart_Boundary__--\r\n".toByteArray(Encodings.ASCII)
+    val BYTE_RANGES_MULTIPART_1 =
+      "\r\n--__Multipart_Boundary__--\r\n${Headers.CONTENT_TYPE}: ".toByteArray(Encodings.ASCII)
+    val BYTE_RANGES_MULTIPART_2 = "\r\n${Headers.CONTENT_RANGE}: ${BYTES} ".toByteArray(Encodings.ASCII)
+    val BYTE_RANGES_MULTIPART_3 = "\r\n\r\n".toByteArray(Encodings.ASCII)
+    private val sizes = longArrayOf(
+      9,
+      99,
+      999, // 1kb
+      9999,
+      99999,
+      999999, // 1mb
+      9999999,
+      99999999,
+      999999999, // 1gb
+      9999999999,
+      99999999999,
+      999999999999, // 1tb
+      9999999999999,
+      99999999999999
+    )
+    fun stringSize(n: Long): Int {
+      var i = 0
+      while (true) {
+        if (n < sizes[i++]) return i
+      }
+    }
   }
 
 }
