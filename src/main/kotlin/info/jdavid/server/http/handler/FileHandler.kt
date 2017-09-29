@@ -252,7 +252,7 @@ open class FileHandler(regex: String,
     val m = mediaType.toByteArray(Encodings.ASCII)
     val n = "${fileLength}".toByteArray(Encodings.ASCII)
     headers.add(Headers.CONTENT_TYPE, BYTE_RANGES_MULTIPART_CONTENT_TYPE)
-    var contentLength = (BYTE_RANGES_MULTIPART_0.size + n.size).toLong()
+    var contentLength = BYTE_RANGES_MULTIPART_0.size.toLong()
     for (range in ranges) {
       contentLength += BYTE_RANGES_MULTIPART_1.size
       contentLength += m.size
@@ -265,9 +265,8 @@ open class FileHandler(regex: String,
     return if (includeBody) {
       Handler.Response(Statuses.PARTIAL_CONTENT, headers,
                        { s: SocketConnection, b: ByteBuffer, d: Long ->
-                         b.rewind().limit(b.capacity())
-                         b.put(BYTE_RANGES_MULTIPART_0)
                          for (range in ranges) {
+                           b.rewind().limit(b.capacity())
                            b.put(BYTE_RANGES_MULTIPART_1)
                            b.put(m)
                            b.put(BYTE_RANGES_MULTIPART_2)
@@ -277,6 +276,7 @@ open class FileHandler(regex: String,
                            s.write(d, b)
                            fileContent(file, range.first, range.last, s, b, d)
                          }
+                         s.write(d, BYTE_RANGES_MULTIPART_0)
                        })
     }
     else {
@@ -366,7 +366,7 @@ open class FileHandler(regex: String,
     }
   }
 
-  private companion object {
+  companion object {
     val GET = "GET"
     val HEAD = "HEAD"
     val METHODS = listOf(GET, HEAD)
