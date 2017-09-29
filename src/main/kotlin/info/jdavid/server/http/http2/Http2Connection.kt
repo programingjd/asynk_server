@@ -211,7 +211,7 @@ internal class Http2Connection(bufferPool: LockFreeLinkedListHead,
           segment.putInt(get(i))
         }
       }
-      return segment.flip()
+      return segment.flip() as ByteBuffer
     }
 
     companion object {

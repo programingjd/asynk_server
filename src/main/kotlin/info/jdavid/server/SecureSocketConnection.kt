@@ -176,7 +176,7 @@ internal class SecureSocketConnection(private val channel: AsynchronousSocketCha
     internal val segmentR = ByteBuffer.allocateDirect(segmentSize)
     internal val segmentW = ByteBuffer.allocateDirect(segmentSize)
     internal val segment = ByteBuffer.allocateDirect(segmentSize)
-    internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0)
+    internal val wireIn = ByteBuffer.allocateDirect(engineBufferSize).limit(0) as ByteBuffer
     internal val wireOut = ByteBuffer.allocateDirect(engineBufferSize)
     internal val appIn = ByteBuffer.allocateDirect(engineBufferSize)
     internal val appOut = ByteBuffer.allocateDirect(engineBufferSize)

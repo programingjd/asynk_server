@@ -40,6 +40,7 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
   companion object {
     val CONTENT_LENGTH = "Content-Length"
+    val CONTENT_ENCODING = "Content-Encoding"
     val TRANSFER_ENCODING = "Transfer-Encoding"
     val CONTENT_TYPE = "Content-Type"
     val EXPECT = "Expect"

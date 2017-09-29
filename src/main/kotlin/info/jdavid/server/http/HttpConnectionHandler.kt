@@ -15,7 +15,7 @@ import kotlin.coroutines.experimental.CoroutineContext
 
 abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
 
-  private val protocols = if (enableHttp2) arrayOf("h2", "http/1.1") else arrayOf("http/1.1")
+  //private val protocols = if (enableHttp2) arrayOf("h2", "http/1.1") else arrayOf("http/1.1")
 
   suspend abstract fun handle(address: InetSocketAddress,
                               method: String,
@@ -26,7 +26,7 @@ abstract class HttpConnectionHandler(enableHttp2: Boolean): ConnectionHandler {
                               buffer: ByteBuffer)
 
   override fun sslParameters(defaultSSLParameters: SSLParameters): SSLParameters {
-    defaultSSLParameters.applicationProtocols = protocols
+    //defaultSSLParameters.applicationProtocols = protocols
     return defaultSSLParameters
   }
 

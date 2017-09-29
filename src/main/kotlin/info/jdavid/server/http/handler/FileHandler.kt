@@ -39,7 +39,7 @@ open class FileHandler(regex: String,
     val file = File(webRoot.toURI().resolve(".${path}"))
     if (file.isDirectory) {
       val pathLength = path.length
-      if (pathLength > 0 && path[pathLength - 1] != '/') {
+      if (pathLength > 0 && path[pathLength - 1] != SLASH) {
         index(file) ?: return Handler.Response(Statuses.FORBIDDEN)
         return Handler.Response(Statuses.MOVED_PERMANENTLY, Headers().add(Headers.LOCATION, "${uri}/"))
       }
@@ -69,46 +69,36 @@ open class FileHandler(regex: String,
         val compress = this.compress && config.compress
         val gzip = compress && headers.value(Headers.ACCEPT_ENCODING) == GZIP
         val h = Headers()
-        when (config.maxAge) {
-          -1 -> h.add(Headers.CACHE_CONTROL, "no-store")
-          0  -> {
-            h.add(Headers.CACHE_CONTROL, "no-cache")
-            if (etag != null) h.add(Headers.ETAG, etag)
-          }
-          else -> {
-            h.add(Headers.CACHE_CONTROL, "max-age=" + config.maxAge +
-              (if (config.immutable) ", immutable" else ", must-revalidate"))
-            if (etag != null) h.add(Headers.ETAG, etag)
-          }
-        }
+        h.add(Headers.CACHE_CONTROL, config.cacheControl)
+        if (config.maxAge != -1) if (etag != null) h.add(Headers.ETAG, etag)
         val fileLength = f.length()
         if (config.ranges) {
-          h.add(Headers.ACCEPT_RANGES, "bytes")
+          h.add(Headers.ACCEPT_RANGES, BYTES)
           val rangeHeaderValue = headers.value(Headers.RANGE)
           if (rangeHeaderValue == null) {
-            return fileResponse(f, fileLength, h)
+            return fullResponse(f, fileLength, h, compress)
           }
           else {
-            if (!rangeHeaderValue.startsWith("bytes")) return Handler.Response(Statuses.BAD_REQUEST)
+            if (!rangeHeaderValue.startsWith(BYTES)) return Handler.Response(Statuses.BAD_REQUEST)
             if (etag != null) {
               val ifRange = headers.value(Headers.IF_RANGE)
               if (ifRange != null) {
-                val firstQuote = ifRange.indexOf('"')
-                val lastQuote = ifRange.lastIndexOf('"')
+                val firstQuote = ifRange.indexOf(QUOTE)
+                val lastQuote = ifRange.lastIndexOf(QUOTE)
                 if (firstQuote != -1 && lastQuote > firstQuote) {
                   if (etag != ifRange.substring(firstQuote + 1, lastQuote)) {
-                    return fileResponse(f, fileLength, h)
+                    return fullResponse(f, fileLength, h, compress)
                   }
                 }
               }
             }
-            val ranges = rangeHeaderValue.substring("bytes".length + 1).split(", ")
+            val ranges = rangeHeaderValue.substring(BYTES.length + 1).split(COMMA)
             when (ranges.size) {
               0 -> return Handler.Response(Statuses.BAD_REQUEST)
               1 -> {
-                val range = ranges[0]
-                val dash = range.indexOf('-')
-                if (dash == -1 || range.indexOf('-', dash + 1) == -1) {
+                val range = ranges[0].trim()
+                val dash = range.indexOf(DASH)
+                if (dash == -1 || range.indexOf(DASH, dash + 1) == -1) {
                   return Handler.Response(Statuses.BAD_REQUEST)
                 }
                 val start = if (dash == 0) 0 else {
@@ -122,14 +112,13 @@ open class FileHandler(regex: String,
                 }
                 if (end > fileLength) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                 if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
-                h.add(Headers.CONTENT_RANGE, "bytes ${start}-${end}/${fileLength}")
-                return Handler.Response(Statuses.PARTIAL_CONTENT, h,
-                                        f.readBytes().sliceArray(start.toInt() until end.toInt()))
+                return partialResponse(f, fileLength, h, compress, start, end)
               }
               else -> {
-                for (range in ranges) {
-                  val dash = range.indexOf('-')
-                  if (dash == -1 || range.indexOf('-', dash + 1) == -1) {
+                for (it in ranges) {
+                  val range = it.trim()
+                  val dash = range.indexOf(DASH)
+                  if (dash == -1 || range.indexOf(DASH, dash + 1) == -1) {
                     return Handler.Response(Statuses.BAD_REQUEST)
                   }
                   val start = if (dash == 0) 0 else {
@@ -145,12 +134,13 @@ open class FileHandler(regex: String,
                   if (start > end) return Handler.Response(Statuses.REQUESTED_RANGE_NOT_SATISFIABLE)
                   TODO("multipart")
                 }
+                TODO("multipart")
               }
             }
           }
         }
         else {
-          return fileResponse(f, fileLength, h)
+          return fullResponse(f, fileLength, h, compress)
         }
       }
       catch (e: FileNotFoundException) {
@@ -162,14 +152,30 @@ open class FileHandler(regex: String,
     }
   }
 
-  private fun fileResponse(f: File, fileLength: Long, h: Headers): Handler.Response {
+  private fun fullResponse(f: File, fileLength: Long, h: Headers, compress: Boolean): Handler.Response {
     return Handler.Response(Statuses.OK, h.add(Headers.CONTENT_LENGTH, "${f.length()}"),
                             { s: SocketConnection, b: ByteBuffer, d: Long ->
                               val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
                               var pos = 0L
                               while (pos < fileLength) {
                                 b.rewind().limit(b.capacity())
-                                pos -= c.aRead(b, pos)
+                                pos += c.aRead(b, pos)
+                                s.write(d, b)
+                              }
+                            })
+  }
+
+  private fun partialResponse(f: File, fileLength: Long, h: Headers, compress: Boolean,
+                              start: Long, end: Long): Handler.Response {
+    h.add(Headers.CONTENT_RANGE, "${BYTES} ${start}-${end}/${fileLength}")
+    return Handler.Response(Statuses.PARTIAL_CONTENT, h.add(Headers.CONTENT_RANGE,
+                                                            "${BYTES} ${start}-${end}/${fileLength}"),
+                            { s: SocketConnection, b: ByteBuffer, d: Long ->
+                              val c = AsynchronousFileChannel.open(f.toPath(), StandardOpenOption.READ)
+                              var pos = start
+                              while (pos < end) {
+                                b.rewind().limit(b.capacity())
+                                pos += c.aRead(b, pos)
                                 s.write(d, b)
                               }
                             })
@@ -251,12 +257,25 @@ open class FileHandler(regex: String,
   }
 
   protected class MediaTypeConfig(internal val compress: Boolean, internal val ranges: Boolean,
-                                  internal val immutable: Boolean, internal val maxAge: Int)
+                                  val immutable: Boolean, internal val maxAge: Int) {
+    internal val cacheControl = when (maxAge) {
+      -1 -> NO_STORE
+      0  -> NO_CACHE
+      else -> "max-age=" + maxAge + (if (immutable) ", immutable" else ", must-revalidate")
+    }
+  }
 
   private companion object {
     val METHODS = listOf("GET", "HEAD")
     val DEFAULT_INDEX_NAMES = listOf("index.html", "index.htm")
+    val NO_STORE = "no-store"
+    val NO_CACHE = "no-cache"
     val GZIP = "gzip"
+    val BYTES = "bytes"
+    val SLASH='/'
+    val QUOTE = '"'
+    val DASH = '-'
+    val COMMA = ','
   }
 
 }

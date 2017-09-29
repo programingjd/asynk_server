@@ -149,9 +149,12 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
         // Body with no encoding
         // Content-Length header specifies the amount of bytes to read.
         val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
-        if (contentLength > 0 && abort(socketConnection, writeDeadline,
-                                       connectionHandler.acceptBody(method))) {
-          return false
+        if (contentLength > 0) {
+          if (abort(socketConnection, writeDeadline, connectionHandler.acceptBody(method))) return false
+          val compression = headers.value(Headers.CONTENT_ENCODING)
+          if (compression != null && compression != IDENTITY) {
+            return handleError(socketConnection, writeDeadline, Statuses.UNSUPPORTED_MEDIA_TYPE)
+          }
         }
         if (contentLength > length + capacity) {
           return handleError(socketConnection, writeDeadline, Statuses.PAYLOAD_TOO_LARGE)
@@ -233,7 +236,7 @@ internal class Http11Connection(bufferPool: LockFreeLinkedListHead,
                 val c = sb[end].toByte()
                 if (c == SPACE || c == HTAB) --end else break
               }
-              n = Integer.parseInt(sb, start, end, 16)
+              n = Integer.parseInt(sb.substring(start, end), 16)
               sb.delete(0, sb.length)
               break
             }
