@@ -99,7 +99,7 @@ open class FileHandler(regex: String,
               1 -> {
                 val range = ranges[0].trim()
                 val dash = range.indexOf(DASH)
-                if (dash == -1 || range.indexOf(DASH, dash + 1) == -1) {
+                if (dash == -1 || range.indexOf(DASH, dash + 1) != -1) {
                   return Handler.Response(Statuses.BAD_REQUEST)
                 }
                 val start = if (dash == 0) 0 else {
@@ -120,7 +120,7 @@ open class FileHandler(regex: String,
                 for (it in ranges) {
                   val range = it.trim()
                   val dash = range.indexOf(DASH)
-                  if (dash == -1 || range.indexOf(DASH, dash + 1) == -1) {
+                  if (dash == -1 || range.indexOf(DASH, dash + 1) != -1) {
                     return Handler.Response(Statuses.BAD_REQUEST)
                   }
                   val start = if (dash == 0) 0 else {
@@ -180,8 +180,15 @@ open class FileHandler(regex: String,
                                   deadline: Long) {
     val channel = AsynchronousFileChannel.open(file.toPath(), StandardOpenOption.READ)
     var position = start
+    val capacity = buffer.capacity()
     while (position < end) {
-      buffer.rewind().limit(buffer.capacity())
+      buffer.rewind().limit(capacity)
+      if (capacity > end - position) {
+        buffer.limit((end - position).toInt())
+      }
+      else {
+        buffer.limit(capacity)
+      }
       position += channel.aRead(buffer, position)
       socketConnection.write(deadline, buffer)
     }
