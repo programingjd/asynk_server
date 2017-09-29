@@ -63,7 +63,7 @@ open class HttpHandlerChain(acmeHandler: Handler? = null): HttpConnectionHandler
     extraHeaders(response.headers)
     socketConnection.write(
       deadline,
-      "HTTP/1.1 ${response.status} ${Statuses.message(response.status)}\\r\\n".toByteArray(Encodings.ASCII)
+      "HTTP/1.1 ${response.status} ${Statuses.message(response.status)}\r\n".toByteArray(Encodings.ASCII)
     )
     socketConnection.write(deadline, response.headers)
     if (response.writeBody != null) response.writeBody.invoke(socketConnection, buffer, deadline)

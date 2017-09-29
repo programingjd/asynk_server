@@ -43,7 +43,9 @@ interface Handler {
         socketConnection.write(deadline, body)
       })
     constructor(status: Int, headers: Headers = Headers()):
-      this(status, headers.add(Headers.CONTENT_LENGTH, "0"), null)
+      this(status, if (headers.value(Headers.CONTENT_TYPE) == null) {
+        headers.add(Headers.CONTENT_LENGTH, "0")
+      } else headers, null)
     internal operator fun component1() = status
     internal operator fun component2() = headers
     internal operator fun component3() = writeBody

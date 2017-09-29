@@ -156,8 +156,14 @@ open class FileHandler(regex: String,
 
   protected open fun preCompressedFile(file: File, compression: String): File? {
     return when (compression) {
-      BROTLI -> File(file.parent, "${file.name}.br")
-      GZIP -> File(file.parent, "${file.name}.gz")
+      BROTLI -> {
+        val compressed = File(file.parent, "${file.name}.br")
+        if (compressed.isFile) compressed else null
+      }
+      GZIP -> {
+        val compressed = File(file.parent, "${file.name}.gz")
+        if (compressed.isFile) compressed else null
+      }
       else -> null
     }
   }
