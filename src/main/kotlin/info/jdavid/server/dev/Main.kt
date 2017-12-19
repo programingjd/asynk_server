@@ -4,11 +4,19 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 fun main(args: Array<String>) {
+  connectFor(60000L)
+}
+
+fun connectFor(millis: Long) {
   val server = Server()
-  val counter = AtomicInteger()
+  Thread.sleep(millis)
+  server.stop()
+}
+
+fun connectMany() {
+  val server = Server()
   val executors = Executors.newFixedThreadPool(32)
   for (i in 0..1000) {
     executors.submit {

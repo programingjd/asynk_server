@@ -5,8 +5,6 @@ import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
-import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -14,13 +12,24 @@ import java.net.StandardSocketOptions
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
+import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
-public class Server(
-  private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080)
+open class Server(
+  private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
+  private val bufferSize: Int = 64
 ) {
+
+  open suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
+    println(remoteAddress.hostString)
+    return true
+  }
+
+  open suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+    Http.request(socket, buffer)
+  }
 
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
@@ -57,13 +66,27 @@ public class Server(
       val output = ByteBuffer.allocateDirect(OK.size).apply {
         put(OK)
       }
-      val input = ByteBuffer.allocateDirect(4096)
+      val input = ByteBuffer.allocateDirect(bufferSize)
+
+      val buffers = LinkedList<ByteBuffer>()
       try {
         while (isActive) {
           val clientSocket = connections.receiveOrNull() ?: break
-          clientSocket.aRead(input.rewind() as ByteBuffer)
-          clientSocket.aWrite(output.rewind() as ByteBuffer)
-          clientSocket.close()
+          val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
+          launch(coroutineContext) {
+            if (connect(remoteAddress)) {
+              val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(bufferSize)
+              try {
+                handle(clientSocket, buffer)
+//                clientSocket.aRead(input.rewind() as ByteBuffer)
+//                clientSocket.aWrite(output.rewind() as ByteBuffer)
+              }
+              finally {
+                buffers.offer(buffer)
+              }
+            }
+            clientSocket.close()
+          }
         }
       }
       catch (e: JobCancellationException) {}
