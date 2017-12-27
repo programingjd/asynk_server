@@ -31,6 +31,10 @@ open class Server(
     Http.request(socket, buffer)
   }
 
+  private fun onHeaders(method: Method, uri: String, headers: Headers) {
+
+  }
+
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
   private val serverSocket: AsynchronousServerSocketChannel = AsynchronousServerSocketChannel.open().apply {

@@ -8,7 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object Http {
 
-  internal suspend fun request(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+  internal suspend fun method(socket: AsynchronousSocketChannel, buffer: ByteBuffer,
+                              accept: (Method, String, Headers) -> Boolean) {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // 1. look for first space -> METHOD
@@ -31,7 +32,7 @@ object Http {
     }
     val methodBytes = ByteArray(i-1)
     buffer.get(methodBytes)
-    val method = String(methodBytes, Charsets.US_ASCII)
+    val method = Method.from(String(methodBytes, Charsets.US_ASCII))
     buffer.get()
 
     // 2. look for second space to extract URI
@@ -59,8 +60,6 @@ object Http {
         buffer.get() != ONE ||
         buffer.get() != CR ||
         buffer.get() != LF) return
-
-    println("${method} ${uri}")
 
     // Headers
     // FIELD_NAME_1: FIELD_VALUE_1\r\n
@@ -105,7 +104,13 @@ object Http {
       }
     }
 
+
+    println("${method} ${uri}")
     println(headers.lines.joinToString("\n"))
+
+    if (accept(method, uri, headers)) {
+
+    }
 
   }
 
