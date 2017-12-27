@@ -10,6 +10,8 @@ interface Handler {
 
   suspend fun connect(remoteAddress: InetSocketAddress): Boolean
 
-  suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?)
+  suspend fun handle(socket: AsynchronousSocketChannel,
+                     buffer: ByteBuffer,
+                     context: Any?)
 
 }

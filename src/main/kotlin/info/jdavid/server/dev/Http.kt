@@ -1,7 +1,7 @@
 package info.jdavid.server.dev
 
-import info.jdavid.server.http.http11.Headers
 import kotlinx.coroutines.experimental.nio.aRead
+import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
@@ -82,8 +82,11 @@ object Http {
     return uri.substring(8)
   }
 
-  internal suspend fun headers(socket: AsynchronousSocketChannel, alreadyExhausted: Boolean,
-                               buffer: ByteBuffer): Headers? {
+  internal suspend fun headers(socket: AsynchronousSocketChannel,
+                               alreadyExhausted: Boolean,
+                               buffer: ByteBuffer,
+                               headers: Headers,
+                               maxSize: Int = 8192): Boolean? {
     // Headers
     // FIELD_NAME_1: FIELD_VALUE_1\r\n
     // ...
@@ -92,10 +95,11 @@ object Http {
     // Add content between \r\n as header lines until an empty line signifying the end of the headers.
 
     var exhausted = alreadyExhausted
-    val headers = Headers()
     var i = buffer.position()
+    var size = 0
     var j = i
     while (true) {
+      if (++size > maxSize) throw HeadersTooLarge()
       if (when (buffer[i++]) {
         LF -> {
           if (buffer[i-2] != CR) return null
@@ -123,12 +127,65 @@ object Http {
         buffer.position(i-j)
         exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
         buffer.flip()
-        buffer.position(0)
         i -= j
         j = 0
       }
     }
-    return headers
+    return exhausted
+  }
+
+  internal suspend fun body(socket: AsynchronousSocketChannel,
+                            alreadyExhausted: Boolean,
+                            buffer: ByteBuffer,
+                            compliance: HttpHandler.Compliance,
+                            headers: Headers,
+                            context: HttpHandler.Context): Int? {
+    var exhausted = alreadyExhausted
+    buffer.compact()
+    val encoding = headers.value(TRANSFER_ENCODING)
+    if (encoding == null || encoding == IDENTITY) {
+      val contentLength = headers.value(CONTENT_LENGTH)?.toInt() ?: 0
+      if (buffer.limit() > contentLength) return Statuses.BAD_REQUEST
+      if (contentLength > 0) {
+        if (!compliance.bodyAllowed) return Statuses.BAD_REQUEST
+        val compression = headers.value(CONTENT_ENCODING)
+        if (compression != null && compression != IDENTITY) return Statuses.UNSUPPORTED_MEDIA_TYPE
+        if (contentLength > buffer.capacity()) return Statuses.BAD_REQUEST
+        if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
+          if (buffer.remaining() > 0) return Statuses.UNSUPPORTED_MEDIA_TYPE
+          socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
+          exhausted = false
+        }
+        if (!exhausted && contentLength > buffer.limit()) {
+          buffer.position(buffer.limit())
+          socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
+          buffer.flip()
+          if (buffer.limit() > contentLength) return Statuses.BAD_REQUEST
+        }
+      }
+    }
+    else if (encoding == CHUNKED) {
+      if (compliance.bodyRequired) return Statuses.BAD_REQUEST
+      if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
+        if (buffer.remaining() > 0) return Statuses.UNSUPPORTED_MEDIA_TYPE
+        socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
+        exhausted = false
+      }
+      // Body with chunked encoding
+      // CHUNK_1_LENGTH_HEX\r\n
+      // CHUNK_1_BYTES\r\n
+      // ...
+      // CHUNK_N_LENGTH_HEX\r\n
+      // CHUNK_N_BYTES\r\n
+      // 0\r\n
+      // FIELD_NAME_1: FIELD_VALUE_1\r\n
+      // ...
+      // FIELD_NAME_N: FIELD_VALUE_N\r\n
+      // \r\n
+      // Trailing header fields are ignored.
+      TODO()
+    }
+    return null
   }
 
   private val CR: Byte = 0x0d
@@ -158,6 +215,20 @@ object Http {
   private val LEFT_CURLY_BRACE: Byte = 0x7b
   private val TILDA: Byte = 0x7e
 
+  private val EXPECT = "Expect"
+  private val ONE_HUNDRED_CONTINUE = "100-continue"
+  private val CONTENT_LENGTH = "Content-Length"
+  private val CONTENT_ENCODING = "Content-Encoding"
+  private val TRANSFER_ENCODING = "Transfer-Encoding"
+  private val IDENTITY = "identity"
+  private val CHUNKED = "identity"
+
+  private val CONTINUE_RESPONSE =
+    "HTTP/1.1 100 Continue\r\n\r\n".
+    toByteArray(Charsets.US_ASCII).let {
+      val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
+    }
+
   private fun validMethod(b: Byte): Boolean {
     @Suppress("ConvertTwoComparisonsToRangeCheck")
     return b > AT && b < LEFT_SQUARE_BRACKET
@@ -169,5 +240,7 @@ object Http {
            (b > GREATER_THAN && b < BACKSLASH) || b == RIGHT_SQUARE_BRACKET || b == UNDERSCORE ||
            (b > BACKTICK && b < LEFT_CURLY_BRACE) || b == TILDA
   }
+
+  internal class HeadersTooLarge : Exception()
 
 }

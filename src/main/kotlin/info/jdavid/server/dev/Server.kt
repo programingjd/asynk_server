@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 open class Server(
   private val handler: Handler,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-  private val bufferSize: Int = 64
+  private val maxRequestSize: Int = 4096
 ) {
 
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
@@ -68,7 +68,7 @@ open class Server(
           val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
           launch(coroutineContext) {
             if (handler.connect(remoteAddress)) {
-              val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(bufferSize)
+              val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(maxRequestSize)
               try {
                 handler.handle(clientSocket, buffer, handlerContext)
 //                clientSocket.aRead(input.rewind() as ByteBuffer)
