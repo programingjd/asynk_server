@@ -10,13 +10,13 @@ fun main(args: Array<String>) {
 }
 
 fun connectFor(millis: Long) {
-  val server = Server()
+  val server = Server(HttpHandler())
   Thread.sleep(millis)
   server.stop()
 }
 
 fun connectMany() {
-  val server = Server()
+  val server = Server(HttpHandler())
   val executors = Executors.newFixedThreadPool(32)
   for (i in 0..1000) {
     executors.submit {

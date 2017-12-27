@@ -8,41 +8,49 @@ import java.util.concurrent.TimeUnit
 
 object Http {
 
-  internal suspend fun method(socket: AsynchronousSocketChannel, buffer: ByteBuffer,
-                              accept: (Method, String, Headers) -> Boolean) {
+  internal suspend fun method(buffer: ByteBuffer): Method? {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
-    // 1. look for first space -> METHOD
-    // 2. look for second space -> URI
-    // 3. check that rest of line is correct.
+    // Look for first space -> METHOD
 
-    var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
-    buffer.flip()
     // Shortest possible request line is 16 bytes long
-    if (buffer.remaining() < 16) return
+    if (buffer.remaining() < 16) return null
 
-    // 1. look for first space to extract METHOD
+    // 1. Look for first space to extract METHOD
     var i = 0
     while (true) {
-      if (i == 7) return
+      if (i == 7) return null
       val b = buffer[i++]
       if (validMethod(b)) continue
       if (b == SPACE) break
-      return
+      return null
     }
-    val methodBytes = ByteArray(i-1)
+    val methodBytes = ByteArray(i - 1)
     buffer.get(methodBytes)
-    val method = Method.from(String(methodBytes, Charsets.US_ASCII))
     buffer.get()
+    return Method.from(String(methodBytes, Charsets.US_ASCII))
+  }
 
-    // 2. look for second space to extract URI
-    var j = i
+  internal suspend fun path(buffer: ByteBuffer): String? {
+    // Request line: (ASCII)
+    // METHOD URI HTTP/1.1\r\n
+    // 1. look for first space -> METHOD (already done)
+    // 2. look for second space -> URI (should start with a slash)
+    // 3. check that rest of line is correct.
+    //
+    // URI can be:
+    // * (usually used with OPTIONS to allow server-wide CORS) -> not supported.
+    // an URL (for calls to a proxy)
+    // an absolute path
+
+    var i = buffer.position()
+    val j = i
     while (true) {
-      if (i == buffer.remaining()) return
+      if (i == buffer.remaining()) return null
       val b = buffer[i++]
       if (validUrl(b)) continue
       if (b == SPACE) break
-      return
+      return null
     }
     val uriBytes = ByteArray(i-j-1)
     buffer.get(uriBytes)
@@ -59,21 +67,38 @@ object Http {
         buffer.get() != DOT ||
         buffer.get() != ONE ||
         buffer.get() != CR ||
-        buffer.get() != LF) return
+        buffer.get() != LF) return null
 
+    if (uri[0] == '/') return uri // absolute path
+
+    // url
+    if (uri[0] != 'h' || uri[1] != 't' || uri[2] != 't' || uri[3] != 'p') return null
+    if (uri[5] == ':') {
+      if (uri[6] != '/' || uri[7] != '/') return null
+      return uri.substring(7)
+    }
+    else if (uri[5] != 's' || uri[6] != ':') return null
+    if (uri[7] != '/' || uri[7] != '/') return null
+    return uri.substring(8)
+  }
+
+  internal suspend fun headers(socket: AsynchronousSocketChannel, alreadyExhausted: Boolean,
+                               buffer: ByteBuffer): Headers? {
     // Headers
     // FIELD_NAME_1: FIELD_VALUE_1\r\n
     // ...
     // FIELD_NAME_N: FIELD_VALUE_N\r\n
     // \r\n
     // Add content between \r\n as header lines until an empty line signifying the end of the headers.
+
+    var exhausted = alreadyExhausted
     val headers = Headers()
-    i = buffer.position()
-    j = i
+    var i = buffer.position()
+    var j = i
     while (true) {
       if (when (buffer[i++]) {
         LF -> {
-          if (buffer[i-2] != CR) return
+          if (buffer[i-2] != CR) return null
           if (i-2 == j){
             buffer.get()
             buffer.get()
@@ -92,7 +117,7 @@ object Http {
         else -> false
       }) break
       if (i == buffer.limit()) {
-        if (exhausted) return
+        if (exhausted) return null
         buffer.position(j)
         buffer.compact()
         buffer.position(i-j)
@@ -103,15 +128,7 @@ object Http {
         j = 0
       }
     }
-
-
-    println("${method} ${uri}")
-    println(headers.lines.joinToString("\n"))
-
-    if (accept(method, uri, headers)) {
-
-    }
-
+    return headers
   }
 
   private val CR: Byte = 0x0d

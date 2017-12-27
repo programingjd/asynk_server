@@ -12,28 +12,16 @@ import java.net.StandardSocketOptions
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousServerSocketChannel
 import java.nio.channels.AsynchronousSocketChannel
-import java.util.*
+import java.util.LinkedList
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
 open class Server(
+  private val handler: Handler,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val bufferSize: Int = 64
 ) {
-
-  open suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
-    println(remoteAddress.hostString)
-    return true
-  }
-
-  open suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-    Http.request(socket, buffer)
-  }
-
-  private fun onHeaders(method: Method, uri: String, headers: Headers) {
-
-  }
 
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
@@ -61,27 +49,28 @@ open class Server(
     }
   }
 
-  private val OK =
-    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\nConnection: close\r\n\r\nTest".
-      toByteArray(Charsets.US_ASCII)
+//  private val OK =
+//    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\nConnection: close\r\n\r\nTest".
+//      toByteArray(Charsets.US_ASCII)
 
   private val handleJobs = connectionHandlers.map {
     launch(it.asCoroutineDispatcher()) {
-      val output = ByteBuffer.allocateDirect(OK.size).apply {
-        put(OK)
-      }
-      val input = ByteBuffer.allocateDirect(bufferSize)
+//      val output = ByteBuffer.allocateDirect(OK.size).apply {
+//        put(OK)
+//      }
+//      val input = ByteBuffer.allocateDirect(bufferSize)
 
+      val handlerContext = handler.context()
       val buffers = LinkedList<ByteBuffer>()
       try {
         while (isActive) {
           val clientSocket = connections.receiveOrNull() ?: break
           val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
           launch(coroutineContext) {
-            if (connect(remoteAddress)) {
+            if (handler.connect(remoteAddress)) {
               val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(bufferSize)
               try {
-                handle(clientSocket, buffer)
+                handler.handle(clientSocket, buffer, handlerContext)
 //                clientSocket.aRead(input.rewind() as ByteBuffer)
 //                clientSocket.aWrite(output.rewind() as ByteBuffer)
               }
