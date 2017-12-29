@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 object Http {
 
-  internal suspend fun method(buffer: ByteBuffer): Method? {
+  internal fun method(buffer: ByteBuffer): Method? {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // Look for first space -> METHOD
@@ -31,7 +31,7 @@ object Http {
     return Method.from(String(methodBytes, Charsets.US_ASCII))
   }
 
-  internal suspend fun path(buffer: ByteBuffer): String? {
+  internal fun path(buffer: ByteBuffer): String? {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // 1. look for first space -> METHOD (already done)
@@ -141,7 +141,7 @@ object Http {
                             headers: Headers,
                             context: HttpHandler.Context): Int? {
     var exhausted = alreadyExhausted
-    buffer.compact()
+    buffer.compact().flip()
     val encoding = headers.value(TRANSFER_ENCODING)
     if (encoding == null || encoding == IDENTITY) {
       val contentLength = headers.value(CONTENT_LENGTH)?.toInt() ?: 0

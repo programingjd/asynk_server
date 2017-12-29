@@ -19,10 +19,21 @@ internal open class HttpHandler: Handler {
   final override suspend fun handle(socket: AsynchronousSocketChannel,
                                     buffer: ByteBuffer,
                                     context: Any?) {
+    buffer.clear()
     var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
     buffer.flip()
-    val method = Http.method(buffer) ?: return reject(socket, buffer, context)
-    val path = Http.path(buffer) ?: return reject(socket, buffer, context)
+//    val method = Http.method(buffer) ?: return reject(socket, buffer, context)
+//    val path = Http.path(buffer) ?: return reject(socket, buffer, context)
+    val method = Http.method(buffer)
+    if (method == null) {
+      println("method null")
+      return reject(socket, buffer, context)
+    }
+    val path = Http.path(buffer)
+    if (path == null) {
+      println("path null")
+      return reject(socket, buffer, context)
+    }
 
     val compliance = acceptPath(method, path) ?: return notFound(socket, buffer, context)
     val headers = Headers()
@@ -33,22 +44,30 @@ internal open class HttpHandler: Handler {
       return response(socket, (context as Context).REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
     val code = Http.body(socket, exhausted, buffer, compliance, headers, context as Context)
-    if (code != null) response(socket, (context as Context).response(code))
+    if (code != null) return response(socket, context.response(code))
 
     handle(method, path, headers, buffer, socket, context)
-
-    println("${method} ${path}")
-    println(headers.lines.joinToString("\n"))
   }
 
   open suspend fun acceptPath(method: Method, path: String): Compliance? {
-    return NoBodyAllowed
+    when (method) {
+      is Method.OPTIONS -> return NoBodyAllowed
+      is Method.HEAD -> return NoBodyAllowed
+      is Method.GET -> return NoBodyAllowed
+      is Method.POST -> return BodyRequired
+      is Method.PUT -> return BodyRequired
+      is Method.DELETE -> return BodyNotRequired
+      is Method.PATCH -> return BodyRequired
+      else -> return BodyNotRequired
+    }
   }
 
   open suspend fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
                           socket: AsynchronousSocketChannel,
                           context: Any?) {
     response(socket, (context as Context).OK)
+    println("${method} ${path}")
+    println(headers.lines.joinToString("\n"))
   }
 
   open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?) {
