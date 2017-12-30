@@ -13,8 +13,8 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>) {
-//  connectFor(60000L)
-  connectMany()
+  connectFor(60000L)
+//  connectMany()
 }
 
 fun connectFor(millis: Long) {
@@ -65,7 +65,7 @@ fun connectFor(millis: Long) {
       }
 
     }
-  }, InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 64).use {
+  }, InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096).use {
     Thread.sleep(millis)
   }
 }

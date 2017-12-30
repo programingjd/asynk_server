@@ -123,7 +123,6 @@ object Http {
       if (i == buffer.limit()) {
         if (exhausted) return null
         buffer.compact()
-        println("${buffer.position()} / ${buffer.capacity()}")
         if (buffer.position() == buffer.capacity()) throw HeadersTooLarge()
         exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
         buffer.flip()
@@ -150,7 +149,7 @@ object Http {
         if (!compliance.bodyAllowed) return Statuses.BAD_REQUEST
         val compression = headers.value(CONTENT_ENCODING)
         if (compression != null && compression != IDENTITY) return Statuses.UNSUPPORTED_MEDIA_TYPE
-        if (contentLength > buffer.capacity()) return Statuses.BAD_REQUEST
+        if (contentLength > buffer.capacity()) return Statuses.PAYLOAD_TOO_LARGE
         if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
           if (buffer.remaining() > 0) return Statuses.UNSUPPORTED_MEDIA_TYPE
           socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
@@ -158,9 +157,9 @@ object Http {
         }
         if (!exhausted && contentLength > buffer.limit()) {
           val limit = buffer.limit()
-          buffer.position(limit)
+          buffer.position(limit).limit(buffer.capacity())
           socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
-          buffer.position(limit) // TODO test
+          buffer.limit(buffer.position()).position(limit)
           if (buffer.limit() > contentLength) return Statuses.BAD_REQUEST
         }
       }
