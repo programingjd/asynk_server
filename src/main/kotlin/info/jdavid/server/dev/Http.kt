@@ -165,7 +165,7 @@ object Http {
       }
     }
     else if (encoding == CHUNKED) {
-      if (compliance.bodyRequired) return Statuses.BAD_REQUEST
+      if (!compliance.bodyAllowed) return Statuses.BAD_REQUEST
       if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
         if (buffer.remaining() > 0) return Statuses.UNSUPPORTED_MEDIA_TYPE
         socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
@@ -193,7 +193,7 @@ object Http {
             val limit = buffer.limit()
             if (buffer.capacity() == limit) return Statuses.PAYLOAD_TOO_LARGE
             exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
-            buffer.position(limit) // TODO test
+            buffer.limit(buffer.position()).position(limit)
             if (buffer.remaining() == 0) return Statuses.BAD_REQUEST
           }
           val b = buffer.get()
@@ -216,7 +216,7 @@ object Http {
               if (exhausted) return Statuses.BAD_REQUEST
               buffer.position(buffer.limit())
               exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
-              // TODO test
+              buffer.limit(buffer.position())
               if (buffer.limit() < start + chunkSize + 2) return Statuses.BAD_REQUEST
             }
             buffer.position(start + chunkSize)
@@ -229,23 +229,23 @@ object Http {
               if (last > buffer.capacity() - 4) return Statuses.PAYLOAD_TOO_LARGE
               while (true) {
                 if (buffer.remaining() == 0) {
-                  if (exhausted) return Statuses.BAD_REQUEST
+                  if (exhausted) break
                   buffer.position(last + 2)
                   exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
-                  buffer.position(last + 2) // TODO test
+                  buffer.limit(buffer.position()).position(last + 2)
                 }
                 if (b == LF) {
                   val position = buffer.position()
                   if (buffer[position - 1] == CR && buffer[position - 2] == LF) break
                 }
               }
-              buffer.limit(last)
+              buffer.limit(last).position(0)
               break@chunks
             }
             start = buffer.position() - 2
             break@bytes
           }
-          sb.append(b)
+          sb.append(b.toChar())
         }
       }
     }
@@ -285,7 +285,7 @@ object Http {
   private val CONTENT_ENCODING = "Content-Encoding"
   private val TRANSFER_ENCODING = "Transfer-Encoding"
   private val IDENTITY = "identity"
-  private val CHUNKED = "identity"
+  private val CHUNKED = "chunked"
 
   private val CONTINUE_RESPONSE =
     "HTTP/1.1 100 Continue\r\n\r\n".
