@@ -287,12 +287,6 @@ object Http {
   private val IDENTITY = "identity"
   private val CHUNKED = "chunked"
 
-  private val CONTINUE_RESPONSE =
-    "HTTP/1.1 100 Continue\r\n\r\n".
-    toByteArray(Charsets.US_ASCII).let {
-      val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
-    }
-
   private fun validMethod(b: Byte): Boolean {
     @Suppress("ConvertTwoComparisonsToRangeCheck")
     return b > AT && b < LEFT_SQUARE_BRACKET
