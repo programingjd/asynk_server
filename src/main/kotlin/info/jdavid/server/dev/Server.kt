@@ -3,8 +3,10 @@ package info.jdavid.server.dev
 import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
+import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
+import java.io.Closeable
 import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -21,7 +23,7 @@ open class Server(
   private val handler: Handler,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val maxRequestSize: Int = 4096
-) {
+): Closeable {
 
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
@@ -78,6 +80,7 @@ open class Server(
                 buffers.offer(buffer)
               }
             }
+            delay(3000L)
             clientSocket.close()
           }
         }
@@ -89,7 +92,7 @@ open class Server(
     }
   }
 
-  fun stop() {
+  override fun close() {
     acceptJob.cancel()
     connectionAcceptor.shutdownNow()
     connectionAcceptor.awaitTermination(5000L, TimeUnit.MILLISECONDS)

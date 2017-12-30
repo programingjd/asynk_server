@@ -122,12 +122,11 @@ object Http {
       }) break
       if (i == buffer.limit()) {
         if (exhausted) return null
-        buffer.position(j)
         buffer.compact()
-        buffer.position(i - j)
+        println("${buffer.position()} / ${buffer.capacity()}")
         if (buffer.position() == buffer.capacity()) throw HeadersTooLarge()
         exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
-        buffer.position(i - j) // TODO test
+        buffer.flip()
         i -= j
         j = 0
       }
