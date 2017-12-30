@@ -52,7 +52,7 @@ object Http {
       if (b == SPACE) break
       return null
     }
-    val uriBytes = ByteArray(i-j-1)
+    val uriBytes = ByteArray(i - j - 1)
     buffer.get(uriBytes)
     val uri = String(uriBytes)
     buffer.get()
@@ -102,14 +102,14 @@ object Http {
       if (++size > maxSize) throw HeadersTooLarge()
       if (when (buffer[i++]) {
         LF -> {
-          if (buffer[i-2] != CR) return null
-          if (i-2 == j){
+          if (buffer[i - 2] != CR) return null
+          if (i - 2 == j){
             buffer.get()
             buffer.get()
             true
           }
           else {
-            val headerBytes = ByteArray(i-j-2)
+            val headerBytes = ByteArray(i - j - 2)
             buffer.get(headerBytes)
             headers.add(String(headerBytes, Charsets.ISO_8859_1))
             buffer.get()
@@ -124,9 +124,10 @@ object Http {
         if (exhausted) return null
         buffer.position(j)
         buffer.compact()
-        buffer.position(i-j)
+        buffer.position(i - j)
+        if (buffer.position() == buffer.capacity()) throw HeadersTooLarge()
         exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
-        buffer.flip()
+        buffer.position(i - j) // TODO test
         i -= j
         j = 0
       }
@@ -157,9 +158,10 @@ object Http {
           exhausted = false
         }
         if (!exhausted && contentLength > buffer.limit()) {
-          buffer.position(buffer.limit())
+          val limit = buffer.limit()
+          buffer.position(limit)
           socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
-          buffer.flip()
+          buffer.position(limit) // TODO test
           if (buffer.limit() > contentLength) return Statuses.BAD_REQUEST
         }
       }
@@ -183,7 +185,71 @@ object Http {
       // FIELD_NAME_N: FIELD_VALUE_N\r\n
       // \r\n
       // Trailing header fields are ignored.
-      TODO()
+      val sb = StringBuilder(12)
+      var start = buffer.position()
+      chunks@ while (true) { // for each chunk
+        // Look for \r\n to extract the chunk length
+        bytes@ while (true) {
+          if (buffer.remaining() == 0) {
+            if (exhausted) return Statuses.BAD_REQUEST
+            val limit = buffer.limit()
+            if (buffer.capacity() == limit) return Statuses.PAYLOAD_TOO_LARGE
+            exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
+            buffer.position(limit) // TODO test
+            if (buffer.remaining() == 0) return Statuses.BAD_REQUEST
+          }
+          val b = buffer.get()
+          if (b == LF) { // End of chunk size line
+            if (sb.last().toByte() != CR) return Statuses.BAD_REQUEST
+            val index = sb.indexOf(';') // ignore chunk extensions
+            val chunkSize = Integer.parseInt(
+              if (index == -1) sb.trim().toString() else sb.substring(0, index).trim(),
+              16
+            )
+            // remove chunk size line bytes from the buffer, and skip the chunk bytes
+            sb.delete(0, sb.length)
+            val end = buffer.position()
+            val limit = buffer.limit()
+            buffer.position(start)
+            (buffer.slice().position(end - start) as ByteBuffer).compact()
+            buffer.limit(limit - end + start)
+            if (buffer.capacity() - start < chunkSize + 2) return Statuses.PAYLOAD_TOO_LARGE
+            if (buffer.limit() < start + chunkSize + 2) {
+              if (exhausted) return Statuses.BAD_REQUEST
+              buffer.position(buffer.limit())
+              exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
+              // TODO test
+              if (buffer.limit() < start + chunkSize + 2) return Statuses.BAD_REQUEST
+            }
+            buffer.position(start + chunkSize)
+            // chunk bytes should be followed by \r\n
+            if (buffer.get() != CR || buffer.get() != LF) return Statuses.BAD_REQUEST
+            if (chunkSize == 0) {
+              // zero length chunk marks the end of the chunk list
+              // skip trailing fields (look for \r\n\r\n sequence)
+              val last = buffer.position() - 2
+              if (last > buffer.capacity() - 4) return Statuses.PAYLOAD_TOO_LARGE
+              while (true) {
+                if (buffer.remaining() == 0) {
+                  if (exhausted) return Statuses.BAD_REQUEST
+                  buffer.position(last + 2)
+                  exhausted = buffer.remaining() > socket.aRead(buffer, 3000L, TimeUnit.MILLISECONDS)
+                  buffer.position(last + 2) // TODO test
+                }
+                if (b == LF) {
+                  val position = buffer.position()
+                  if (buffer[position - 1] == CR && buffer[position - 2] == LF) break
+                }
+              }
+              buffer.limit(last)
+              break@chunks
+            }
+            start = buffer.position() - 2
+            break@bytes
+          }
+          sb.append(b)
+        }
+      }
     }
     return null
   }
