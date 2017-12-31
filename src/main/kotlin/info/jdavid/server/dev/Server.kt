@@ -1,5 +1,6 @@
 package info.jdavid.server.dev
 
+import info.jdavid.server.Handler
 import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel

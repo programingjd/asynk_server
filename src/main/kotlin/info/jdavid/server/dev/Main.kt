@@ -1,5 +1,8 @@
 package info.jdavid.server.dev
 
+import info.jdavid.server.http.Headers
+import info.jdavid.server.http.HttpHandler
+import info.jdavid.server.http.Method
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
@@ -18,7 +21,7 @@ fun main(args: Array<String>) {
 }
 
 fun connectFor(millis: Long) {
-  Server(object: HttpHandler() {
+  Server(object : HttpHandler() {
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
     suspend override fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
                                 socket: AsynchronousSocketChannel, context: Any?) {
@@ -78,7 +81,7 @@ fun connectMany() {
         val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
       }
   }
-  Server(object: HttpHandler() {
+  Server(object : HttpHandler() {
     suspend override fun context() = ExtendedContext()
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
     suspend override fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,

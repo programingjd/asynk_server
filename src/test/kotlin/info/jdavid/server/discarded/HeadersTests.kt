@@ -1,8 +1,18 @@
-package info.jdavid.server.dev
+package info.jdavid.server.discarded
 
-import info.jdavid.server.http.Headers
+import info.jdavid.server.discarded.http.http11.Headers
+import kotlinx.coroutines.experimental.CommonPool
+import kotlinx.coroutines.experimental.internal.LockFreeLinkedListHead
+import kotlinx.coroutines.experimental.nio.aAccept
+import kotlinx.coroutines.experimental.nio.aRead
+import kotlinx.coroutines.experimental.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousServerSocketChannel
+import java.nio.channels.AsynchronousSocketChannel
 
 class HeadersTests {
 
@@ -10,6 +20,31 @@ class HeadersTests {
     val headers =
       Headers(mutableListOf("Content-Type: text/plain", "Content-Length: 1024", "Test: 1", "test: 2"))
     test(headers)
+    val channel0 = AsynchronousServerSocketChannel.open()
+    channel0.bind(InetSocketAddress(InetAddress.getLocalHost(), 8080))
+    val channel2 = AsynchronousSocketChannel.open()
+    channel2.connect(InetSocketAddress(InetAddress.getLocalHost(), 8080))
+    val segmentPool = LockFreeLinkedListHead()
+    @Suppress("ConvertTryFinallyToUseCall")
+    try {
+      val s1: String = runBlocking(CommonPool) {
+        val channel1 = channel0.aAccept()
+        val channel = InsecureSocketConnection(channel1, segmentPool)
+        channel.write(Long.MAX_VALUE, headers)
+        val buffer = ByteBuffer.allocate(1024)
+        val n = channel2.aRead(buffer, Long.MAX_VALUE)
+        channel1.close()
+        val array = buffer.array()
+        String(array, 0, n, Charsets.ISO_8859_1)
+      }
+      //println(s1.replace("\r\n", "\\r\\n\n"))
+      val split1 = s1.split("\r\n").toList()
+      assertEquals(6, split1.size)
+      test(Headers(split1.dropLast(2).toMutableList()))
+    }
+    finally {
+      channel2.close()
+    }
   }
 
   @Test fun testAdd() {
