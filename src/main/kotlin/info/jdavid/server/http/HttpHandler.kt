@@ -68,7 +68,23 @@ internal open class HttpHandler: Handler {
                           context: Any?) {
     response(socket, (context as Context).OK)
     println("${method} ${path}")
+    println("------------------------------------------------------------------------------")
     println(headers.lines.joinToString("\n"))
+    if (body != null) {
+      println("------------------------------------------------------------------------------")
+      val contentType = headers.value(Headers.CONTENT_TYPE) ?: "text/plain"
+      if (contentType.startsWith("text/") ||
+        contentType.startsWith("application/") &&
+          (contentType.startsWith(MediaType.JAVASCRIPT) ||
+            contentType.startsWith(MediaType.JSON) ||
+            contentType.startsWith(MediaType.XHTML) ||
+            contentType.startsWith(MediaType.WEB_MANIFEST))) {
+        socket.aWrite(body, 5000, TimeUnit.MILLISECONDS)
+      }
+      else {
+        //socket.aWrite()
+      }
+    }
   }
 
   open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?) {

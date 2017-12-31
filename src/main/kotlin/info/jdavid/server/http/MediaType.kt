@@ -1,10 +1,11 @@
 
-package info.jdavid.server.discarded.http
+package info.jdavid.server.http
 
 import java.io.File
 
-class MediaTypes private constructor() {
+class MediaType private constructor() {
 
+  @Suppress("MemberVisibilityCanPrivate", "unused")
   companion object {
     val CSS = "text/css"
     val CSV = "text/csv"
@@ -113,29 +114,6 @@ class MediaTypes private constructor() {
       "ogv" to OGV,
       "webm" to WEBM
     )
-
-    fun fromUrl(url: String): String? {
-      val filename = Url.lastPathSegment(url)
-      if (filename.isEmpty()) return DIRECTORY
-      val i = filename.lastIndexOf('.')
-      if (i == -1) {
-        val path = Url.path(url)
-        return if (path.startsWith("/.well-known/acme-challenge/")) TEXT else null
-      }
-      val ext = filename.substring(i+1).toLowerCase()
-      return map[ext]
-    }
-
-    fun fromUri(uri: String): String? {
-      val filename = Uri.lastPathSegment(uri)
-      if (filename.isEmpty()) return DIRECTORY
-      val i = filename.lastIndexOf('.')
-      if (i == -1) {
-        return if (uri.startsWith("/.well-known/acme-challenge/")) TEXT else null
-      }
-      val ext = filename.substring(i+1).toLowerCase()
-      return map[ext]
-    }
 
     fun fromFile(file: File): String? {
       if (file.isDirectory) return DIRECTORY
