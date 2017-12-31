@@ -1,5 +1,6 @@
 package info.jdavid.server.dev
 
+import info.jdavid.server.Server
 import info.jdavid.server.http.Headers
 import info.jdavid.server.http.HttpHandler
 import info.jdavid.server.http.Method

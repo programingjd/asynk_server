@@ -1,4 +1,4 @@
-package info.jdavid.server.dev
+package info.jdavid.server
 
 import info.jdavid.server.http.Headers
 import org.junit.Assert.*

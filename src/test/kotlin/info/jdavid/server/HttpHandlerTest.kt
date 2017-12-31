@@ -1,4 +1,4 @@
-package info.jdavid.server.dev
+package info.jdavid.server
 
 import org.junit.Assert.*
 import org.junit.Test
