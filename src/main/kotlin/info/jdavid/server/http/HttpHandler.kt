@@ -17,19 +17,8 @@ internal open class HttpHandler: Handler {
     buffer.clear()
     var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
     buffer.flip()
-//    val method = Http.method(buffer) ?: return reject(socket, buffer, context)
-//    val path = Http.path(buffer) ?: return reject(socket, buffer, context)
-    val method = Http.method(buffer)
-    if (method == null) {
-      println("method null")
-      return reject(socket, buffer, context)
-    }
-    val path = Http.path(buffer)
-    if (path == null) {
-      println("path null")
-      return reject(socket, buffer, context)
-    }
-
+    val method = Http.method(buffer) ?: return reject(socket, buffer, context)
+    val path = Http.path(buffer) ?: return reject(socket, buffer, context)
     val compliance = acceptPath(method, path) ?: return notFound(socket, buffer, context)
     val headers = Headers()
     exhausted = try {
@@ -40,7 +29,6 @@ internal open class HttpHandler: Handler {
     }
     val code = Http.body(socket, exhausted, buffer, compliance, headers, context as Context)
     if (code != null) return response(socket, context.response(code))
-
     handle(method, path, headers, buffer, socket, context)
   }
 
