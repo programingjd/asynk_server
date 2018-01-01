@@ -1,6 +1,7 @@
 package info.jdavid.server.http
 
 import info.jdavid.server.Handler
+import info.jdavid.server.Handler.Companion.hex
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.net.InetSocketAddress
@@ -66,23 +67,48 @@ internal open class HttpHandler: Handler {
   open suspend fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
                           socket: AsynchronousSocketChannel,
                           context: Any?) {
-    response(socket, (context as Context).OK)
-    println("${method} ${path}")
-    println("------------------------------------------------------------------------------")
-    println(headers.lines.joinToString("\n"))
+    val str = StringBuilder()
+    str.append("${method} ${path}\r\n\r\n")
+    str.append(headers.lines.joinToString("\r\n"))
+    str.append("\n\n")
+    val contentType = headers.value(Headers.CONTENT_TYPE) ?: "text/plain"
+    val isText =
+      contentType.startsWith("text/") ||
+      contentType.startsWith("application/") &&
+        (contentType.startsWith(MediaType.JAVASCRIPT) ||
+         contentType.startsWith(MediaType.JSON) ||
+         contentType.startsWith(MediaType.XHTML) ||
+         contentType.startsWith(MediaType.WEB_MANIFEST))
+
+    val extra = if (isText) { body?.remaining() ?: 0 } else { Math.min(2048, (body?.remaining() ?: 0) * 2) }
+    val bytes = str.toString().toByteArray(Charsets.ISO_8859_1)
+    socket.aWrite(ByteBuffer.wrap(
+      "HTTP/1.1 200 OK\r\nContent-Type: plain/text\r\nContent-Length: ${bytes.size + extra}\r\nConnection: close\r\n\r\n".
+        toByteArray(Charsets.US_ASCII)
+    ))
+    socket.aWrite(ByteBuffer.wrap(bytes))
     if (body != null) {
-      println("------------------------------------------------------------------------------")
-      val contentType = headers.value(Headers.CONTENT_TYPE) ?: "text/plain"
       if (contentType.startsWith("text/") ||
         contentType.startsWith("application/") &&
           (contentType.startsWith(MediaType.JAVASCRIPT) ||
             contentType.startsWith(MediaType.JSON) ||
             contentType.startsWith(MediaType.XHTML) ||
             contentType.startsWith(MediaType.WEB_MANIFEST))) {
-        socket.aWrite(body, 5000, TimeUnit.MILLISECONDS)
+        socket.aWrite(body)
       }
       else {
-        //socket.aWrite()
+        if (body.remaining() > 1024) {
+          val limit = body.limit()
+          body.limit(body.position() + 511)
+          socket.aWrite(ByteBuffer.wrap(hex(body).toByteArray(Charsets.US_ASCII)))
+          socket.aWrite(ByteBuffer.wrap("....".toByteArray(Charsets.US_ASCII)))
+          body.limit(limit)
+          body.position(limit - 511)
+          socket.aWrite(ByteBuffer.wrap(hex(body).toByteArray(Charsets.US_ASCII)))
+        }
+        else {
+          socket.aWrite(ByteBuffer.wrap(hex(body).toByteArray(Charsets.US_ASCII)))
+        }
       }
     }
   }

@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
 }
 
 fun connectFor(millis: Long) {
-  Server(object : HttpHandler() {
+  Server(/*object : HttpHandler() {
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
     suspend override fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
                                 socket: AsynchronousSocketChannel, context: Any?) {
@@ -69,7 +69,7 @@ fun connectFor(millis: Long) {
       }
 
     }
-  }, InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096).use {
+  },*/ HttpHandler(), InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096).use {
     Thread.sleep(millis)
   }
 }
