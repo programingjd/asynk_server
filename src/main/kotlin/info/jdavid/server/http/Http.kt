@@ -137,7 +137,7 @@ internal object Http {
   suspend fun body(socket: AsynchronousSocketChannel,
                    alreadyExhausted: Boolean,
                    buffer: ByteBuffer,
-                   compliance: Handler.Acceptance,
+                   acceptance: Handler.Acceptance,
                    headers: Headers,
                    context: HttpHandler.Context): Int? {
     var exhausted = alreadyExhausted
@@ -147,7 +147,7 @@ internal object Http {
       val contentLength = headers.value(CONTENT_LENGTH)?.toInt() ?: 0
       if (buffer.limit() > contentLength) return Status.BAD_REQUEST
       if (contentLength > 0) {
-        if (!compliance.bodyAllowed) return Status.BAD_REQUEST
+        if (!acceptance.bodyAllowed) return Status.BAD_REQUEST
         val compression = headers.value(CONTENT_ENCODING)
         if (compression != null && compression != IDENTITY) return Status.UNSUPPORTED_MEDIA_TYPE
         if (contentLength > buffer.capacity()) return Status.PAYLOAD_TOO_LARGE
@@ -166,7 +166,7 @@ internal object Http {
       }
     }
     else if (encoding == CHUNKED) {
-      if (!compliance.bodyAllowed) return Status.BAD_REQUEST
+      if (!acceptance.bodyAllowed) return Status.BAD_REQUEST
       if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
         if (buffer.remaining() > 0) return Status.UNSUPPORTED_MEDIA_TYPE
         socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
@@ -250,6 +250,7 @@ internal object Http {
         }
       }
     }
+    if (acceptance.bodyRequired && buffer.remaining() == 0) return Status.BAD_REQUEST
     return null
   }
 
