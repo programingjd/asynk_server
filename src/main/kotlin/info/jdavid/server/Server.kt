@@ -1,3 +1,5 @@
+@file:Suppress("EXPERIMENTAL_FEATURE_WARNING")
+
 package info.jdavid.server
 
 import kotlinx.coroutines.experimental.JobCancellationException

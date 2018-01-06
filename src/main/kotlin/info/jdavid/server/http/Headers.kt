@@ -38,6 +38,7 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     return lines.find { matches(it, lower) } != null
   }
 
+  @Suppress("unused", "MemberVisibilityCanPrivate")
   companion object {
     val WWW_AUTHENTICATE = "WWW-Authenticate"
     val AUTHORIZATION = "Authorization"
