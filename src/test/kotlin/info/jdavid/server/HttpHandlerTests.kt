@@ -1,7 +1,6 @@
 package info.jdavid.server
 
 import info.jdavid.server.http.Headers
-import info.jdavid.server.http.Method
 import info.jdavid.server.http.SimpleHttpHandler
 import org.junit.Assert.*
 import org.junit.Test
@@ -101,7 +100,7 @@ class HttpHandlerTests {
       conn.requestMethod = "HEAD"
       try {
         conn.outputStream.write("Test".toByteArray())
-        val bytes = conn.inputStream.readBytes(512)
+        conn.inputStream.readBytes(512)
         fail("The request should have failed with a 400.")
       }
       catch (e: IOException) {
