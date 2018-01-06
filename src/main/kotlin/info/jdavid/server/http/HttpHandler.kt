@@ -62,6 +62,7 @@ abstract class HttpHandler<T: Handler.Acceptance>: Handler {
     socket.aWrite(payload.rewind() as ByteBuffer)
   }
 
+  @Suppress("PropertyName", "MemberVisibilityCanPrivate", "unused")
   open class Context {
     val OK = emptyResponse(Status.OK)
     val REQUEST_HEADER_FIELDS_TOO_LARGE = emptyResponse(Status.REQUEST_HEADER_FIELDS_TOO_LARGE)
@@ -72,7 +73,7 @@ abstract class HttpHandler<T: Handler.Acceptance>: Handler {
     val NOT_FOUND = emptyResponse(Status.NOT_FOUND)
     val CONTINUE = "HTTP/1.1 100 Continue\r\n\r\n".
       toByteArray(Charsets.US_ASCII).let {
-        val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
+        val bytes = ByteBuffer.allocateDirect(it.size) ?: throw RuntimeException(); bytes.put(it); bytes
       }
     internal fun response(code: Int): ByteBuffer {
       return when (code) {
