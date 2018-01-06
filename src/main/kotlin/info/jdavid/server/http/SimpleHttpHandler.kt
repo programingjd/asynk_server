@@ -1,3 +1,5 @@
+@file:Suppress("EXPERIMENTAL_FEATURE_WARNING")
+
 package info.jdavid.server.http
 
 import info.jdavid.server.Handler
@@ -8,15 +10,15 @@ import java.nio.channels.AsynchronousSocketChannel
 open class SimpleHttpHandler: HttpHandler<Handler.Acceptance>() {
 
   override suspend fun acceptPath(method: Method, path: String): Handler.Acceptance? {
-    when (method) {
-      is Method.OPTIONS -> return Ack(false, false, method, path)
-      is Method.HEAD -> return Ack(false, false, method, path)
-      is Method.GET -> return Ack(false, false, method, path)
-      is Method.POST -> return Ack(true, true, method, path)
-      is Method.PUT -> return Ack(true, true, method, path)
-      is Method.DELETE -> return Ack(true, false, method, path)
-      is Method.PATCH -> return Ack(true, true, method, path)
-      else -> return Ack(true, false, method, path)
+    return when (method) {
+      is Method.OPTIONS -> Ack(false, false, method, path)
+      is Method.HEAD -> Ack(false, false, method, path)
+      is Method.GET -> Ack(false, false, method, path)
+      is Method.POST -> Ack(true, true, method, path)
+      is Method.PUT -> Ack(true, true, method, path)
+      is Method.DELETE -> Ack(true, false, method, path)
+      is Method.PATCH -> Ack(true, true, method, path)
+      else -> Ack(true, false, method, path)
     }
   }
 

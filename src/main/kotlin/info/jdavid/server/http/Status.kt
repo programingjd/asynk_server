@@ -2,6 +2,7 @@ package info.jdavid.server.http
 
 class Status private constructor() {
 
+  @Suppress("unused")
   companion object {
 
     val CONTINUE = 100

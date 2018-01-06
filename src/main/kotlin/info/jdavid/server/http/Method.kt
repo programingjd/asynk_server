@@ -15,7 +15,8 @@ sealed class Method {
   object DELETE: Method()
   object PATCH: Method()
 
-  data class Custom(public val name: String): Method()
+  @Suppress("unused")
+  data class Custom(val name: String): Method()
 
   companion object {
     internal fun from(m: String): Method {
