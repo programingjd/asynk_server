@@ -1,9 +1,10 @@
 package info.jdavid.server.dev
 
+import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import info.jdavid.server.http.Headers
 import info.jdavid.server.http.HttpHandler
-import info.jdavid.server.http.Method
+import info.jdavid.server.http.SimpleHttpHandler
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
@@ -22,11 +23,12 @@ fun main(args: Array<String>) {
 }
 
 fun connectFor(millis: Long) {
-  Server(/*object : HttpHandler() {
+  Server(object : SimpleHttpHandler() {
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
-    suspend override fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
+    suspend override fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
                                 socket: AsynchronousSocketChannel, context: Any?) {
-      when (path) {
+      val ack = acceptance as Ack
+      when (ack.path) {
         "/headers" -> {
           val bytes =
             headers.lines.joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
@@ -42,14 +44,14 @@ fun connectFor(millis: Long) {
           })
         }
         "/body" -> {
-          val size = body?.limit() ?: 0
+          val size = body.remaining()
           val type = headers.value("Content-Type") ?: "text/plain"
           val setup =
             "HTTP/1.1 200 OK\r\nContent-Type: ${type}\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n".
               toByteArray(Charsets.US_ASCII)
-          socket.aWrite(ByteBuffer.allocate((body?.limit() ?: 0) + setup.size).apply {
+          socket.aWrite(ByteBuffer.allocate((body.remaining()) + setup.size).apply {
             put(setup)
-            if (body != null) put(body)
+            if (body.remaining() > 0) put(body)
             rewind()
           })
         }
@@ -69,7 +71,7 @@ fun connectFor(millis: Long) {
       }
 
     }
-  },*/ HttpHandler(), InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096).use {
+  },/* SimpleHttpHandler(),*/ InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096).use {
     Thread.sleep(millis)
   }
 }
@@ -82,10 +84,10 @@ fun connectMany() {
         val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
       }
   }
-  Server(object : HttpHandler() {
-    suspend override fun context() = ExtendedContext()
+  Server(object : SimpleHttpHandler() {
+    override fun context() = ExtendedContext()
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
-    suspend override fun handle(method: Method, path: String, headers: Headers, body: ByteBuffer?,
+    suspend override fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
                                 socket: AsynchronousSocketChannel, context: Any?) {
       socket.aWrite((context as ExtendedContext).test.rewind() as ByteBuffer)
     }

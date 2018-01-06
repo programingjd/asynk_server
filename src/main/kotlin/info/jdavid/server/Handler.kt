@@ -3,11 +3,10 @@ package info.jdavid.server
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
-import kotlin.experimental.and
 
 interface Handler {
 
-  suspend fun context(): Any?
+  fun context(): Any?
 
   suspend fun connect(remoteAddress: InetSocketAddress): Boolean
 
@@ -51,6 +50,11 @@ interface Handler {
       if (c <= 'f') return c - 'a' + 10
       throw IllegalArgumentException("Unexpected hex digit: ${c}")
     }
+  }
+
+  interface Acceptance {
+    val bodyAllowed: Boolean
+    val bodyRequired: Boolean
   }
 
 }

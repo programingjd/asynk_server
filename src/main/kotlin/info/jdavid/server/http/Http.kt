@@ -1,5 +1,6 @@
 package info.jdavid.server.http
 
+import info.jdavid.server.Handler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
@@ -136,7 +137,7 @@ internal object Http {
   suspend fun body(socket: AsynchronousSocketChannel,
                    alreadyExhausted: Boolean,
                    buffer: ByteBuffer,
-                   compliance: HttpHandler.Compliance,
+                   compliance: Handler.Acceptance,
                    headers: Headers,
                    context: HttpHandler.Context): Int? {
     var exhausted = alreadyExhausted
