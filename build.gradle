@@ -31,6 +31,7 @@ dependencies {
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.20'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.20'
   testCompile 'junit:junit:4.12'
+  testCompile 'com.fasterxml.jackson.core:jackson-databind:2.9.3'
 }
 
 kotlin {

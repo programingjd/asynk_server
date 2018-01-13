@@ -76,7 +76,7 @@ open class SimpleHttpHandler: HttpHandler<Handler.Acceptance>() {
         }
       }
     }
-    else reject(socket, body.reset() as ByteBuffer, context)
+    else reject(socket, body.clear() as ByteBuffer, context)
   }
 
 }
