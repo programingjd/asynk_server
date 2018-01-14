@@ -10,14 +10,17 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class AbstractHttpHandler<T: Handler.Acceptance>: Handler {
+abstract class AbstractHttpHandler<A: Handler.Acceptance, C: AbstractHttpHandler.Context>: Handler<C> {
+
+  abstract override fun context(): C
 
   final override suspend fun handle(socket: AsynchronousSocketChannel,
                                     buffer: ByteBuffer,
-                                    context: Any?) {
+                                    context: C) {
     buffer.clear()
     var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
     buffer.flip()
+    context as? Context ?: return
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
     val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
@@ -26,36 +29,34 @@ abstract class AbstractHttpHandler<T: Handler.Acceptance>: Handler {
       Http.headers(socket, exhausted, buffer, headers) ?: return reject(socket, buffer, context)
     }
     catch (ignore: Http.HeadersTooLarge) {
-      return response(socket, (context as Context).REQUEST_HEADER_FIELDS_TOO_LARGE)
+      return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
-    val code = Http.body(socket, exhausted, buffer, acceptance, headers, context as Context)
+    val code = Http.body(socket, exhausted, buffer, acceptance, headers, context)
     if (code != null) return response(socket, context.response(code))
     handle(acceptance, headers, buffer, socket, context)
   }
-
-  override fun context() = Context()
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
     println(remoteAddress.hostString)
     return true
   }
 
-  abstract suspend fun acceptUri(method: Method, uri: String): T?
+  abstract suspend fun acceptUri(method: Method, uri: String): A?
 
-  abstract suspend fun handle(acceptance: T, headers: Headers, body: ByteBuffer,
+  abstract suspend fun handle(acceptance: A, headers: Headers, body: ByteBuffer,
                               socket: AsynchronousSocketChannel,
-                              context: Any?)
+                              context: C)
 
-  open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?) {
+  open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
     badRequest(socket, buffer, context)
   }
 
-  open suspend fun badRequest(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?) {
-    response(socket, (context as Context).BAD_REQUEST)
+  open suspend fun badRequest(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
+    response(socket, context.BAD_REQUEST)
   }
 
-  open suspend fun notFound(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Any?) {
-    response(socket, (context as Context).NOT_FOUND)
+  open suspend fun notFound(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
+    response(socket, context.NOT_FOUND)
   }
 
   private suspend fun response(socket: AsynchronousSocketChannel, payload: ByteBuffer) {

@@ -21,8 +21,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
-open class Server(
-  private val handler: Handler,
+open class Server<C>(
+  private val handler: Handler<C>,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val maxRequestSize: Int = 4096
 ): Closeable {

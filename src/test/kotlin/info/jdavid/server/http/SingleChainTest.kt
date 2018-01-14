@@ -15,17 +15,13 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class SingleChainTest {
 
-  private class Acceptance(val method: Method, val uri: String): Handler.Acceptance {
-    override val bodyAllowed: Boolean
-      get() = false
-    override val bodyRequired: Boolean
-      get() = false
-  }
+  private class Acceptance(val method: Method, val uri: String): Handler.Acceptance(false, false)
 
   @Test
   fun test1() {
     val chain = listOf(
-      object: AbstractHttpHandler<Acceptance>() {
+      object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
+        override fun context() = Context()
         suspend override fun acceptUri(method: Method,
                                        uri: String): Acceptance? {
           if (method == Method.GET || method == Method.HEAD) {
@@ -37,7 +33,7 @@ class SingleChainTest {
                                     headers: Headers,
                                     body: ByteBuffer,
                                     socket: AsynchronousSocketChannel,
-                                    context: Any?) {
+                                    context: Context) {
           val json = mapOf(
             "method" to acceptance.method.toString(),
             "path" to acceptance.uri,

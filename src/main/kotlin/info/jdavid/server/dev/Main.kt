@@ -1,6 +1,5 @@
 package info.jdavid.server.dev
 
-import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import info.jdavid.server.http.Headers
 import info.jdavid.server.http.AbstractHttpHandler
@@ -26,10 +25,9 @@ fun main(args: Array<String>) {
 fun connectFor(millis: Long) {
   Server(object : SimpleHttpHandler() {
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
-    suspend override fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
-                                socket: AsynchronousSocketChannel, context: Any?) {
-      val ack = acceptance as Ack
-      when (Uri.path(ack.uri)) {
+    suspend override fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
+                                socket: AsynchronousSocketChannel, context: Context) {
+      when (Uri.path(acceptance.uri)) {
         "/headers", "/headers/" -> {
           val bytes =
             headers.lines.joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
@@ -88,8 +86,8 @@ fun connectMany() {
   Server(object : SimpleHttpHandler() {
     override fun context() = ExtendedContext()
     suspend override fun connect(remoteAddress: InetSocketAddress) = true
-    suspend override fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
-                                socket: AsynchronousSocketChannel, context: Any?) {
+    suspend override fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
+                                socket: AsynchronousSocketChannel, context: Context) {
       socket.aWrite((context as ExtendedContext).test.rewind() as ByteBuffer)
     }
   }).use {

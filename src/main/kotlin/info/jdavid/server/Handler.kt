@@ -6,15 +6,15 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
-interface Handler {
+interface Handler<C> {
 
-  fun context(): Any?
+  fun context(): C
 
   suspend fun connect(remoteAddress: InetSocketAddress): Boolean
 
   suspend fun handle(socket: AsynchronousSocketChannel,
                      buffer: ByteBuffer,
-                     context: Any?)
+                     context: C)
 
   companion object {
     fun hex(bytes: ByteArray): String {
@@ -54,9 +54,6 @@ interface Handler {
     }
   }
 
-  interface Acceptance {
-    val bodyAllowed: Boolean
-    val bodyRequired: Boolean
-  }
+  open class Acceptance(val bodyAllowed: Boolean, val bodyRequired: Boolean)
 
 }

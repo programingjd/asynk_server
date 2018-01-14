@@ -6,34 +6,35 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class HttpHandler<T: Handler.Acceptance>: AbstractHttpHandler<T>() {
+abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Context>: AbstractHttpHandler<A, C>() {
 
-  final suspend override fun handle(acceptance: T,
+  final suspend override fun handle(acceptance: A,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     socket: AsynchronousSocketChannel,
-                                    context: Any?) {
+                                    context: C) {
     val response = handle(acceptance, headers, body, context)
     response.write(socket, body)
   }
 
-  abstract fun handle(acceptance: T,
+  abstract fun handle(acceptance: A,
                       headers: Headers,
                       body: ByteBuffer,
-                      context: Any?): Response<T>
+                      context: C): Response<*>
 
-  abstract class Response<T>(val statusCode: Int) {
+  abstract class Response<U>(val statusCode: Int) {
     val headers = Headers()
-    var body: T? = null
-    fun header(key: String, value: String): Response<T> {
-      headers.add(key, value)
+    var body: U? = null
+    fun header(name: String, value: String): Response<U> {
+      headers.add(name, value)
       return this
     }
-    fun body(body: T): Response<T> {
+    fun header(name: String) = headers.value(name)
+    fun body(body: U): Response<U> {
       this.body = body
       return this
     }
-    fun noBody(): Response<T> {
+    fun noBody(): Response<U> {
       body = null
       return this
     }
@@ -69,6 +70,11 @@ abstract class HttpHandler<T: Handler.Acceptance>: AbstractHttpHandler<T>() {
       }
     }
   }
+
+  open class Acceptance(bodyAllowed: Boolean,
+                        bodyRequired: Boolean,
+                        val method: Method,
+                        val uri: String): Handler.Acceptance(bodyAllowed, bodyRequired)
 
   internal companion object {
     val CRLF = "\r\n".toByteArray(Charsets.US_ASCII)
