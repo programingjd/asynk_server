@@ -1,6 +1,7 @@
 package info.jdavid.server.http
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.util.ByteBufferBackedOutputStream
 import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -47,7 +48,8 @@ class SingleChainTest {
           body.clear()
           body.put("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".
             toByteArray(Charsets.US_ASCII))
-          body.put(bytes)
+          ObjectMapper().writeValue(ByteBufferBackedOutputStream(body), json)
+          //body.put(bytes)
           socket.aWrite(body.flip())
         }
       }
