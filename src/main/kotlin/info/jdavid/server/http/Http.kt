@@ -114,7 +114,7 @@ internal object Http {
           else {
             val headerBytes = ByteArray(i - j - 2)
             buffer.get(headerBytes)
-            headers.add(String(headerBytes, Charsets.ISO_8859_1))
+            headers.lines.add(String(headerBytes, Charsets.ISO_8859_1))
             buffer.get()
             buffer.get()
             j = i
@@ -141,7 +141,7 @@ internal object Http {
                    buffer: ByteBuffer,
                    acceptance: Handler.Acceptance,
                    headers: Headers,
-                   context: HttpHandler.Context): Int? {
+                   context: AbstractHttpHandler.Context): Int? {
     var exhausted = alreadyExhausted
     buffer.compact().flip()
     val encoding = headers.value(TRANSFER_ENCODING)

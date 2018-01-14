@@ -10,6 +10,8 @@ class HeadersTests {
     val headers =
       Headers(mutableListOf("Content-Type: text/plain", "Content-Length: 1024", "Test: 1", "test: 2"))
     test(headers)
+    headers.clear()
+    assertEquals(0, headers.lines.size)
   }
 
   @Test fun testAdd() {
@@ -25,7 +27,7 @@ class HeadersTests {
     assertFalse(headers.has("Content-Length"))
     assertNull(headers.value("Content-Length"))
     assertEquals(0, headers.values("Content-Length").size)
-    headers.add("Content-Length: 1024")
+    headers.lines.add("Content-Length: 1024")
     assertTrue(headers.has("Content-Type"))
     assertEquals("text/plain", headers.value("Content-Type"))
     assertEquals(1, headers.values("Content-Type").size)
@@ -33,8 +35,44 @@ class HeadersTests {
     assertEquals("1024", headers.value("Content-Length"))
     assertEquals(1, headers.values("Content-Length").size)
     headers.add("Test", "1")
-    headers.add("test: 2")
+    headers.lines.add("test: 2")
     test(headers)
+    headers.clear()
+    assertEquals(0, headers.lines.size)
+  }
+
+  @Test fun testSet() {
+    val headers = Headers()
+    headers.set("Header1: Value1")
+    assertEquals("Value1", headers.value("Header1"))
+    headers.set("Header1: Value2")
+    assertEquals("Value2", headers.value("Header1"))
+    assertEquals(1, headers.lines.size)
+    headers.clear()
+    assertEquals(0, headers.lines.size)
+    headers.set("Header1", "Value1")
+    assertEquals("Value1", headers.value("Header1"))
+    headers.set("Header1", "Value2")
+    assertEquals("Value2", headers.value("Header1"))
+    assertEquals(1, headers.lines.size)
+    headers.set("header1: value3")
+    assertEquals("value3", headers.value("Header1"))
+    assertEquals(1, headers.lines.size)
+  }
+
+  @Test fun testUnset() {
+    val headers = Headers()
+    headers.set("Headers1: Value1")
+    headers.unset("Headers1")
+    assertNull(headers.value("Headers1"))
+    headers.set("Headers1: Value1")
+    headers.unset("headers1")
+    assertNull(headers.value("Headers1"))
+    headers.set("Headers1: Value1")
+    headers.add("Headers1", "Value2")
+    assertEquals(2, headers.lines.size)
+    headers.unset("Headers1")
+    assertNull(headers.value("Headers1"))
   }
 
   private fun test(headers: Headers) {

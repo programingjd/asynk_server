@@ -3,13 +3,32 @@ package info.jdavid.server.http
 
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
-  internal fun add(line: String): Headers {
+  fun add(name: String, value: String): Headers {
+    lines.add("${name}: ${value}")
+    return this
+  }
+
+  internal fun clear(): Headers {
+    lines.clear()
+    return this
+  }
+
+  internal fun unset(name: String): Headers {
+    val lower = name.toLowerCase()
+    lines.removeIf { matches(it, lower) }
+    return this
+  }
+
+  internal fun set(line: String): Headers {
+    val key = line.substring(0, line.indexOf(':'))
+    unset(key)
     lines.add(line)
     return this
   }
 
-  fun add(name: String, value: String): Headers {
-    lines.add("${name}: ${value}")
+  fun set(name: String, value: String): Headers {
+    unset(name)
+    add(name, value)
     return this
   }
 

@@ -6,8 +6,8 @@ import info.jdavid.server.Handler
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
-internal class HttpHandlerChain(val chain: List<HttpHandler<out Handler.Acceptance>>):
-  HttpHandler<HttpHandlerChain.HandlerAcceptance<out Handler.Acceptance>>() {
+internal class HttpHandlerChain(val chain: List<AbstractHttpHandler<out Handler.Acceptance>>):
+  AbstractHttpHandler<HttpHandlerChain.HandlerAcceptance<out Handler.Acceptance>>() {
 
   private val context = ChainContext(chain.associate { it to it.context() })
 
@@ -30,7 +30,7 @@ internal class HttpHandlerChain(val chain: List<HttpHandler<out Handler.Acceptan
   }
 
   internal class HandlerAcceptance<T: Handler.Acceptance>(
-    private val handler: HttpHandler<T>,
+    private val handler: AbstractHttpHandler<T>,
     private val acceptance: Handler.Acceptance): Handler.Acceptance {
     override val bodyAllowed: Boolean
       get() = acceptance.bodyAllowed
@@ -46,6 +46,6 @@ internal class HttpHandlerChain(val chain: List<HttpHandler<out Handler.Acceptan
     }
   }
 
-  internal class ChainContext(val contexts: Map<HttpHandler<out Handler.Acceptance>, Context>): Context()
+  internal class ChainContext(val contexts: Map<AbstractHttpHandler<out Handler.Acceptance>, Context>): Context()
 
 }

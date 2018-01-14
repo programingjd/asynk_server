@@ -7,7 +7,7 @@ import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
-open class SimpleHttpHandler: HttpHandler<Handler.Acceptance>() {
+open class SimpleHttpHandler: AbstractHttpHandler<Handler.Acceptance>() {
 
   override suspend fun acceptUri(method: Method, uri: String): Handler.Acceptance? {
     return when (method) {

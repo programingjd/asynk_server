@@ -83,6 +83,10 @@ class Status private constructor() {
 
     internal fun message(status: Int) = HTTP_STATUSES[status]
 
+    internal val ERROR_RESPONSE =
+      "HTTP/1.1 ${INTERNAL_SERVER_ERROR} ${HTTP_STATUSES[INTERNAL_SERVER_ERROR]}\r\n" +
+      "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+
   }
 
 }

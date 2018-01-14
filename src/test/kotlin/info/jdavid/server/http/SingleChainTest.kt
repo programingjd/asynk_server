@@ -25,7 +25,7 @@ class SingleChainTest {
   @Test
   fun test1() {
     val chain = listOf(
-      object: HttpHandler<Acceptance>() {
+      object: AbstractHttpHandler<Acceptance>() {
         suspend override fun acceptUri(method: Method,
                                        uri: String): Acceptance? {
           if (method == Method.GET || method == Method.HEAD) {

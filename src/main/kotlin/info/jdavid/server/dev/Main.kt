@@ -3,7 +3,7 @@ package info.jdavid.server.dev
 import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import info.jdavid.server.http.Headers
-import info.jdavid.server.http.HttpHandler
+import info.jdavid.server.http.AbstractHttpHandler
 import info.jdavid.server.http.SimpleHttpHandler
 import info.jdavid.server.http.Uri
 import kotlinx.coroutines.experimental.async
@@ -78,7 +78,7 @@ fun connectFor(millis: Long) {
 }
 
 fun connectMany() {
-  class ExtendedContext: HttpHandler.Context() {
+  class ExtendedContext: AbstractHttpHandler.Context() {
     val test =
       "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\nConnection: close\r\n\r\nTest".
       toByteArray(Charsets.US_ASCII).let {
