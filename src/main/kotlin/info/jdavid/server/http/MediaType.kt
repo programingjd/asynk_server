@@ -115,6 +115,16 @@ class MediaType private constructor() {
       "webm" to WEBM
     )
 
+    fun fromUri(uri: String): String? {
+      val path = Uri.path(uri)
+      if (path.last() == '/') return DIRECTORY
+      val filename = path.substring(path.lastIndexOf('/'))
+      val i = filename.lastIndexOf('.')
+      if (i == -1) return null
+      val ext = filename.substring(i+1).toLowerCase()
+      return map[ext]
+    }
+
     fun fromFile(file: File): String? {
       if (file.isDirectory) return DIRECTORY
       val filename = file.name

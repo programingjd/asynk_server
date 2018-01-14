@@ -9,22 +9,22 @@ import java.nio.channels.AsynchronousSocketChannel
 
 open class SimpleHttpHandler: HttpHandler<Handler.Acceptance>() {
 
-  override suspend fun acceptPath(method: Method, path: String): Handler.Acceptance? {
+  override suspend fun acceptUri(method: Method, uri: String): Handler.Acceptance? {
     return when (method) {
-      is Method.OPTIONS -> Ack(false, false, method, path)
-      is Method.HEAD -> Ack(false, false, method, path)
-      is Method.GET -> Ack(false, false, method, path)
-      is Method.POST -> Ack(true, true, method, path)
-      is Method.PUT -> Ack(true, true, method, path)
-      is Method.DELETE -> Ack(true, false, method, path)
-      is Method.PATCH -> Ack(true, true, method, path)
-      else -> Ack(true, false, method, path)
+      is Method.OPTIONS -> Ack(false, false, method, uri)
+      is Method.HEAD -> Ack(false, false, method, uri)
+      is Method.GET -> Ack(false, false, method, uri)
+      is Method.POST -> Ack(true, true, method, uri)
+      is Method.PUT -> Ack(true, true, method, uri)
+      is Method.DELETE -> Ack(true, false, method, uri)
+      is Method.PATCH -> Ack(true, true, method, uri)
+      else -> Ack(true, false, method, uri)
     }
   }
 
   companion object {
     protected class Ack(override val bodyAllowed: Boolean, override val bodyRequired: Boolean,
-                        val method: Method, val path: String): Handler.Acceptance
+                        val method: Method, val uri: String): Handler.Acceptance
   }
 
   override suspend fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
@@ -32,7 +32,7 @@ open class SimpleHttpHandler: HttpHandler<Handler.Acceptance>() {
                               context: Any?) {
     if (acceptance is Ack) {
       val str = StringBuilder()
-      str.append("${acceptance.method} ${acceptance.path}\r\n\r\n")
+      str.append("${acceptance.method} ${acceptance.uri}\r\n\r\n")
       str.append(headers.lines.joinToString("\r\n"))
       str.append("\n\n")
       val contentType = headers.value(Headers.CONTENT_TYPE) ?: "text/plain"

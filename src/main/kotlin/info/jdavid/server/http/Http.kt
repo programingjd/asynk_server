@@ -34,7 +34,7 @@ internal object Http {
     return Method.from(String(methodBytes, Charsets.US_ASCII))
   }
 
-  fun path(buffer: ByteBuffer): String? {
+  fun uri(buffer: ByteBuffer): String? {
     // Request line: (ASCII)
     // METHOD URI HTTP/1.1\r\n
     // 1. look for first space -> METHOD (already done)

@@ -1,7 +1,6 @@
 package info.jdavid.server.http
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.util.ByteBufferBackedOutputStream
 import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -16,7 +15,7 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class SingleChainTest {
 
-  private class Acceptance(val method: Method, val path: String): Handler.Acceptance {
+  private class Acceptance(val method: Method, val uri: String): Handler.Acceptance {
     override val bodyAllowed: Boolean
       get() = false
     override val bodyRequired: Boolean
@@ -27,10 +26,10 @@ class SingleChainTest {
   fun test1() {
     val chain = listOf(
       object: HttpHandler<Acceptance>() {
-        suspend override fun acceptPath(method: Method,
-                                        path: String): Acceptance? {
+        suspend override fun acceptUri(method: Method,
+                                       uri: String): Acceptance? {
           if (method == Method.GET || method == Method.HEAD) {
-            return Acceptance(method, path)
+            return Acceptance(method, uri)
           }
           return null
         }
@@ -41,7 +40,7 @@ class SingleChainTest {
                                     context: Any?) {
           val json = mapOf(
             "method" to acceptance.method.toString(),
-            "path" to acceptance.path,
+            "path" to acceptance.uri,
             "headers" to mapOf(*headers.keys().map { it to headers.value(it) }.toTypedArray())
           )
           val bytes = ObjectMapper().writeValueAsBytes(json)

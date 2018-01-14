@@ -19,8 +19,8 @@ abstract class HttpHandler<T: Handler.Acceptance>: Handler {
     var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
     buffer.flip()
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
-    val path = Http.path(buffer) ?: return reject(socket, buffer, context)
-    val acceptance = acceptPath(method, path) ?: return notFound(socket, buffer, context)
+    val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
+    val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
     val headers = Headers()
     exhausted = try {
       Http.headers(socket, exhausted, buffer, headers) ?: return reject(socket, buffer, context)
@@ -40,7 +40,7 @@ abstract class HttpHandler<T: Handler.Acceptance>: Handler {
     return true
   }
 
-  abstract suspend fun acceptPath(method: Method, path: String): T?
+  abstract suspend fun acceptUri(method: Method, uri: String): T?
 
   abstract suspend fun handle(acceptance: T, headers: Headers, body: ByteBuffer,
                               socket: AsynchronousSocketChannel,

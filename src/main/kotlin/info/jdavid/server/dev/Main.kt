@@ -5,6 +5,7 @@ import info.jdavid.server.Server
 import info.jdavid.server.http.Headers
 import info.jdavid.server.http.HttpHandler
 import info.jdavid.server.http.SimpleHttpHandler
+import info.jdavid.server.http.Uri
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
@@ -28,8 +29,8 @@ fun connectFor(millis: Long) {
     suspend override fun handle(acceptance: Handler.Acceptance, headers: Headers, body: ByteBuffer,
                                 socket: AsynchronousSocketChannel, context: Any?) {
       val ack = acceptance as Ack
-      when (ack.path) {
-        "/headers" -> {
+      when (Uri.path(ack.uri)) {
+        "/headers", "/headers/" -> {
           val bytes =
             headers.lines.joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
           val size = bytes.size
@@ -43,7 +44,7 @@ fun connectFor(millis: Long) {
             rewind()
           })
         }
-        "/body" -> {
+        "/body", "/body/" -> {
           val size = body.remaining()
           val type = headers.value("Content-Type") ?: "text/plain"
           val setup =

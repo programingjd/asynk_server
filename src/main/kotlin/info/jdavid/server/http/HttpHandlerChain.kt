@@ -13,9 +13,9 @@ internal class HttpHandlerChain(val chain: List<HttpHandler<out Handler.Acceptan
 
   override fun context() = context
 
-  suspend override fun acceptPath(method: Method, path: String): HandlerAcceptance<out Handler.Acceptance>? {
+  suspend override fun acceptUri(method: Method, uri: String): HandlerAcceptance<out Handler.Acceptance>? {
     for (handler in chain) {
-      val acceptance = handler.acceptPath(method, path)
+      val acceptance = handler.acceptUri(method, uri)
       if (acceptance != null) return HandlerAcceptance(handler, acceptance)
     }
     return null
