@@ -42,7 +42,7 @@ abstract class HttpHandler<T: Handler.Acceptance>: AbstractHttpHandler<T>() {
     protected abstract fun writeBody(buffer: ByteBuffer)
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(Status.ERROR_RESPONSE.toByteArray(Charsets.US_ASCII))
-      socket.aWrite(buffer.flip(), 5000L, TimeUnit.MILLISECONDS)
+      socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
     internal suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.clear()
@@ -54,11 +54,15 @@ abstract class HttpHandler<T: Handler.Acceptance>: AbstractHttpHandler<T>() {
         headers.set(Headers.CONTENT_TYPE, bodyMediaType() ?: MediaType.OCTET_STREAM)
       }
       buffer.put("HTTP/1.1 ${statusCode} ${statusMessage}\r\n".toByteArray(Charsets.ISO_8859_1))
-      socket.aWrite(buffer.flip(), 5000L, TimeUnit.MILLISECONDS)
+      socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+
+      // todo write headers
+
       if (body != null) {
         buffer.clear()
         writeBody(buffer)
-        socket.aWrite(buffer.flip(), 5000L + buffer.capacity() / 1000, TimeUnit.MILLISECONDS)
+        socket.aWrite(buffer.flip() as ByteBuffer,
+                      5000L + buffer.capacity() / 1000, TimeUnit.MILLISECONDS)
       }
     }
   }
