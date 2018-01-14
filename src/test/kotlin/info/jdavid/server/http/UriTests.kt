@@ -1,10 +1,23 @@
 package info.jdavid.server.http
 
-import info.jdavid.server.discarded.http.Uri
 import org.junit.Assert
 import org.junit.Test
 
 class UriTests {
+
+  @Test
+  fun testFragment() {
+    Assert.assertNull(Uri.fragment("/"))
+    Assert.assertNull(Uri.fragment("/some/path"))
+    Assert.assertNull(Uri.fragment("/some/path/"))
+    Assert.assertNull(Uri.fragment("/some/path?query"))
+    Assert.assertEquals("", Uri.fragment("/some/path#"))
+    Assert.assertEquals("", Uri.fragment("/some/path/#"))
+    Assert.assertEquals("", Uri.fragment("/some/path?query#"))
+    Assert.assertEquals("abc", Uri.fragment("/some/path#abc"))
+    Assert.assertEquals("1", Uri.fragment("/some/path/#1"))
+    Assert.assertEquals("@here", Uri.fragment("/some/path?query#@here"))
+  }
 
   @Test
   fun testPath() {
