@@ -29,6 +29,7 @@ class HttpHandlerTests {
       conn.useCaches = false
       try {
         val bytes = conn.inputStream.readBytes(512)
+        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
         assertEquals(
           """
             GET /
@@ -131,6 +132,7 @@ class HttpHandlerTests {
       try {
         conn.outputStream.write("Test".toByteArray())
         val bytes = conn.inputStream.readBytes(512)
+        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
         assertEquals(
           """
             POST /

@@ -67,6 +67,7 @@ class SingleChainTest {
       conn.useCaches = false
       try {
         val bytes = conn.inputStream.readBytes(512)
+        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
         assertTrue(conn.getHeaderField(Headers.CONTENT_TYPE).startsWith("application/json"))
         assertEquals(
           "{\"method\":\"GET\",\"path\":\"/\",\"headers\":{\"User-Agent\":\"Test user agent\",\"Cache-Control\":\"no-cache\",\"Pragma\":\"no-cache\",\"Test\":\"123\",\"Connection\":\"close\",\"Host\":\"localhost:8080\",\"Accept\":\"text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2\"}}",
