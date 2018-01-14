@@ -48,8 +48,8 @@ class SingleChainTest {
           body.clear()
           body.put("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".
             toByteArray(Charsets.US_ASCII))
-          ObjectMapper().writeValue(ByteBufferBackedOutputStream(body), json)
-          //body.put(bytes)
+          body.put(bytes)
+          //ObjectMapper().writeValue(ByteBufferBackedOutputStream(body), json)
           socket.aWrite(body.flip())
         }
       }
