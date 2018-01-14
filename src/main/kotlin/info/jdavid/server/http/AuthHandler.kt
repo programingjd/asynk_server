@@ -2,17 +2,22 @@ package info.jdavid.server.http
 
 import java.nio.ByteBuffer
 
-abstract class AuthHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Context>(
+abstract class AuthHandler<A: HttpHandler.Acceptance,
+                           C: AbstractHttpHandler.Context,
+                           D: AuthHandler.Context<C>>(
   private val delegate: HttpHandler<A, C>
-): HttpHandler<A, C>() {
+): HttpHandler<A, D>() {
 
-  suspend override fun acceptUri(method: Method, uri: String): A? {
+  final override suspend fun acceptUri(method: Method, uri: String): A? {
     return delegate.acceptUri(method, uri)
   }
 
-  override fun handle(acceptance: A, headers: Headers, body: ByteBuffer, context: C): Response<*> {
+  final override suspend fun handle(acceptance: A,
+                                    headers: Headers,
+                                    body: ByteBuffer,
+                                    context: D): Response<*> {
     if (credentialsAreValid(acceptance, headers, context)) {
-      val response = delegate.handle(acceptance, headers, body, context)
+      val response = delegate.handle(acceptance, headers, body, context.delegate)
       val cacheControl = response.header(Headers.CACHE_CONTROL)
       val expires = response.header(Headers.EXPIRES)
       val cacheable =
@@ -45,14 +50,16 @@ abstract class AuthHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Con
     }
   }
 
-  abstract fun credentialsAreValid(acceptance: A, headers: Headers, context: C): Boolean
+  abstract suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean
 
   abstract fun wwwAuthenticate(): String
 
+  class Context<C>(val delegate: C): AbstractHttpHandler.Context()
+
   class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
     override fun bodyMediaType() = null
-    override fun bodyByteLength() = 0L
-    override fun writeBody(buffer: ByteBuffer) {}
+    override suspend fun bodyByteLength() = 0L
+    override suspend fun writeBody(buffer: ByteBuffer) {}
   }
 
   internal companion object {

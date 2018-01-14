@@ -14,7 +14,7 @@ internal class HttpHandlerChain(
 
   override fun context() = ChainContext(chain.associate { it to it.context() })
 
-  suspend override fun acceptUri(method: Method, uri: String): HandlerAcceptance<out Handler.Acceptance,
+  override suspend fun acceptUri(method: Method, uri: String): HandlerAcceptance<out Handler.Acceptance,
                                                                                  out Context>? {
     for (handler in chain) {
       val acceptance = handler.acceptUri(method, uri)
@@ -23,7 +23,7 @@ internal class HttpHandlerChain(
     return null
   }
 
-  suspend override fun handle(acceptance: HandlerAcceptance<out Handler.Acceptance, out Context>,
+  override suspend fun handle(acceptance: HandlerAcceptance<out Handler.Acceptance, out Context>,
                               headers: Headers,
                               body: ByteBuffer,
                               socket: AsynchronousSocketChannel,

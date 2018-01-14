@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 
 abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Context>: AbstractHttpHandler<A, C>() {
 
-  final suspend override fun handle(acceptance: A,
+  final override suspend fun handle(acceptance: A,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     socket: AsynchronousSocketChannel,
@@ -17,10 +17,10 @@ abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Con
     response.write(socket, body)
   }
 
-  abstract fun handle(acceptance: A,
-                      headers: Headers,
-                      body: ByteBuffer,
-                      context: C): Response<*>
+  abstract suspend fun handle(acceptance: A,
+                              headers: Headers,
+                              body: ByteBuffer,
+                              context: C): Response<*>
 
   abstract class Response<U>(val statusCode: Int) {
     val headers = Headers()
@@ -39,8 +39,8 @@ abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Con
       return this
     }
     protected abstract fun bodyMediaType(): String?
-    protected abstract fun bodyByteLength(): Long
-    protected abstract fun writeBody(buffer: ByteBuffer)
+    protected abstract suspend fun bodyByteLength(): Long
+    protected abstract suspend fun writeBody(buffer: ByteBuffer)
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(ERROR_RESPONSE)
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
