@@ -4,6 +4,28 @@ class Uri private constructor() {
 
   companion object {
 
+    fun query(uri: String): Map<String,String>? {
+      val qmark = uri.indexOf('?', 1)
+      if (qmark == -1) return null
+      val hash = uri.indexOf('#', qmark + 1)
+      val q = if (hash == -1) uri.substring(qmark + 1) else uri.substring(qmark + 1, hash)
+      return q.split('&').let {
+        val map = LinkedHashMap<String, String>(it.size)
+        it.forEach {
+          if (it.isNotEmpty()) {
+            it.split('=').apply {
+              when (size) {
+                0 -> map[""] = ""
+                1 -> map[this[0]] = ""
+                else -> map[this[0]] = this[1]
+              }
+            }
+          }
+        }
+        map
+      }
+    }
+
     fun fragment(uri: String): String? {
       val hash = uri.indexOf('#', 1)
       return if (hash == -1) null else uri.substring(hash + 1)

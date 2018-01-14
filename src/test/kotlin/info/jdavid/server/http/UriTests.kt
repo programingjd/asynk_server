@@ -6,6 +6,22 @@ import org.junit.Test
 class UriTests {
 
   @Test
+  fun testQuery() {
+    Assert.assertNull(Uri.query("/"))
+    Assert.assertNull(Uri.query("/some/path"))
+    Assert.assertNull(Uri.query("/some/path/"))
+    Assert.assertNull(Uri.query("/some/path#fragment"))
+    Assert.assertEquals(0, Uri.query("/some/path?")?.size)
+    Assert.assertEquals(0, Uri.query("/some/path?#fragment")?.size)
+    Assert.assertEquals("", Uri.query("/some/path?1")?.get("1"))
+    Assert.assertEquals("d", Uri.query("/some/path/?abc=d")?.get("abc"))
+    Assert.assertEquals("", Uri.query("/some/path?q#fragment")?.get("q"))
+    Assert.assertNull("", Uri.query("/some/path?q#fragment")?.get("abc"))
+    Assert.assertEquals("1", Uri.query("/some/path?a=1&b=2#fragment")?.get("a"))
+    Assert.assertEquals("2", Uri.query("/some/path?a=1&b=2#fragment")?.get("b"))
+  }
+
+  @Test
   fun testFragment() {
     Assert.assertNull(Uri.fragment("/"))
     Assert.assertNull(Uri.fragment("/some/path"))
