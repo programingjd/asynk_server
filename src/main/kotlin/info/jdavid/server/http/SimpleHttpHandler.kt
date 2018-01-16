@@ -47,7 +47,7 @@ open class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
     val extra = if (isText) body.remaining() else Math.min(2048, body.remaining() * 2)
     val bytes = str.toString().toByteArray(Charsets.ISO_8859_1)
     socket.aWrite(ByteBuffer.wrap(
-      "HTTP/1.1 200 OK\r\nContent-Type: plain/text\r\nContent-Length: ${bytes.size + extra}\r\nConnection: close\r\n\r\n".
+      "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${bytes.size + extra}\r\nConnection: close\r\n\r\n".
         toByteArray(Charsets.US_ASCII)
     ))
     socket.aWrite(ByteBuffer.wrap(bytes))

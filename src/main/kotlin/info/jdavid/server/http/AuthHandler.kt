@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 abstract class AuthHandler<A: HttpHandler.Acceptance,
                            C: AbstractHttpHandler.Context,
                            D: AuthHandler.Context<C>>(
-  private val delegate: HttpHandler<A, C>
+  protected val delegate: HttpHandler<A, C>
 ): HttpHandler<A, D>() {
 
   final override suspend fun acceptUri(method: Method, uri: String): A? {
@@ -54,7 +54,7 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
 
   abstract fun wwwAuthenticate(): String
 
-  class Context<C>(val delegate: C): AbstractHttpHandler.Context()
+  open class Context<C>(val delegate: C): AbstractHttpHandler.Context()
 
   class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
     override fun bodyMediaType() = null

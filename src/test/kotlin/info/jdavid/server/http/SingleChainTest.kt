@@ -4,12 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import info.jdavid.server.Handler
 import info.jdavid.server.Server
 import kotlinx.coroutines.experimental.nio.aWrite
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.net.HttpURLConnection
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.net.URL
+import java.net.*
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
@@ -18,7 +17,7 @@ class SingleChainTest {
   private class Acceptance(val method: Method, val uri: String): Handler.Acceptance(false, false)
 
   @Test
-  fun test1() {
+  fun test() {
     val chain = listOf(
       object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
         override fun context() = Context()
@@ -55,24 +54,26 @@ class SingleChainTest {
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
     ).use {
-      val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
-      conn.setRequestProperty(Headers.USER_AGENT, "Test user agent")
-      conn.setRequestProperty(Headers.CACHE_CONTROL, "no-cache")
-      conn.setRequestProperty(Headers.PRAGMA, "no-cache")
-      conn.setRequestProperty("Test", "123")
-      conn.setRequestProperty(Headers.CONNECTION, "close")
-      conn.useCaches = false
-      try {
-        val bytes = conn.inputStream.readBytes(512)
-        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
-        assertTrue(conn.getHeaderField(Headers.CONTENT_TYPE).startsWith("application/json"))
-        assertEquals(
-          "{\"method\":\"GET\",\"path\":\"/\",\"headers\":{\"User-Agent\":\"Test user agent\",\"Cache-Control\":\"no-cache\",\"Pragma\":\"no-cache\",\"Test\":\"123\",\"Connection\":\"close\",\"Host\":\"localhost:8080\",\"Accept\":\"text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2\"}}",
-          String(bytes)
-        )
+      val request = HttpGet().apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader("Test", "123")
+        setHeader(Headers.CONNECTION, "close")
+        setHeader(Headers.ACCEPT_ENCODING, "gzip")
       }
-      finally {
-        conn.disconnect()
+      HttpClientBuilder.create().build().use {
+        it.execute(request).use {
+          assertEquals(200, it.statusLine.statusCode)
+          val bytes = it.entity.content.readAllBytes()
+          assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
+          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.JSON))
+          assertEquals(
+            "{\"method\":\"GET\",\"path\":\"/\",\"headers\":{\"User-Agent\":\"Test user agent\",\"Cache-Control\":\"no-cache\",\"Pragma\":\"no-cache\",\"Test\":\"123\",\"Connection\":\"close\",\"Accept-Encoding\":\"gzip\",\"Host\":\"localhost:8080\"}}",
+            String(bytes)
+          )
+        }
       }
     }
   }

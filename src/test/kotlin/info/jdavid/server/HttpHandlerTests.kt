@@ -1,14 +1,14 @@
 package info.jdavid.server
 
 import info.jdavid.server.http.Headers
+import info.jdavid.server.http.MediaType
 import info.jdavid.server.http.SimpleHttpHandler
+import org.apache.http.client.methods.*
+import org.apache.http.entity.StringEntity
+import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.net.URL
+import java.net.*
 
 class HttpHandlerTests {
 
@@ -19,35 +19,39 @@ class HttpHandlerTests {
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
     ).use {
-      val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
-      conn.setRequestProperty(Headers.USER_AGENT, "Test user agent")
-      conn.setRequestProperty(Headers.CACHE_CONTROL, "no-cache")
-      conn.setRequestProperty(Headers.PRAGMA, "no-cache")
-      conn.setRequestProperty(Headers.ACCEPT, "text/plain")
-      conn.setRequestProperty("Test", "123")
-      conn.setRequestProperty(Headers.CONNECTION, "close")
-      conn.useCaches = false
-      try {
-        val bytes = conn.inputStream.readBytes(512)
-        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
-        assertEquals(
-          """
+      val request = HttpGet().apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.ACCEPT, "text/plain")
+        setHeader(Headers.ACCEPT_ENCODING, "identity")
+        setHeader("Test", "123")
+        setHeader(Headers.CONNECTION, "close")
+      }
+      HttpClientBuilder.create().build().use {
+        it.execute(request).use {
+          assertEquals(200, it.statusLine.statusCode)
+          val bytes = it.entity.content.readAllBytes()
+          assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
+          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
+          assertEquals(
+            """
             GET /
 
             User-Agent: Test user agent
             Cache-Control: no-cache
             Pragma: no-cache
             Accept: text/plain
+            Accept-Encoding: identity
             Test: 123
             Connection: close
             Host: localhost:8080
 
 
           """.trimIndent().normalize()
-          , String(bytes).normalize())
-      }
-      finally {
-        conn.disconnect()
+            , String(bytes).normalize())
+        }
       }
     }
   }
@@ -59,25 +63,20 @@ class HttpHandlerTests {
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
     ).use {
-      val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
-      conn.requestMethod = "POST"
-      conn.setRequestProperty(Headers.USER_AGENT, "Test user agent")
-      conn.setRequestProperty(Headers.CACHE_CONTROL, "no-cache")
-      conn.setRequestProperty(Headers.PRAGMA, "no-cache")
-      conn.setRequestProperty(Headers.ACCEPT, "text/plain")
-      conn.setRequestProperty(Headers.CONNECTION, "close")
-      conn.setRequestProperty(Headers.CONTENT_TYPE, "text/plain")
-      conn.useCaches = false
-      conn.doOutput = false
-      try {
-        conn.inputStream.readBytes(512)
-        fail("The request should have failed with a 400.")
+      val request = HttpPost().apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.ACCEPT, "text/plain")
+        setHeader(Headers.ACCEPT_ENCODING, "identity")
+        setHeader(Headers.CONNECTION, "close")
+        setHeader(Headers.CONTENT_TYPE, "text/plain")
       }
-      catch (e: IOException) {
-        assertEquals(400, conn.responseCode)
-      }
-      finally {
-        conn.disconnect()
+      HttpClientBuilder.create().build().use {
+        it.execute(request).use {
+          assertEquals(400, it.statusLine.statusCode)
+        }
       }
     }
   }
@@ -89,26 +88,23 @@ class HttpHandlerTests {
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
     ).use {
-      val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
-      conn.setRequestProperty(Headers.USER_AGENT, "Test user agent")
-      conn.setRequestProperty(Headers.CACHE_CONTROL, "no-cache")
-      conn.setRequestProperty(Headers.PRAGMA, "no-cache")
-      conn.setRequestProperty(Headers.ACCEPT, "text/plain")
-      conn.setRequestProperty(Headers.CONNECTION, "close")
-      conn.setRequestProperty(Headers.CONTENT_TYPE, "text/plain")
-      conn.useCaches = false
-      conn.doOutput = true
-      conn.requestMethod = "HEAD"
-      try {
-        conn.outputStream.write("Test".toByteArray())
-        conn.inputStream.readBytes(512)
-        fail("The request should have failed with a 400.")
+      val request = object: HttpEntityEnclosingRequestBase() {
+        override fun getMethod() = "HEAD"
+      }.apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.ACCEPT, "text/plain")
+        setHeader(Headers.ACCEPT_ENCODING, "identity")
+        setHeader(Headers.CONNECTION, "close")
+        setHeader(Headers.CONTENT_TYPE, "text/plain")
+        entity = StringEntity("Test")
       }
-      catch (e: IOException) {
-        assertEquals(400, conn.responseCode)
-      }
-      finally {
-        conn.disconnect()
+      HttpClientBuilder.create().build().use {
+        it.execute(request).use {
+          assertEquals(400, it.statusLine.statusCode)
+        }
       }
     }
   }
@@ -120,38 +116,41 @@ class HttpHandlerTests {
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
     ).use {
-      val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
-      conn.setRequestProperty(Headers.USER_AGENT, "Test user agent")
-      conn.setRequestProperty(Headers.CACHE_CONTROL, "no-cache")
-      conn.setRequestProperty(Headers.PRAGMA, "no-cache")
-      conn.setRequestProperty(Headers.ACCEPT, "text/plain")
-      conn.setRequestProperty(Headers.CONNECTION, "close")
-      conn.setRequestProperty(Headers.CONTENT_TYPE, "text/plain")
-      conn.useCaches = false
-      conn.doOutput = true
-      try {
-        conn.outputStream.write("Test".toByteArray())
-        val bytes = conn.inputStream.readBytes(512)
-        assertEquals(conn.getHeaderField(Headers.CONTENT_LENGTH).toInt(), bytes.size)
-        assertEquals(
-          """
-            POST /
+      val request = HttpPut().apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.ACCEPT, "text/plain")
+        setHeader(Headers.ACCEPT_ENCODING, "identity")
+        setHeader(Headers.CONNECTION, "close")
+        setHeader(Headers.CONTENT_TYPE, "text/plain")
+        entity = StringEntity("Test")
+      }
+      HttpClientBuilder.create().build().use {
+        it.execute(request).use {
+          assertEquals(200, it.statusLine.statusCode)
+          val bytes = it.entity.content.readAllBytes()
+          assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
+          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
+          assertEquals(
+            """
+            PUT /
 
             User-Agent: Test user agent
             Cache-Control: no-cache
             Pragma: no-cache
             Accept: text/plain
+            Accept-Encoding: identity
             Connection: close
             Content-Type: text/plain
-            Host: localhost:8080
             Content-Length: 4
+            Host: localhost:8080
 
             Test
           """.trimIndent().normalize()
-          , String(bytes).normalize())
-      }
-      finally {
-        conn.disconnect()
+            , String(bytes).normalize())
+        }
       }
     }
   }

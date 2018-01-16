@@ -20,7 +20,8 @@ abstract class BasicAuthHandler<A: HttpHandler.Acceptance,
 
   companion object {
     fun authorizationHeaderValue(user: String, password: String): String {
-      return "Basic ${user}:${Base64.getEncoder().encodeToString(password.toByteArray(Charsets.UTF_8))}"
+      val b64 = Base64.getEncoder().encodeToString("${user}:${password}".toByteArray(Charsets.UTF_8))
+      return "Basic ${b64}"
     }
   }
 
