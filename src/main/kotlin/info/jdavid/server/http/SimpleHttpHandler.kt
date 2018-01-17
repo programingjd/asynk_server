@@ -2,6 +2,7 @@
 
 package info.jdavid.server.http
 
+import info.jdavid.server.Crypto
 import info.jdavid.server.Handler
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
@@ -64,14 +65,14 @@ open class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
         if (body.remaining() > 1024) {
           val limit = body.limit()
           body.limit(body.position() + 511)
-          socket.aWrite(ByteBuffer.wrap(Handler.hex(body).toByteArray(Charsets.US_ASCII)))
+          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
           socket.aWrite(ByteBuffer.wrap("....".toByteArray(Charsets.US_ASCII)))
           body.limit(limit)
           body.position(limit - 511)
-          socket.aWrite(ByteBuffer.wrap(Handler.hex(body).toByteArray(Charsets.US_ASCII)))
+          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
         }
         else {
-          socket.aWrite(ByteBuffer.wrap(Handler.hex(body).toByteArray(Charsets.US_ASCII)))
+          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
         }
       }
     }

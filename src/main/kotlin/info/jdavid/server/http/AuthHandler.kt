@@ -46,13 +46,16 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
       return response
     }
     else {
-      return UnauthorizedResponse().header(Headers.WWW_AUTHENTICATE, wwwAuthenticate())
+      return UnauthorizedResponse().header(
+        Headers.WWW_AUTHENTICATE,
+        wwwAuthenticate(acceptance, headers)
+      )
     }
   }
 
   abstract suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean
 
-  abstract fun wwwAuthenticate(): String
+  abstract protected fun wwwAuthenticate(acceptance: A, headers: Headers): String
 
   open class Context<C>(val delegate: C): AbstractHttpHandler.Context()
 

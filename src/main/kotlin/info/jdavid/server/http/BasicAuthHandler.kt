@@ -16,11 +16,11 @@ abstract class BasicAuthHandler<A: HttpHandler.Acceptance,
 
   abstract fun credentialsAreValid(auth: String, context: D): Boolean
 
-  override fun wwwAuthenticate() = "Basic realm=\"${realm}\", charset=\"UTF-8\""
+  override fun wwwAuthenticate(acceptance: A, headers: Headers) = "Basic realm=\"$realm\", charset=\"UTF-8\""
 
   companion object {
     fun authorizationHeaderValue(user: String, password: String): String {
-      val b64 = Base64.getEncoder().encodeToString("${user}:${password}".toByteArray(Charsets.UTF_8))
+      val b64 = Base64.getEncoder().encodeToString("${user}:${password}".toByteArray())
       return "Basic ${b64}"
     }
   }
