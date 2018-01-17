@@ -1,5 +1,6 @@
 package info.jdavid.server.http
 
+import info.jdavid.server.Crypto
 import info.jdavid.server.Server
 import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
@@ -60,17 +61,13 @@ class DigestAuthTests {
   }
 
   private fun context(user: String? = null, password: String? = null): HttpClientContext {
-    val host = HttpHost("localhost", 8080, "http")
-    val cache = BasicAuthCache().apply {
-      put(host, DigestScheme())
-    }
     val credentials = BasicCredentialsProvider()
     if (user != null && password != null) {
       credentials.setCredentials(AuthScope.ANY, UsernamePasswordCredentials (user, password))
     }
     return HttpClientContext.create().apply {
       credentialsProvider = credentials
-      authCache = cache
+      authCache = BasicAuthCache()
     }
   }
 

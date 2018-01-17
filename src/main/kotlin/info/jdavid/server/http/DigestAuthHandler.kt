@@ -41,7 +41,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
     val nonce = map[NONCE] ?: return false
     val decrypted = String(Crypto.decrypt(key, nonceIv, nonce), Charsets.US_ASCII)
     val time = decrypted.substring(0, 12).toLong(16)
-    if ((System.nanoTime() - time) > 600000) return false // nonce older than 10 mins
+    if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
     if (decrypted.substring(28) != "${host}${uri}") return false
     if (map[QOP] != "auth") return false
     val nc = map[NC] ?: return false
@@ -58,7 +58,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
 
   final override fun wwwAuthenticate(acceptance: A, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
-    val time = Crypto.hex(BigInteger.valueOf(System.nanoTime()))
+    val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
     val rand = Crypto.hex(SecureRandom().generateSeed(8))
     val nonce = Crypto.encrypt(
       key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)

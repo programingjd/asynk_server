@@ -56,17 +56,13 @@ class BasicAuthTests {
   }
 
   private fun context(user: String? = null, password: String? = null): HttpClientContext {
-    val host = HttpHost("localhost", 8080, "http")
-    val cache = BasicAuthCache().apply {
-      put(host, BasicScheme())
-    }
     val credentials = BasicCredentialsProvider()
     if (user != null && password != null) {
       credentials.setCredentials(AuthScope.ANY, UsernamePasswordCredentials (user, password))
     }
     return HttpClientContext.create().apply {
       credentialsProvider = credentials
-      authCache = cache
+      authCache = BasicAuthCache()
     }
   }
 
@@ -84,7 +80,7 @@ class BasicAuthTests {
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use { 
+      HttpClientBuilder.create().build().use {
         it.execute(request, context()).use {
           assertEquals(401, it.statusLine.statusCode)
         }
