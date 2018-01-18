@@ -39,7 +39,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
     val uri = map[URI] ?: return false
     if (uri != acceptance.uri) return false
     val nonce = map[NONCE] ?: return false
-    val decrypted = String(Crypto.decrypt(key, nonceIv, nonce), Charsets.US_ASCII)
+    val decrypted = String(Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce)), Charsets.US_ASCII)
     val time = decrypted.substring(0, 12).toLong(16)
     if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
     if (decrypted.substring(76) != "${host}${uri}") return false
@@ -60,9 +60,9 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
     val rand = Crypto.hex(SecureRandom().generateSeed(32))
-    val nonce = Crypto.encrypt(
+    val nonce = Crypto.hex(Crypto.encrypt(
       key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)
-    )
+    ))
     val opaque = opaque(host)
     return "Digest realm=\"${realm}\", qop=\"auth\", algorithm=MD5, nonce=\"${nonce}\", opaque=\"${opaque}\""
   }

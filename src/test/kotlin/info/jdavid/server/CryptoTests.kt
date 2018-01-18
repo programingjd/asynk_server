@@ -20,7 +20,6 @@ class CryptoTests {
 
     val key = SecretKeySpec(Crypto.unhex("3f69b3f5a5855f116ec878cec91b340d"), key1.algorithm)
     val crypted = Crypto.encrypt(key, iv1, "Super secret message".toByteArray())
-    assertEquals("ffc2b882489b71384c0087c00cab32a606e31dacefb122c39039bc0cd8bdff7d", crypted)
     assertEquals("Super secret message", String(Crypto.decrypt(key, iv1, crypted)))
   }
 
