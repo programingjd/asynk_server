@@ -1,38 +1,60 @@
 package info.jdavid.server
 
+import com.codahale.aesgcmsiv.AEAD
 import java.math.BigInteger
 import java.nio.ByteBuffer
+import java.security.GeneralSecurityException
 import java.security.Key
 import java.security.SecureRandom
-import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
-import javax.crypto.spec.IvParameterSpec
+import javax.crypto.Mac
 
 object Crypto {
 
+  private val HMAC_SHA256 = "HmacSHA256"
+
   private val AES = "AES"
-  private val AES_CBC = "AES/CBC/PKCS5Padding"
   private val ZERO = "0"
 
   init {
-    KeyGenerator.getInstance(AES)
-    Cipher.getInstance(AES_CBC)
+    if (!algorithmIsAvailable(AES)) throw RuntimeException("No suitable algorithm found.")
+    if (!macIsAvailable(HMAC_SHA256)) throw RuntimeException("No suitable mac found.")
   }
 
-  fun encrypt(key: Key, iv: ByteArray, bytes: ByteArray) = Cipher.getInstance(AES_CBC).let {
-    it.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iv))
-    hex(it.doFinal(bytes))
+  private fun macIsAvailable(algorithm: String): Boolean {
+    return try {
+      Mac.getInstance(algorithm)
+      true
+    }
+    catch (ignore: GeneralSecurityException) {
+      false
+    }
   }
 
-  fun decrypt(key: Key, iv: ByteArray, crypted: String) = Cipher.getInstance(AES_CBC).let {
-    it.init(Cipher.DECRYPT_MODE, key, IvParameterSpec(iv))
-    it.doFinal(unhex(crypted))
+  private fun algorithmIsAvailable(algorithm: String): Boolean {
+    return try {
+      KeyGenerator.getInstance(algorithm)
+      true
+    }
+    catch (ignore: GeneralSecurityException) {
+      false
+    }
   }
 
-  fun iv(seed: ByteArray) = ByteArray(16).apply {
+  fun sign(key: Key, bytes: ByteArray) = Mac.getInstance(HMAC_SHA256).let {
+    it.init(key)
+    hex(it.doFinal())
+  }
+
+  fun encrypt(key: Key, iv: ByteArray, bytes: ByteArray) = hex(AEAD(key.encoded).seal(bytes, iv))
+
+  fun decrypt(key: Key, iv: ByteArray, crypted: String) = AEAD(key.encoded).open(unhex(crypted), iv).get()
+
+  fun iv(seed: ByteArray) = ByteArray(32).apply {
     SecureRandom(seed).nextBytes(this)
   }
 
+  // Works for AEAD but also for HMAC
   fun secretKey(iv: ByteArray) = KeyGenerator.getInstance(AES).let {
     it.init(SecureRandom(iv))
     it.generateKey()

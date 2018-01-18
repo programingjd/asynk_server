@@ -29,6 +29,7 @@ dependencies {
   compile 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.21.2'
   compile 'org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.21.2'
+  compile 'com.codahale:aes-gcm-siv:0.4.2'
   testCompile 'junit:junit:4.12'
   testCompile 'com.fasterxml.jackson.core:jackson-databind:2.9.3'
   testCompile 'org.apache.httpcomponents:httpclient:4.3.6'

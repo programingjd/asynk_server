@@ -15,7 +15,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
   seed: ByteArray
 ): AuthHandler<A, C, D>(delegate) {
 
-  private val key = Crypto.secretKey(SecureRandom(seed).generateSeed(16))
+  private val key = Crypto.secretKey(SecureRandom(seed).generateSeed(32))
   private val nonceIv = Crypto.iv(seed)
 
   final override suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean {
@@ -42,7 +42,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
     val decrypted = String(Crypto.decrypt(key, nonceIv, nonce), Charsets.US_ASCII)
     val time = decrypted.substring(0, 12).toLong(16)
     if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
-    if (decrypted.substring(28) != "${host}${uri}") return false
+    if (decrypted.substring(76) != "${host}${uri}") return false
     if (map[QOP] != "auth") return false
     val nc = map[NC] ?: return false
     val cnonce = map[CNONCE] ?: return false
@@ -59,7 +59,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
   final override fun wwwAuthenticate(acceptance: A, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
-    val rand = Crypto.hex(SecureRandom().generateSeed(8))
+    val rand = Crypto.hex(SecureRandom().generateSeed(32))
     val nonce = Crypto.encrypt(
       key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)
     )
