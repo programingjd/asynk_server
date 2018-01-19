@@ -8,6 +8,7 @@ import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
+import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.IOException
 import java.net.InetAddress
@@ -49,21 +50,14 @@ open class Server<C>(
     }
     catch (e: JobCancellationException) {}
     catch (e: IOException) {
-      e.printStackTrace()
+      logger.error(e.message, e)
     }
   }
 
-//  private val OK =
-//    "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\nConnection: close\r\n\r\nTest".
-//      toByteArray(Charsets.US_ASCII)
+  private val logger = LoggerFactory.getLogger(Server::class.java)
 
   private val handleJobs = connectionHandlers.map {
     launch(it.asCoroutineDispatcher()) {
-//      val output = ByteBuffer.allocateDirect(OK.size).apply {
-//        put(OK)
-//      }
-//      val input = ByteBuffer.allocateDirect(bufferSize)
-
       val handlerContext = handler.context()
       val buffers = LinkedList<ByteBuffer>()
       try {
@@ -75,8 +69,9 @@ open class Server<C>(
               val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(maxRequestSize)
               try {
                 handler.handle(clientSocket, buffer, handlerContext)
-//                clientSocket.aRead(input.rewind() as ByteBuffer)
-//                clientSocket.aWrite(output.rewind() as ByteBuffer)
+              }
+              catch (e: Exception) {
+                logger.error(e.message, e)
               }
               finally {
                 buffers.offer(buffer)
@@ -89,7 +84,7 @@ open class Server<C>(
       }
       catch (e: JobCancellationException) {}
       catch (e: IOException) {
-        e.printStackTrace()
+        logger.error(e.message, e)
       }
     }
   }
