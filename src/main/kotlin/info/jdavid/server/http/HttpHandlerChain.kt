@@ -31,8 +31,8 @@ internal class HttpHandlerChain(
     acceptance.handle(headers, body, socket, context)
   }
 
-  internal class HandlerAcceptance<A: Handler.Acceptance, C: Context>(
-    private val handler: AbstractHttpHandler<A, C>,
+  internal class HandlerAcceptance<ACCEPTANCE: Handler.Acceptance, CONTEXT: Context>(
+    private val handler: AbstractHttpHandler<ACCEPTANCE, CONTEXT>,
     private val acceptance: Handler.Acceptance): Handler.Acceptance(acceptance.bodyAllowed,
                                                                     acceptance.bodyRequired
   ) {
@@ -41,10 +41,12 @@ internal class HttpHandlerChain(
                        socket: AsynchronousSocketChannel,
                        context: ChainContext) {
       @Suppress("UNCHECKED_CAST")
-      handler.handle(acceptance as A, headers, body, socket, context.contexts[handler] as C)
+      handler.handle(acceptance as ACCEPTANCE, headers, body, socket, context.contexts[handler] as CONTEXT)
     }
   }
 
-  internal class ChainContext(val contexts: Map<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>): Context()
+  internal class ChainContext(
+    val contexts: Map<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>
+  ): Context()
 
 }

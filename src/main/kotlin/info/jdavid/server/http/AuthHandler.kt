@@ -2,20 +2,22 @@ package info.jdavid.server.http
 
 import java.nio.ByteBuffer
 
-abstract class AuthHandler<A: HttpHandler.Acceptance,
-                           C: AbstractHttpHandler.Context,
-                           D: AuthHandler.Context<C>>(
-  protected val delegate: HttpHandler<A, C>
-): HttpHandler<A, D>(delegate.route) {
+abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+                           DELEGATE_CONTEXT: AbstractHttpHandler.Context,
+                           AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
+                           out PARAMS: Any>(
+  @Suppress("MemberVisibilityCanBePrivate")
+  protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
+): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, PARAMS>(delegate.route) {
 
-  final override suspend fun acceptUri(method: Method, uri: String): A? {
+  final override suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE? {
     return delegate.acceptUri(method, uri)
   }
 
-  final override suspend fun handle(acceptance: A,
+  final override suspend fun handle(acceptance: ACCEPTANCE,
                                     headers: Headers,
                                     body: ByteBuffer,
-                                    context: D): Response<*> {
+                                    context: AUTH_CONTEXT): Response<*> {
     if (credentialsAreValid(acceptance, headers, context)) {
       val response = delegate.handle(acceptance, headers, body, context.delegate)
       val cacheControl = response.header(Headers.CACHE_CONTROL)
@@ -53,11 +55,14 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
     }
   }
 
-  abstract suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean
+  abstract suspend fun credentialsAreValid(acceptance: ACCEPTANCE,
+                                           headers: Headers,
+                                           context: AUTH_CONTEXT): Boolean
 
-  protected abstract fun wwwAuthenticate(acceptance: A, headers: Headers): String
+  protected abstract fun wwwAuthenticate(acceptance: ACCEPTANCE,
+                                         headers: Headers): String
 
-  open class Context<out C>(val delegate: C): AbstractHttpHandler.Context()
+  open class Context<out CONTEXT>(val delegate: CONTEXT): AbstractHttpHandler.Context()
 
   class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
     override fun bodyMediaType(): String? = null

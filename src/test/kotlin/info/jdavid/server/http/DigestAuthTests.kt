@@ -15,9 +15,11 @@ import java.nio.ByteBuffer
 
 class DigestAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance, AbstractHttpHandler.Context>(null) {
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<Nothing>,
+                                     AbstractHttpHandler.Context,
+                                     Nothing>(null) {
 
-    override suspend fun handle(acceptance: Acceptance,
+    override suspend fun handle(acceptance: Acceptance<Nothing>,
                                 headers: Headers,
                                 body: ByteBuffer,
                                 context: Context): Response<*> {
@@ -32,7 +34,7 @@ class DigestAuthTests {
 
     override fun context() = Context()
 
-    override suspend fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance {
+    override suspend fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance<Nothing> {
       return HttpHandler.Acceptance(true, false, method, uri, null)
     }
 
@@ -42,11 +44,10 @@ class DigestAuthTests {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
-  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance,
+  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<Nothing>,
                                                  AbstractHttpHandler.Context,
-                                                 AuthContext>(HttpTestHandler(),
-                                                              "Test Realm",
-                                                              seed) {
+                                                 AuthContext,
+                                                 Nothing>(HttpTestHandler(),"Test Realm", seed) {
 
     override fun ha1(username: String, context: AuthContext): String? {
       return context.users[username]?.let { ha1(username, it) }

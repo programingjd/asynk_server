@@ -10,13 +10,14 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class AbstractHttpHandler<A: Handler.Acceptance, C: AbstractHttpHandler.Context>: Handler<C> {
+abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
+                                   CONTEXT: AbstractHttpHandler.Context>: Handler<CONTEXT> {
 
-  abstract override fun context(): C
+  abstract override fun context(): CONTEXT
 
   final override suspend fun handle(socket: AsynchronousSocketChannel,
                                     buffer: ByteBuffer,
-                                    context: C) {
+                                    context: CONTEXT) {
     buffer.clear()
     var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
     buffer.flip()
@@ -41,21 +42,21 @@ abstract class AbstractHttpHandler<A: Handler.Acceptance, C: AbstractHttpHandler
     return true
   }
 
-  abstract suspend fun acceptUri(method: Method, uri: String): A?
+  abstract suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE?
 
-  abstract suspend fun handle(acceptance: A, headers: Headers, body: ByteBuffer,
+  abstract suspend fun handle(acceptance: ACCEPTANCE, headers: Headers, body: ByteBuffer,
                               socket: AsynchronousSocketChannel,
-                              context: C)
+                              context: CONTEXT)
 
-  open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
+  open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     badRequest(socket, buffer, context)
   }
 
-  open suspend fun badRequest(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
+  open suspend fun badRequest(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     response(socket, context.BAD_REQUEST)
   }
 
-  open suspend fun notFound(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: C) {
+  open suspend fun notFound(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     response(socket, context.NOT_FOUND)
   }
 

@@ -7,18 +7,21 @@ import java.security.SecureRandom
 import java.util.*
 import kotlin.collections.HashMap
 
-abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
-                                 C: AbstractHttpHandler.Context,
-                                 D: AuthHandler.Context<C>>(
-  delegate: HttpHandler<A, C>,
+abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+                                 DELEGATE_CONTEXT: AbstractHttpHandler.Context,
+                                 AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
+                                 out PARAMS: Any>(
+  delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
   private val realm: String,
-  seed: ByteArray
-): AuthHandler<A, C, D>(delegate) {
+  seed: ByteArray = SecureRandom().generateSeed(32)
+): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate) {
 
   private val key = Crypto.secretKey(SecureRandom(seed).generateSeed(32))
   private val nonceIv = Crypto.iv(seed)
 
-  final override suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean {
+  final override suspend fun credentialsAreValid(acceptance: ACCEPTANCE,
+                                                 headers: Headers,
+                                                 context: AUTH_CONTEXT): Boolean {
     val auth = headers.value(Headers.AUTHORIZATION) ?: return false
     val matcher = PATTERN.matcher(auth.substring(auth.indexOf(' ') + 1))
     val map = HashMap<String, String>(12)
@@ -54,9 +57,9 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
     return expected == response
   }
 
-  abstract fun ha1(username: String, context: D): String?
+  abstract fun ha1(username: String, context: AUTH_CONTEXT): String?
 
-  final override fun wwwAuthenticate(acceptance: A, headers: Headers): String {
+  final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
     val rand = Crypto.hex(SecureRandom().generateSeed(32))

@@ -15,9 +15,11 @@ import java.nio.ByteBuffer
 
 class BasicAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance, AbstractHttpHandler.Context>(null) {
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<Nothing>,
+                                     AbstractHttpHandler.Context,
+                                     Nothing>(null) {
 
-    override suspend fun handle(acceptance: Acceptance,
+    override suspend fun handle(acceptance: Acceptance<Nothing>,
                                 headers: Headers,
                                 body: ByteBuffer,
                                 context: Context): Response<*> {
@@ -32,7 +34,7 @@ class BasicAuthTests {
 
     override fun context() = Context()
 
-    override suspend fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance {
+    override suspend fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance<Nothing> {
       return HttpHandler.Acceptance(true, false, method, uri, null)
     }
 
@@ -42,9 +44,10 @@ class BasicAuthTests {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
-  class BasicAuthTestHandler: BasicAuthHandler<HttpHandler.Acceptance,
+  class BasicAuthTestHandler: BasicAuthHandler<HttpHandler.Acceptance<Nothing>,
                                                AbstractHttpHandler.Context,
-                                               AuthContext>(HttpTestHandler(), "Test Realm") {
+                                               AuthContext,
+                                               Nothing>(HttpTestHandler(), "Test Realm") {
     override fun credentialsAreValid(auth: String, context: AuthContext): Boolean {
       return context.users.toList().find { authorizationHeaderValue(it.first, it.second) == auth } != null
     }

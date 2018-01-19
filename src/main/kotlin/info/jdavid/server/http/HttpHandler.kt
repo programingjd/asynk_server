@@ -6,36 +6,39 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class HttpHandler<A: HttpHandler.Acceptance,
-                           C: AbstractHttpHandler.Context>(val route: Route?): AbstractHttpHandler<A, C>() {
+abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+                           CONTEXT: AbstractHttpHandler.Context,
+                           out PARAMS: Any>(
+  val route: Route<PARAMS>?
+): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
 
-  final override suspend fun handle(acceptance: A,
+  final override suspend fun handle(acceptance: ACCEPTANCE,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     socket: AsynchronousSocketChannel,
-                                    context: C) {
+                                    context: CONTEXT) {
     val response = handle(acceptance, headers, body, context)
     response.write(socket, body)
   }
 
-  abstract suspend fun handle(acceptance: A,
+  abstract suspend fun handle(acceptance: ACCEPTANCE,
                               headers: Headers,
                               body: ByteBuffer,
-                              context: C): Response<*>
+                              context: CONTEXT): Response<*>
 
-  abstract class Response<U>(val statusCode: Int) {
+  abstract class Response<BODY>(val statusCode: Int) {
     val headers = Headers()
-    var body: U? = null
-    fun header(name: String, value: String): Response<U> {
+    var body: BODY? = null
+    fun header(name: String, value: String): Response<BODY> {
       headers.add(name, value)
       return this
     }
     fun header(name: String) = headers.value(name)
-    fun body(body: U): Response<U> {
+    fun body(body: BODY): Response<BODY> {
       this.body = body
       return this
     }
-    fun noBody(): Response<U> {
+    fun noBody(): Response<BODY> {
       body = null
       return this
     }
@@ -72,14 +75,14 @@ abstract class HttpHandler<A: HttpHandler.Acceptance,
     }
   }
 
-  open class Acceptance(bodyAllowed: Boolean,
-                        bodyRequired: Boolean,
-                        val method: Method,
-                        val uri: String,
-                        val params: Map<String, String>?): Handler.Acceptance(bodyAllowed, bodyRequired)
+  open class Acceptance<out PARAMS>(bodyAllowed: Boolean,
+                                    bodyRequired: Boolean,
+                                    val method: Method,
+                                    val uri: String,
+                                    val routeParams: PARAMS?): Handler.Acceptance(bodyAllowed, bodyRequired)
 
-  interface Route {
-    fun match(method: Method, uri: String): Map<String, String>?
+  interface Route<out PARAMS> {
+    fun match(method: Method, uri: String): PARAMS?
   }
 
   internal companion object {
