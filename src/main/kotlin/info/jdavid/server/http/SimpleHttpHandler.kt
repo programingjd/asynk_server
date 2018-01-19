@@ -15,13 +15,13 @@ open class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
 
   override suspend fun acceptUri(method: Method, uri: String): Acceptance? {
     return when (method) {
-      is Method.OPTIONS -> Acceptance(false, false, method, uri)
-      is Method.HEAD -> Acceptance(false, false, method, uri)
-      is Method.GET -> Acceptance(false, false, method, uri)
-      is Method.POST -> Acceptance(true, true, method, uri)
-      is Method.PUT -> Acceptance(true, true, method, uri)
-      is Method.DELETE -> Acceptance(true, false, method, uri)
-      is Method.PATCH -> Acceptance(true, true, method, uri)
+      Method.OPTIONS -> Acceptance(false, false, method, uri)
+      Method.HEAD -> Acceptance(false, false, method, uri)
+      Method.GET -> Acceptance(false, false, method, uri)
+      Method.POST -> Acceptance(true, true, method, uri)
+      Method.PUT -> Acceptance(true, true, method, uri)
+      Method.DELETE -> Acceptance(true, false, method, uri)
+      Method.PATCH -> Acceptance(true, true, method, uri)
       else -> Acceptance(true, false, method, uri)
     }
   }

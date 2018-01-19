@@ -12,8 +12,7 @@ import java.net.*
 
 class HttpHandlerTests {
 
-  @Test
-  fun testDefaultHandlerNoBody() {
+  @Test fun testDefaultHandlerNoBody() {
     Server(
       SimpleHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
@@ -56,8 +55,7 @@ class HttpHandlerTests {
     }
   }
 
-  @Test
-  fun testDefaultHandlerWithMissingBody() {
+  @Test fun testDefaultHandlerWithMissingBody() {
     Server(
       SimpleHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
@@ -81,8 +79,7 @@ class HttpHandlerTests {
     }
   }
 
-  @Test
-  fun testDefaultHandlerWithDisallowedBody() {
+  @Test fun testDefaultHandlerWithDisallowedBody() {
     Server(
       SimpleHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
@@ -109,8 +106,7 @@ class HttpHandlerTests {
     }
   }
 
-  @Test
-  fun testDefaultHandlerWithBody() {
+  @Test fun testDefaultHandlerWithBody() {
     Server(
       SimpleHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),

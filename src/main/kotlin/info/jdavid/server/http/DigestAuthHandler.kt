@@ -26,7 +26,7 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
       val key = matcher.group(1)
       for (i in 2..5) {
         if (matcher.group(i) != null) {
-          map.put(key, matcher.group(i))
+          map[key] = matcher.group(i)
           break
         }
       }
@@ -73,15 +73,15 @@ abstract class DigestAuthHandler<A: HttpHandler.Acceptance,
 
   companion object {
     private val PATTERN = "([^=]+)=(?:\"([^\"]*)\"|([0-9a-f]{8})|(auth)|(MD5)),?\\s?".toPattern()
-    private val USERNAME = "username"
-    private val REALM = "realm"
-    private val NONCE = "nonce"
-    private val URI = "uri"
-    private val QOP = "qop"
-    private val NC = "nc"
-    private val CNONCE = "cnonce"
-    private val RESPONSE = "response"
-    private val OPAQUE = "opaque"
+    private const val USERNAME = "username"
+    private const val REALM = "realm"
+    private const val NONCE = "nonce"
+    private const val URI = "uri"
+    private const val QOP = "qop"
+    private const val NC = "nc"
+    private const val CNONCE = "cnonce"
+    private const val RESPONSE = "response"
+    private const val OPAQUE = "opaque"
     private fun md5(text: String) = MessageDigest.getInstance("MD5").digest(text.toByteArray())
     fun ha1(username: String, password: String,
             realm: String) = Crypto.hex(md5("${username}:${realm}:${password}"))

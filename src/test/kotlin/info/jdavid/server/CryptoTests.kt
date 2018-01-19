@@ -6,15 +6,13 @@ import javax.crypto.spec.SecretKeySpec
 
 class CryptoTests {
 
-  @Test
-  fun testIv() {
+  @Test fun testIv() {
     val iv1 = Crypto.iv("Hardcoded seed only for testing".toByteArray())
     val iv2 = Crypto.iv("Hardcoded seed only for testing".toByteArray())
     assertNotEquals(Crypto.hex(iv1), Crypto.hex(iv2))
   }
 
-  @Test
-  fun testCryptEncrypt() {
+  @Test fun testCryptEncrypt() {
     val iv1 = Crypto.unhex("a45c9012c9d76759a533df52d6db392b")
     val key1 = Crypto.secretKey(iv1)
 
@@ -23,8 +21,7 @@ class CryptoTests {
     assertEquals("Super secret message", String(Crypto.decrypt(key, iv1, crypted)))
   }
 
-  @Test
-  fun testSign() {
+  @Test fun testSign() {
     val iv1 = Crypto.unhex("a45c9012c9d76759a533df52d6db392b")
     println(Crypto.sign(Crypto.secretKey(iv1), "Super secret message".toByteArray()))
   }

@@ -6,7 +6,8 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Context>: AbstractHttpHandler<A, C>() {
+abstract class HttpHandler<A: HttpHandler.Acceptance,
+                           C: AbstractHttpHandler.Context>(val route: Route?): AbstractHttpHandler<A, C>() {
 
   final override suspend fun handle(acceptance: A,
                                     headers: Headers,
@@ -74,7 +75,12 @@ abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Con
   open class Acceptance(bodyAllowed: Boolean,
                         bodyRequired: Boolean,
                         val method: Method,
-                        val uri: String): Handler.Acceptance(bodyAllowed, bodyRequired)
+                        val uri: String,
+                        val params: Map<String, String>?): Handler.Acceptance(bodyAllowed, bodyRequired)
+
+  interface Route {
+    fun match(method: Method, uri: String): Map<String, String>?
+  }
 
   internal companion object {
     val CRLF = "\r\n".toByteArray(Charsets.US_ASCII)
@@ -82,7 +88,6 @@ abstract class HttpHandler<A: HttpHandler.Acceptance, C: AbstractHttpHandler.Con
       ("HTTP/1.1 ${Status.INTERNAL_SERVER_ERROR} ${Status.HTTP_STATUSES[Status.INTERNAL_SERVER_ERROR]}\r\n" +
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
-
   }
 
 }

@@ -11,10 +11,10 @@ import javax.crypto.Mac
 
 object Crypto {
 
-  private val HMAC_SHA256 = "HmacSHA256"
+  private const val HMAC_SHA256 = "HmacSHA256"
 
-  private val AES = "AES"
-  private val ZERO = "0"
+  private const val AES = "AES"
+  private const val ZERO = "0"
 
   init {
     if (!algorithmIsAvailable(AES)) throw RuntimeException("No suitable algorithm found.")
@@ -43,19 +43,19 @@ object Crypto {
 
   fun sign(key: Key, bytes: ByteArray) = Mac.getInstance(HMAC_SHA256).let {
     it.init(key)
-    hex(it.doFinal())
+    hex(it.doFinal(bytes))
   }
 
-  fun encrypt(key: Key, iv: ByteArray, bytes: ByteArray) = AEAD(key.encoded).seal(bytes, iv)
+  fun encrypt(key: Key, iv: ByteArray, bytes: ByteArray): ByteArray = AEAD(key.encoded).seal(bytes, iv)
 
-  fun decrypt(key: Key, iv: ByteArray, crypted: ByteArray) = AEAD(key.encoded).open(crypted, iv).get()
+  fun decrypt(key: Key, iv: ByteArray, crypted: ByteArray): ByteArray = AEAD(key.encoded).open(crypted, iv).get()
 
   fun iv(seed: ByteArray) = ByteArray(32).apply {
     SecureRandom(seed).nextBytes(this)
   }
 
   // Works for AEAD but also for HMAC
-  fun secretKey(iv: ByteArray) = KeyGenerator.getInstance(AES).let {
+  fun secretKey(iv: ByteArray): Key = KeyGenerator.getInstance(AES).let {
     it.init(SecureRandom(iv))
     it.generateKey()
   }

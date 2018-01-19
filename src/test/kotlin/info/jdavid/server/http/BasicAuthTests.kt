@@ -1,12 +1,10 @@
 package info.jdavid.server.http
 
 import info.jdavid.server.Server
-import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.protocol.HttpClientContext
-import org.apache.http.impl.auth.BasicScheme
 import org.apache.http.impl.client.BasicAuthCache
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
@@ -17,16 +15,16 @@ import java.nio.ByteBuffer
 
 class BasicAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance, AbstractHttpHandler.Context>() {
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance, AbstractHttpHandler.Context>(null) {
 
-    suspend override fun handle(acceptance: Acceptance,
+    override suspend fun handle(acceptance: Acceptance,
                                 headers: Headers,
                                 body: ByteBuffer,
                                 context: Context): Response<*> {
       return object: Response<ByteArray>(Status.OK) {
         override fun bodyMediaType() = MediaType.TEXT
-        suspend override fun bodyByteLength() = this.body?.size?.toLong() ?: 0L
-        suspend override fun writeBody(buffer: ByteBuffer) {
+        override suspend fun bodyByteLength() = this.body?.size?.toLong() ?: 0L
+        override suspend fun writeBody(buffer: ByteBuffer) {
           buffer.put(this.body)
         }
       }.body("Test".toByteArray(Charsets.US_ASCII))
@@ -34,8 +32,8 @@ class BasicAuthTests {
 
     override fun context() = Context()
 
-    suspend override fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance {
-      return HttpHandler.Acceptance(true, false, method, uri)
+    override suspend fun acceptUri(method: Method, uri: String): HttpHandler.Acceptance {
+      return HttpHandler.Acceptance(true, false, method, uri, null)
     }
 
   }
@@ -66,8 +64,7 @@ class BasicAuthTests {
     }
   }
 
-  @Test
-  fun test() {
+  @Test fun test() {
     Server(
       BasicAuthTestHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),

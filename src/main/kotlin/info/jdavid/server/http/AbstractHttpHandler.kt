@@ -63,7 +63,7 @@ abstract class AbstractHttpHandler<A: Handler.Acceptance, C: AbstractHttpHandler
     socket.aWrite(payload.rewind() as ByteBuffer)
   }
 
-  @Suppress("PropertyName", "MemberVisibilityCanPrivate", "unused")
+  @Suppress("PropertyName", "unused", "MemberVisibilityCanBePrivate")
   open class Context {
     val OK = emptyResponse(Status.OK)
     val REQUEST_HEADER_FIELDS_TOO_LARGE = emptyResponse(Status.REQUEST_HEADER_FIELDS_TOO_LARGE)

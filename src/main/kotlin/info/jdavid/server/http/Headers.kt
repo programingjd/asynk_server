@@ -1,6 +1,7 @@
 package info.jdavid.server.http
 
 
+@Suppress("MemberVisibilityCanBePrivate")
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
   fun add(name: String, value: String): Headers {
@@ -57,109 +58,109 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     return lines.find { matches(it, lower) } != null
   }
 
-  @Suppress("unused", "MemberVisibilityCanPrivate")
+  @Suppress("unused")
   companion object {
-    val WWW_AUTHENTICATE = "WWW-Authenticate"
-    val AUTHORIZATION = "Authorization"
+    const val WWW_AUTHENTICATE = "WWW-Authenticate"
+    const val AUTHORIZATION = "Authorization"
 
-    val AGE = "Age"
-    val CACHE_CONTROL = "Cache-Control"
-    val EXPIRES = "Expires"
-    val PRAGMA = "Pragma"
-    val WARNING = "Warning"
+    const val AGE = "Age"
+    const val CACHE_CONTROL = "Cache-Control"
+    const val EXPIRES = "Expires"
+    const val PRAGMA = "Pragma"
+    const val WARNING = "Warning"
 
-    val LAST_MODIFIED = "Last-Modified"
-    val ETAG = "ETag"
-    val IF_MATCH = "If-Match"
-    val IF_NONE_MATCH = "If-None-Match"
-    val IF_MODIFIED_SINCE = "If-Modified-Since"
-    val IF_UNMODIFIED_SINCE = "If-Unmodified-Since"
+    const val LAST_MODIFIED = "Last-Modified"
+    const val ETAG = "ETag"
+    const val IF_MATCH = "If-Match"
+    const val IF_NONE_MATCH = "If-None-Match"
+    const val IF_MODIFIED_SINCE = "If-Modified-Since"
+    const val IF_UNMODIFIED_SINCE = "If-Unmodified-Since"
 
-    val CONNECTION = "Connection"
-    val KEEP_ALIVE = "Keep-Alive"
+    const val CONNECTION = "Connection"
+    const val KEEP_ALIVE = "Keep-Alive"
 
-    val ACCEPT = "Accept"
-    val ACCEPT_CHARSET = "Accept-Charset"
-    val ACCEPT_ENCODING = "Accept-Encoding"
-    val ACCEPT_LANGUAGE = "Accept-Language"
-    val ACCEPT_PATCH = "Accept-Patch"
+    const val ACCEPT = "Accept"
+    const val ACCEPT_CHARSET = "Accept-Charset"
+    const val ACCEPT_ENCODING = "Accept-Encoding"
+    const val ACCEPT_LANGUAGE = "Accept-Language"
+    const val ACCEPT_PATCH = "Accept-Patch"
 
-    val EXPECT = "Expect"
+    const val EXPECT = "Expect"
 
-    val COOKIE = "Cookie"
-    val SET_COOKIE = "Set-Cookie"
+    const val COOKIE = "Cookie"
+    const val SET_COOKIE = "Set-Cookie"
 
-    val ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin"
-    val ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials"
-    val ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers"
-    val ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods"
-    val ACCESS_CONTROL_EXPOSE_HEADERS = "Access-Control-Expose-Headers"
-    val ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age"
-    val ACCESS_CONTROL_REQUEST_HEADERS = "Access-Control-Request-Headers"
-    val ACCESS_CONTROL_REQUEST_METHOD = "Access-Control-Request-Method"
-    val ORIGIN = "Origin"
-    val TIMING_ALLOW_ORIGIN = "Timing-Allow-Origin"
+    const val ACCESS_CONTROL_ALLOW_ORIGIN = "Access-Control-Allow-Origin"
+    const val ACCESS_CONTROL_ALLOW_CREDENTIALS = "Access-Control-Allow-Credentials"
+    const val ACCESS_CONTROL_ALLOW_HEADERS = "Access-Control-Allow-Headers"
+    const val ACCESS_CONTROL_ALLOW_METHODS = "Access-Control-Allow-Methods"
+    const val ACCESS_CONTROL_EXPOSE_HEADERS = "Access-Control-Expose-Headers"
+    const val ACCESS_CONTROL_MAX_AGE = "Access-Control-Max-Age"
+    const val ACCESS_CONTROL_REQUEST_HEADERS = "Access-Control-Request-Headers"
+    const val ACCESS_CONTROL_REQUEST_METHOD = "Access-Control-Request-Method"
+    const val ORIGIN = "Origin"
+    const val TIMING_ALLOW_ORIGIN = "Timing-Allow-Origin"
 
-    val DO_NOT_TRACK = "DNT"
-    val DNT = DO_NOT_TRACK
-    val TRACKING_STATUS = "Tk"
-    val Tk = TRACKING_STATUS
+    const val DO_NOT_TRACK = "DNT"
+    const val DNT = DO_NOT_TRACK
+    const val TRACKING_STATUS = "Tk"
+    const val Tk = TRACKING_STATUS
 
-    val CONTENT_DISPOSITION = "Content-Disposition"
+    const val CONTENT_DISPOSITION = "Content-Disposition"
 
-    val CONTENT_LENGTH = "Content-Length"
-    val CONTENT_TYPE = "Content-Type"
-    val CONTENT_ENCODING = "Content-Encoding"
-    val CONTENT_LANGUAGE = "Content-Language"
-    val CONTENT_LOCATION = "Content-Location"
+    const val CONTENT_LENGTH = "Content-Length"
+    const val CONTENT_TYPE = "Content-Type"
+    const val CONTENT_ENCODING = "Content-Encoding"
+    const val CONTENT_LANGUAGE = "Content-Language"
+    const val CONTENT_LOCATION = "Content-Location"
 
-    val FORWARDED = "Forwarded"
-    val X_FORWARDED_WITH = "X-Forwarded-With"
-    val X_FORWARDED_FOR = "X-Forwarded-For"
-    val X_FORWARDED_HOST = "X-Forwarded-Host"
-    val X_FORWARDED_PROTO = "X-Forwarded-Proto"
-    val VIA = "Via"
+    const val FORWARDED = "Forwarded"
+    const val X_FORWARDED_WITH = "X-Forwarded-With"
+    const val X_FORWARDED_FOR = "X-Forwarded-For"
+    const val X_FORWARDED_HOST = "X-Forwarded-Host"
+    const val X_FORWARDED_PROTO = "X-Forwarded-Proto"
+    const val VIA = "Via"
 
-    val LOCATION = "Location"
+    const val LOCATION = "Location"
 
-    val FROM = "From"
-    val HOST = "Host"
-    val REFERER = "Referer"
-    val REFERRER = REFERER
-    val REFERRER_POLICY = "Referrer-Policy"
-    val USER_AGENT = "User-Agent"
+    const val FROM = "From"
+    const val HOST = "Host"
+    const val REFERER = "Referer"
+    const val REFERRER = REFERER
+    const val REFERRER_POLICY = "Referrer-Policy"
+    const val USER_AGENT = "User-Agent"
 
-    val ALLOW = "Allow"
-    val SERVER = "Server"
+    const val ALLOW = "Allow"
+    const val SERVER = "Server"
 
-    val ACCEPT_RANGES = "Accept-Ranges"
-    val RANGE = "Range"
-    val IF_RANGE = "If-Range"
-    val CONTENT_RANGE = "Content-Range"
+    const val ACCEPT_RANGES = "Accept-Ranges"
+    const val RANGE = "Range"
+    const val IF_RANGE = "If-Range"
+    const val CONTENT_RANGE = "Content-Range"
 
-    val CONTENT_SECURITY_POLICY = "Content-Security-Policy"
-    val CSP = CONTENT_SECURITY_POLICY
-    val PUBLIC_KEY_PINS = "Public-Key-Pins"
-    val HPKP = PUBLIC_KEY_PINS
-    val STRICT_TRANSPORT_SECURITY = "Strict-Transport-Security"
-    val HSTS = STRICT_TRANSPORT_SECURITY
-    val UPGRADE_INSECURE_REQUESTS = "Upgrade-Insecure-Requests"
-    val X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options"
-    val X_FRAME_OPTIONS = "X-Frame-Options"
-    val X_XSS_PROTECTION = "X-XSS-Protection"
+    const val CONTENT_SECURITY_POLICY = "Content-Security-Policy"
+    const val CSP = CONTENT_SECURITY_POLICY
+    const val PUBLIC_KEY_PINS = "Public-Key-Pins"
+    const val HPKP = PUBLIC_KEY_PINS
+    const val STRICT_TRANSPORT_SECURITY = "Strict-Transport-Security"
+    const val HSTS = STRICT_TRANSPORT_SECURITY
+    const val UPGRADE_INSECURE_REQUESTS = "Upgrade-Insecure-Requests"
+    const val X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options"
+    const val X_FRAME_OPTIONS = "X-Frame-Options"
+    const val X_XSS_PROTECTION = "X-XSS-Protection"
 
-    val TRANSFER_ENCODING = "Transfer-Encoding"
-    val TE = "TE"
-    val TRAILER = "Trailer"
+    const val TRANSFER_ENCODING = "Transfer-Encoding"
+    const val TE = "TE"
+    const val TRAILER = "Trailer"
 
-    val DATE = "Date"
-    val LARGE_ALLOCATION = "Large-Allocation"
-    val LINK = "Link"
-    val RETRY_AFTER = "Retry-After"
-    val SOURCE_MAP = "SourceMap"
-    val UPGRADE = "Upgrade"
-    val VARY = "Vary"
-    val X_DNS_PREFETCH_CONTROL = "X-DNS-Prefetch-Control"
+    const val DATE = "Date"
+    const val LARGE_ALLOCATION = "Large-Allocation"
+    const val LINK = "Link"
+    const val RETRY_AFTER = "Retry-After"
+    const val SOURCE_MAP = "SourceMap"
+    const val UPGRADE = "Upgrade"
+    const val VARY = "Vary"
+    const val X_DNS_PREFETCH_CONTROL = "X-DNS-Prefetch-Control"
 
     private fun matches(line: String, lowercaseName: String): Boolean {
       return line.length > lowercaseName.length + 1 &&

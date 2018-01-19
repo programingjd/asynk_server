@@ -16,19 +16,18 @@ class SingleChainTest {
 
   private class Acceptance(val method: Method, val uri: String): Handler.Acceptance(false, false)
 
-  @Test
-  fun test() {
+  @Test fun test() {
     val chain = listOf(
       object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
         override fun context() = Context()
-        suspend override fun acceptUri(method: Method,
+        override suspend fun acceptUri(method: Method,
                                        uri: String): Acceptance? {
           if (method == Method.GET || method == Method.HEAD) {
             return Acceptance(method, uri)
           }
           return null
         }
-        suspend override fun handle(acceptance: Acceptance,
+        override suspend fun handle(acceptance: Acceptance,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     socket: AsynchronousSocketChannel,

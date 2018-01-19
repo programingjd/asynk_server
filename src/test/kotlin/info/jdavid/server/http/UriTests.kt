@@ -5,8 +5,7 @@ import org.junit.Test
 
 class UriTests {
 
-  @Test
-  fun testQuery() {
+  @Test fun testQuery() {
     assertNull(Uri.query("/"))
     assertNull(Uri.query("/some/path"))
     assertNull(Uri.query("/some/path/"))
@@ -21,8 +20,7 @@ class UriTests {
     assertEquals("2", Uri.query("/some/path?a=1&b=2#fragment")?.get("b"))
   }
 
-  @Test
-  fun testFragment() {
+  @Test fun testFragment() {
     assertNull(Uri.fragment("/"))
     assertNull(Uri.fragment("/some/path"))
     assertNull(Uri.fragment("/some/path/"))
@@ -35,8 +33,7 @@ class UriTests {
     assertEquals("@here", Uri.fragment("/some/path?query#@here"))
   }
 
-  @Test
-  fun testPath() {
+  @Test fun testPath() {
     assertEquals("/", Uri.path("/"))
     assertEquals("/some/path", Uri.path("/some/path"))
     assertEquals("/some/path/", Uri.path("/some/path/"))
@@ -45,8 +42,7 @@ class UriTests {
     assertEquals("/", Uri.path("/?query#f1/f2"))
   }
 
-  @Test
-  fun testParent() {
+  @Test fun testParent() {
     assertEquals("/", Uri.parent("/a"))
     assertEquals("/a/", Uri.parent("/a/b"))
     assertEquals("/?q=1", Uri.parent("/a?q=1"))
@@ -54,8 +50,7 @@ class UriTests {
     assertEquals("/a/?q=1#h", Uri.parent("/a/b?q=1#h"))
   }
 
-  @Test
-  fun testLastPathSegment() {
+  @Test fun testLastPathSegment() {
     assertEquals("", Uri.lastPathSegment("/"))
     assertEquals("", Uri.lastPathSegment("/a/"))
     assertEquals("a", Uri.lastPathSegment("/a"))

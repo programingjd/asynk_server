@@ -6,24 +6,21 @@ import java.nio.ByteBuffer
 
 class HexTests {
 
-  @Test
-  fun testHexBytes() {
+  @Test fun testHexBytes() {
     assertEquals("", Crypto.hex(byteArrayOf()))
     assertEquals("0102030c0dfae8ff", Crypto.hex(byteArrayOf(
       0x01, 0x02, 0x03, 0x0c, 0x0D, 0xFa.toByte(), 0xE8.toByte(), 0xFF.toByte()
     )))
   }
 
-  @Test
-  fun testHexByteBuffer() {
+  @Test fun testHexByteBuffer() {
     assertEquals("", Crypto.hex(ByteBuffer.allocate(8).flip() as ByteBuffer))
     assertEquals("0102030c0dfae8ff", Crypto.hex(ByteBuffer.wrap(byteArrayOf(
       0x01, 0x02, 0x03, 0x0c, 0x0D, 0xFa.toByte(), 0xE8.toByte(), 0xFF.toByte()
     ))))
   }
 
-  @Test
-  fun testUnhexToBytes() {
+  @Test fun testUnhexToBytes() {
     assertEquals(0, Crypto.unhex("").size)
     val ref = byteArrayOf(
       0x01, 0x02, 0x03, 0x0c, 0x0D, 0xFa.toByte(), 0xE8.toByte(), 0xFF.toByte()
@@ -33,8 +30,7 @@ class HexTests {
     for (i in 0 until ref.size) assertEquals(ref[i], bytes[i])
   }
 
-  @Test
-  fun testUnhexToByteBuffer() {
+  @Test fun testUnhexToByteBuffer() {
     assertEquals(0, Crypto.unhex("").size)
     val ref = byteArrayOf(
       0xb0.toByte(), 0xb1.toByte(), 0xb2.toByte(),

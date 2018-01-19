@@ -6,7 +6,7 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
                            C: AbstractHttpHandler.Context,
                            D: AuthHandler.Context<C>>(
   protected val delegate: HttpHandler<A, C>
-): HttpHandler<A, D>() {
+): HttpHandler<A, D>(delegate.route) {
 
   final override suspend fun acceptUri(method: Method, uri: String): A? {
     return delegate.acceptUri(method, uri)
@@ -55,12 +55,12 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
 
   abstract suspend fun credentialsAreValid(acceptance: A, headers: Headers, context: D): Boolean
 
-  abstract protected fun wwwAuthenticate(acceptance: A, headers: Headers): String
+  protected abstract fun wwwAuthenticate(acceptance: A, headers: Headers): String
 
-  open class Context<C>(val delegate: C): AbstractHttpHandler.Context()
+  open class Context<out C>(val delegate: C): AbstractHttpHandler.Context()
 
   class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
-    override fun bodyMediaType() = null
+    override fun bodyMediaType(): String? = null
     override suspend fun bodyByteLength() = 0L
     override suspend fun writeBody(buffer: ByteBuffer) {}
   }
@@ -72,13 +72,13 @@ abstract class AuthHandler<A: HttpHandler.Acceptance,
     fun cacheableStatusCode(code: Int): Boolean {
       return code == 200 || code == 206 || code == 300 || code == 301 || code == 308
     }
-    val NO_STORE = "no-store"
-    val PRIVATE = "private"
-    val PUBLIC = "public"
-    val MAX_AGE_EQUALS = "max-age="
-    val S_MAX_AGE_EQUALS = "s-maxage="
-    val STALE_WHILE_REVALIDATE_EQUALS = "stale-while-revalite="
-    val STALE_IF_ERROR_EQUALS = "stale-if-error="
+    const val NO_STORE = "no-store"
+    const val PRIVATE = "private"
+    const val PUBLIC = "public"
+    const val MAX_AGE_EQUALS = "max-age="
+    const val S_MAX_AGE_EQUALS = "s-maxage="
+    const val STALE_WHILE_REVALIDATE_EQUALS = "stale-while-revalite="
+    const val STALE_IF_ERROR_EQUALS = "stale-if-error="
   }
 
 }

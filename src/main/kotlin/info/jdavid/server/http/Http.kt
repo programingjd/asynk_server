@@ -256,40 +256,36 @@ internal object Http {
     return null
   }
 
-  private val CR: Byte = 0x0d
-  private val LF: Byte = 0x0a
-  private val SPACE: Byte = 0x20
-  private val HTAB: Byte = 0x09
-  private val H_UPPER: Byte = 0x48
-  private val T_UPPER: Byte = 0x54
-  private val P_UPPER: Byte = 0x50
-  private val SLASH: Byte = 0x2f
-  private val ONE: Byte = 0x31
-  private val DOT: Byte = 0x2e
-  private val UNDERSCORE: Byte = 0x5f
-  private val COLON: Byte = 0x3a
-  private val SEMICOLON: Byte = 0x3b
-  private val EQUALS: Byte = 0x3d
-  private val QUESTION_MARK: Byte = 0x3f
-  private val EXCLAMATION_POINT: Byte = 0x21
-  private val AT: Byte = 0x40
-  private val LEFT_SQUARE_BRACKET: Byte = 0x5b
-  private val RIGHT_SQUARE_BRACKET: Byte = 0x5b
-  private val DOUBLE_QUOTE: Byte = 0x22
-  private val LOWER_THAN: Byte = 0x3C
-  private val GREATER_THAN: Byte = 0x3C
-  private val BACKSLASH: Byte = 0x5c
-  private val BACKTICK: Byte = 0x60
-  private val LEFT_CURLY_BRACE: Byte = 0x7b
-  private val TILDA: Byte = 0x7e
+  private const val CR: Byte = 0x0d
+  private const val LF: Byte = 0x0a
+  private const val SPACE: Byte = 0x20
+  private const val H_UPPER: Byte = 0x48
+  private const val T_UPPER: Byte = 0x54
+  private const val P_UPPER: Byte = 0x50
+  private const val SLASH: Byte = 0x2f
+  private const val ONE: Byte = 0x31
+  private const val DOT: Byte = 0x2e
+  private const val UNDERSCORE: Byte = 0x5f
+  private const val EQUALS: Byte = 0x3d
+  private const val EXCLAMATION_POINT: Byte = 0x21
+  private const val AT: Byte = 0x40
+  private const val LEFT_SQUARE_BRACKET: Byte = 0x5b
+  private const val RIGHT_SQUARE_BRACKET: Byte = 0x5b
+  private const val DOUBLE_QUOTE: Byte = 0x22
+  private const val LOWER_THAN: Byte = 0x3C
+  private const val GREATER_THAN: Byte = 0x3C
+  private const val BACKSLASH: Byte = 0x5c
+  private const val BACKTICK: Byte = 0x60
+  private const val LEFT_CURLY_BRACE: Byte = 0x7b
+  private const val TILDA: Byte = 0x7e
 
-  private val EXPECT = "Expect"
-  private val ONE_HUNDRED_CONTINUE = "100-continue"
-  private val CONTENT_LENGTH = "Content-Length"
-  private val CONTENT_ENCODING = "Content-Encoding"
-  private val TRANSFER_ENCODING = "Transfer-Encoding"
-  private val IDENTITY = "identity"
-  private val CHUNKED = "chunked"
+  private const val EXPECT = "Expect"
+  private const val ONE_HUNDRED_CONTINUE = "100-continue"
+  private const val CONTENT_LENGTH = "Content-Length"
+  private const val CONTENT_ENCODING = "Content-Encoding"
+  private const val TRANSFER_ENCODING = "Transfer-Encoding"
+  private const val IDENTITY = "identity"
+  private const val CHUNKED = "chunked"
 
   private fun validMethod(b: Byte): Boolean {
     @Suppress("ConvertTwoComparisonsToRangeCheck")
