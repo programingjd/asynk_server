@@ -5,6 +5,7 @@ package info.jdavid.server.http
 import info.jdavid.server.Handler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
+import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -12,6 +13,8 @@ import java.util.concurrent.TimeUnit
 
 abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
                                    CONTEXT: AbstractHttpHandler.Context>: Handler<CONTEXT> {
+
+  private val logger = LoggerFactory.getLogger(AbstractHttpHandler::class.java)
 
   abstract override fun context(): CONTEXT
 
@@ -38,7 +41,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
   }
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
-    println(remoteAddress.hostString)
+    logger.info(remoteAddress.hostString)
     return true
   }
 
@@ -72,6 +75,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
     val UNSUPPORTED_MEDIA_TYPE = emptyResponse(Status.UNSUPPORTED_MEDIA_TYPE)
     val NOT_IMPLEMENTED = emptyResponse(Status.NOT_IMPLEMENTED)
     val BAD_REQUEST = emptyResponse(Status.BAD_REQUEST)
+    val FORBIDDEN = emptyResponse(Status.FORBIDDEN)
     val NOT_FOUND = emptyResponse(Status.NOT_FOUND)
     val CONTINUE = "HTTP/1.1 100 Continue\r\n\r\n".
       toByteArray(Charsets.US_ASCII).let {
@@ -89,7 +93,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
   }
 
   companion object {
-    protected fun emptyResponse(status: Int): ByteBuffer {
+    private fun emptyResponse(status: Int): ByteBuffer {
       val text =
         "HTTP/1.1 ${status} ${Status.HTTP_STATUSES[status]}\r\n" +
           "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"

@@ -1,6 +1,7 @@
 package info.jdavid.server.http
 
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousSocketChannel
 
 abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
@@ -65,9 +66,9 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   open class Context<out CONTEXT>(val delegate: CONTEXT): AbstractHttpHandler.Context()
 
   class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
-    override fun bodyMediaType(): String? = null
-    override suspend fun bodyByteLength() = 0L
-    override suspend fun writeBody(buffer: ByteBuffer) {}
+    override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
+    override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
+    override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
   }
 
   internal companion object {

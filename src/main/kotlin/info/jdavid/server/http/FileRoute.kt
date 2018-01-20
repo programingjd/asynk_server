@@ -18,7 +18,7 @@ open class FileRoute(private val root: File, private val prefix: String = "/"): 
         }
         else file = File(file, URLDecoder.decode(segment, "UTF-8"))
       }
-      return file
+      return if (file.exists()) file else null
     }
     else return null
   }

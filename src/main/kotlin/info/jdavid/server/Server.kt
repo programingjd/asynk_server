@@ -22,8 +22,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 
-open class Server<C>(
-  private val handler: Handler<C>,
+open class Server<CONTEXT>(
+  private val handler: Handler<CONTEXT>,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val maxRequestSize: Int = 4096
 ): Closeable {
@@ -36,7 +36,8 @@ open class Server<C>(
   }
 
   private val connectionAcceptor = Executors.newSingleThreadExecutor(ConnectionAcceptorThreadFactory())
-  private val connectionHandlers = (1..4).map {
+  private val threads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2)
+  private val connectionHandlers = (1..threads).map {
     Executors.newSingleThreadExecutor(ConnectionHandlerThreadFactory(it))
   }
 

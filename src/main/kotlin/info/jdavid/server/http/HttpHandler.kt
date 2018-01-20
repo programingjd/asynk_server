@@ -1,9 +1,13 @@
 package info.jdavid.server.http
 
 import info.jdavid.server.Handler
+import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
+import java.io.File
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.AsynchronousSocketChannel
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 
 abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
@@ -26,9 +30,8 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                               body: ByteBuffer,
                               context: CONTEXT): Response<*>
 
-  abstract class Response<BODY>(val statusCode: Int) {
+  abstract class Response<BODY>(val statusCode: Int, protected var body: BODY? = null) {
     val headers = Headers()
-    var body: BODY? = null
     fun header(name: String, value: String): Response<BODY> {
       headers.add(name, value)
       return this
@@ -42,21 +45,21 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       body = null
       return this
     }
-    protected abstract fun bodyMediaType(): String?
-    protected abstract suspend fun bodyByteLength(): Long
-    protected abstract suspend fun writeBody(buffer: ByteBuffer)
+    protected abstract fun bodyMediaType(body: BODY): String?
+    protected abstract suspend fun bodyByteLength(body: BODY): Long
+    protected abstract suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer)
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(ERROR_RESPONSE)
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
-    internal suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+    private suspend fun writeHeaders(socket: AsynchronousSocketChannel,
+                                     buffer: ByteBuffer,
+                                     statusMessage: String) {
       buffer.clear()
-      val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer)
-      if (body != null) {
-        val contentLength = bodyByteLength()
-        if (contentLength > buffer.capacity()) return error(socket, buffer)
+      body?.let {
+        val contentLength = bodyByteLength(it)
         headers.set(Headers.CONTENT_LENGTH, contentLength.toString())
-        headers.set(Headers.CONTENT_TYPE, bodyMediaType() ?: MediaType.OCTET_STREAM)
+        headers.set(Headers.CONTENT_TYPE, bodyMediaType(it) ?: MediaType.OCTET_STREAM)
       }
       buffer.put("HTTP/1.1 ${statusCode} ${statusMessage}\r\n".toByteArray(Charsets.ISO_8859_1))
       for (line in headers.lines) {
@@ -65,12 +68,28 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       }
       buffer.put(CRLF)
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+    }
+    internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+      val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear())
+      writeHeaders(socket, buffer, statusMessage)
+      writeBody(socket, buffer)
+    }
+  }
 
-      if (body != null) {
-        buffer.clear()
-        writeBody(buffer)
-        socket.aWrite(buffer.flip() as ByteBuffer,
-                      5000L + buffer.capacity() / 1000, TimeUnit.MILLISECONDS)
+  class FileResponse(file: File): Response<File>(Status.OK, file) {
+    override fun bodyMediaType(body: File) = MediaType.fromFile(body)
+    override suspend fun bodyByteLength(body: File) = body.length()
+    override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+      body?.let {
+        val channel = AsynchronousFileChannel.open(it.toPath(), StandardOpenOption.READ)
+        var position = 0L
+        while (true) {
+          buffer.clear()
+          val read = channel.aRead(buffer, position)
+          if (read == -1) break
+          position += read
+          socket.aWrite(buffer.flip(), 5000, TimeUnit.MILLISECONDS)
+        }
       }
     }
   }

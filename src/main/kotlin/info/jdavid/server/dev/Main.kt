@@ -1,13 +1,11 @@
 package info.jdavid.server.dev
 
 import info.jdavid.server.Server
-import info.jdavid.server.http.Headers
-import info.jdavid.server.http.AbstractHttpHandler
-import info.jdavid.server.http.SimpleHttpHandler
-import info.jdavid.server.http.Uri
+import info.jdavid.server.http.*
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
+import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.InetAddress
@@ -18,8 +16,21 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>) {
-  connectFor(60000L)
+  serveDirectory(File("i:/jdavid/ezpzjapanez.com/www"))
+//  connectFor(60000L)
 //  connectMany()
+}
+
+fun serveDirectory(directory: File) {
+  Server(
+    HttpHandlerChain(
+      listOf(FileHandler(FileRoute(directory)))
+    ),
+    InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
+    4096
+  ).use {
+    Thread.sleep(Long.MAX_VALUE)
+  }
 }
 
 fun connectFor(millis: Long) {
