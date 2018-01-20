@@ -8,7 +8,9 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.net.*
+import java.net.InetSocketAddress
+import java.net.InetAddress
+import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 

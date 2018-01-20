@@ -16,7 +16,7 @@ class ParameterizedRoute private constructor(
     if (methods.contains(method)) {
       val matcher = compiled.first.matcher(Uri.path(uri))
       if (matcher.find()) {
-        return compiled.second.associateBy { matcher.group(it) }
+        return compiled.second.associate { it to matcher.group(it) }
       }
     }
     return null

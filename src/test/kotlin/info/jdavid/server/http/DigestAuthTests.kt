@@ -10,8 +10,11 @@ import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.net.*
+import java.net.InetSocketAddress
+import java.net.InetAddress
+import java.net.URI
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousSocketChannel
 
 class DigestAuthTests {
 
@@ -24,10 +27,10 @@ class DigestAuthTests {
                                 body: ByteBuffer,
                                 context: Context): Response<*> {
       return object: Response<ByteArray>(Status.OK) {
-        override fun bodyMediaType() = MediaType.TEXT
-        override suspend fun bodyByteLength() = this.body?.size?.toLong() ?: 0L
-        override suspend fun writeBody(buffer: ByteBuffer) {
-          buffer.put(this.body)
+        override fun bodyMediaType(body: ByteArray) = MediaType.TEXT
+        override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
+        override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+          this.body?.let { buffer.put(it) }
         }
       }.body("Test".toByteArray(Charsets.US_ASCII))
     }
