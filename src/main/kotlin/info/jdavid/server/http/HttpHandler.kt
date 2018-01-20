@@ -30,8 +30,9 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                               body: ByteBuffer,
                               context: CONTEXT): Response<*>
 
-  abstract class Response<BODY>(val statusCode: Int, protected var body: BODY? = null) {
-    val headers = Headers()
+  abstract class Response<BODY>(val statusCode: Int,
+                                protected var body: BODY? = null,
+                                val headers: Headers = Headers()) {
     fun header(name: String, value: String): Response<BODY> {
       headers.add(name, value)
       return this
@@ -76,8 +77,10 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
-  class FileResponse(file: File): Response<File>(Status.OK, file) {
-    override fun bodyMediaType(body: File) = MediaType.fromFile(body)
+  class FileResponse(file: File?,
+                     private val mediaType: String,
+                     headers: Headers = Headers()): Response<File>(Status.OK, file, headers) {
+    override fun bodyMediaType(body: File) = mediaType
     override suspend fun bodyByteLength(body: File) = body.length()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       body?.let {
