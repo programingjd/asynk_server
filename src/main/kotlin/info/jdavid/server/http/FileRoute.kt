@@ -10,7 +10,7 @@ open class FileRoute(private val root: File, private val prefix: String = "/"): 
   }
   final override fun match(method: Method, uri: String): File? {
     if (method == Method.GET || method == Method.HEAD && uri.startsWith(prefix)) {
-      val segments = uri.substring(prefix.length).split('/')
+      val segments = Uri.path(uri).substring(prefix.length).split('/')
       var file = root
       for (segment in segments) {
         if (segment.isEmpty()) {
