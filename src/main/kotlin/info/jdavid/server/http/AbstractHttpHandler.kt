@@ -27,6 +27,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
     context as? Context ?: return
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
+    logger.info(uri)
     val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
     val headers = Headers()
     exhausted = try {
@@ -41,7 +42,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
   }
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
-    logger.trace(remoteAddress.hostString)
+    logger.info(remoteAddress.hostString)
     return true
   }
 

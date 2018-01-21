@@ -27,6 +27,8 @@ open class Server<CONTEXT>(
   private val maxRequestSize: Int = 4096
 ): Closeable {
 
+  private val logger = LoggerFactory.getLogger(Server::class.java)
+
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
   private val serverSocket: AsynchronousServerSocketChannel = AsynchronousServerSocketChannel.open().apply {
@@ -50,11 +52,9 @@ open class Server<CONTEXT>(
     }
     catch (e: JobCancellationException) {}
     catch (e: IOException) {
-      logger.error(e.message, e)
+      logger.error("Acceptor error", e)
     }
   }
-
-  private val logger = LoggerFactory.getLogger(Server::class.java)
 
   private val handleJobs = connectionHandlers.map {
     launch(it.asCoroutineDispatcher()) {
@@ -71,7 +71,7 @@ open class Server<CONTEXT>(
                 handler.handle(clientSocket, buffer, handlerContext)
               }
               catch (e: Exception) {
-                logger.error(e.message, e)
+                logger.error("Handler error", e)
               }
               finally {
                 buffers.offer(buffer)
@@ -84,7 +84,7 @@ open class Server<CONTEXT>(
       }
       catch (e: JobCancellationException) {}
       catch (e: IOException) {
-        logger.error(e.message, e)
+        logger.error("Dispatcher error", e)
       }
     }
   }
