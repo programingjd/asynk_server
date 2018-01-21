@@ -5,7 +5,6 @@ package info.jdavid.server
 import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
-import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
 import org.slf4j.LoggerFactory
@@ -78,7 +77,7 @@ open class Server<CONTEXT>(
                 buffers.offer(buffer)
               }
             }
-            delay(3000L)
+            //delay(3000L)
             clientSocket.close()
           }
         }

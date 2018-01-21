@@ -22,6 +22,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     socket: AsynchronousSocketChannel,
                                     context: CONTEXT) {
     val response = handle(acceptance, headers, body, context)
+    response.header(Headers.CONNECTION, "close")
     response.write(socket, body)
   }
 

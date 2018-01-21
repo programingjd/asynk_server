@@ -1,6 +1,5 @@
-package info.jdavid.server.dev
+package info.jdavid.server
 
-import info.jdavid.server.Server
 import info.jdavid.server.http.*
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -16,7 +15,12 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
 fun main(args: Array<String>) {
-  serveDirectory(File("i:/jdavid/ezpzjapanez.com/www"))
+  var path = File(Server::class.java.protectionDomain.codeSource.location.path)
+  while (true) {
+    path = path.parentFile
+    if (path.isDirectory && File(path, ".git").exists()) break
+  }
+  serveDirectory(path.resolve("src/test/resources"))
 //  connectFor(60000L)
 //  connectMany()
 }

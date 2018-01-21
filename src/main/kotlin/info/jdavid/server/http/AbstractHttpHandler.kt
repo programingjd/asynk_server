@@ -41,7 +41,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
   }
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
-    logger.info(remoteAddress.hostString)
+    logger.trace(remoteAddress.hostString)
     return true
   }
 

@@ -1,0 +1,33 @@
+body{
+  margin:0; padding: 0;
+  width: 100vw;
+  min-height: 100%;
+  background: url(images/mixed_feelings_by_realization.jpg) no-repeat fixed center;
+  background-size: cover;
+}
+section{
+  position: absolute;
+  top:calc(50vh - 15vmin);right:0;left:0;
+  text-align: center;
+}
+section>img{
+  width: 25vmin;
+  height: auto;
+  margin: 2.5vmin;
+  border: 0.25vmin solid #fff;
+}
+section>img:hover{
+  border-color: #a00;
+}
+header{
+  font: 5vmin sans-serif;
+  color: #ccc;
+  text-align: center;
+  margin-top: calc(50vh - 35vmin);
+}
+.link{
+  cursor: pointer;
+}
+.link.selected{
+  border-color: #0f8;
+}
