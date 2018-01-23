@@ -23,7 +23,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     context: CONTEXT) {
     val response = handle(acceptance, headers, body, context)
     response.header(Headers.CONNECTION, "close")
-    response.write(socket, body)
+    response.write(socket, body, acceptance.method)
   }
 
   abstract suspend fun handle(acceptance: ACCEPTANCE,
@@ -71,10 +71,10 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       buffer.put(CRLF)
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
-    internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+    internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear())
       writeHeaders(socket, buffer, statusMessage)
-      writeBody(socket, buffer)
+      if (method != Method.HEAD) writeBody(socket, buffer)
     }
   }
 

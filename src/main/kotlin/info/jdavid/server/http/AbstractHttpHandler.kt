@@ -22,9 +22,8 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
     buffer.clear()
-    var exhausted = buffer.remaining() > socket.aRead(buffer, 5000L, TimeUnit.MILLISECONDS)
+    var exhausted = buffer.remaining() > socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS)
     buffer.flip()
-    context as? Context ?: return
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
     logger.info(uri)

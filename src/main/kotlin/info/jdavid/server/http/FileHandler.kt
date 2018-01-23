@@ -59,7 +59,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
-    override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+    override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       socket.aWrite(context.FORBIDDEN.flip() as ByteBuffer)
     }
   }.header(Headers.CONNECTION, "close")
@@ -68,7 +68,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
-    override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+    override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       socket.aWrite(context.NOT_FOUND.flip() as ByteBuffer)
     }
   }.header(Headers.CONNECTION, "close")

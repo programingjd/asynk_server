@@ -52,7 +52,7 @@ open class Server<CONTEXT>(
     }
     catch (e: JobCancellationException) {}
     catch (e: IOException) {
-      logger.error("Acceptor error", e)
+      logger.warn("Acceptor error", e)
     }
   }
 
@@ -71,7 +71,7 @@ open class Server<CONTEXT>(
                 handler.handle(clientSocket, buffer, handlerContext)
               }
               catch (e: Exception) {
-                logger.error("Handler error", e)
+                logger.warn("Handler error", e)
               }
               finally {
                 buffers.offer(buffer)
@@ -84,7 +84,7 @@ open class Server<CONTEXT>(
       }
       catch (e: JobCancellationException) {}
       catch (e: IOException) {
-        logger.error("Dispatcher error", e)
+        logger.warn("Dispatcher error", e)
       }
     }
   }

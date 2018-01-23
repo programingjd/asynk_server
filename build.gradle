@@ -9,8 +9,8 @@ buildscript {
 
 plugins {
   id 'org.jetbrains.kotlin.jvm' version '1.2.20'
-//  id 'maven-publish'
-//  id 'com.jfrog.bintray' version '1.7.3'
+  id 'maven-publish'
+  id 'com.jfrog.bintray' version '1.7.3'
 }
 
 group 'info.jdavid.server'
@@ -20,6 +20,17 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 println "Java version: ${System.getProperty('java.version')}"
+
+ext {
+  bintrayApiKey = new File("$projectDir/local.properties").with {
+    if (it.exists()) {
+      it.text.readLines().findResult {
+        it.trim().split('=').with { it && it[0] == 'bintrayApiKey' ? it[1] : null }
+      }
+    }
+    else null
+  }
+}
 
 repositories {
   jcenter()
@@ -92,3 +103,55 @@ test {
   }
 }
 
+task javadocJar(type: Jar, dependsOn: javadoc) {
+  classifier = 'javadoc'
+  from javadoc.destinationDir
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+  classifier = 'sources'
+  from sourceSets.main.allSource
+}
+
+publishing {
+  publications {
+    mavenJava(MavenPublication) {
+      groupId project.group
+      artifactId 'server'
+      from components.java
+      artifact sourcesJar
+      artifact javadocJar
+    }
+  }
+  repositories {
+    maven {
+      url "$buildDir/repo"
+    }
+  }
+}
+
+bintray {
+  user = 'programingjd'
+  key = bintrayApiKey
+  dryRun = false
+  publish = true
+  publications = ['mavenJava']
+  pkg {
+    repo = 'maven'
+    name = 'info.jdavid.server'
+    websiteUrl = 'https://github.com/programingjd/server'
+    issueTrackerUrl = 'https://github.com/programingjd/server/issues'
+    vcsUrl = 'https://github.com/programingjd/server.git'
+    githubRepo = 'programingjd/server'
+    githubReleaseNotesFile = 'README.md'
+    licenses = ['Apache-2.0']
+    labels = ['server','http','java','kotlin','coroutines']
+    publicDownloadNumbers = true
+    version {
+      name = project.version
+      mavenCentralSync {
+        sync = false
+      }
+    }
+  }
+}
