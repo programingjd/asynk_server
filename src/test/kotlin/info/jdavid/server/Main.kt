@@ -26,15 +26,7 @@ fun main(args: Array<String>) {
 }
 
 fun serveDirectory(directory: File) {
-  Server(
-    HttpHandlerChain(
-      listOf(FileHandler(FileRoute(directory)))
-    ),
-    InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-    4096
-  ).use {
-    Thread.sleep(Long.MAX_VALUE)
-  }
+  FileHandler.serveDirectory(directory, 8080)
 }
 
 fun connectFor(millis: Long) {

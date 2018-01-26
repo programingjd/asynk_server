@@ -1,7 +1,10 @@
 package info.jdavid.server.http
 
+import info.jdavid.server.Server
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.io.File
+import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.Base64
@@ -9,6 +12,23 @@ import java.util.Base64
 open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<File>,
                                                       AbstractHttpHandler.Context,
                                                       File>(route) {
+
+  companion object {
+    internal fun serveDirectory(directory: File, port: Int) {
+      Server(
+        HttpHandlerChain(
+          listOf(FileHandler(FileRoute(directory)))
+        ),
+        InetSocketAddress(InetAddress.getLoopbackAddress(), port),
+        4096
+      ).use {
+        Thread.sleep(Long.MAX_VALUE)
+      }
+    }
+    @JvmStatic fun main(args: Array<String>) {
+      serveDirectory(File("."), 8080)
+    }
+  }
 
   final override suspend fun handle(acceptance: Acceptance<File>, headers: Headers, body: ByteBuffer,
                                    context: Context): Response<*> {
