@@ -54,6 +54,7 @@ val sourcesJar by tasks.creating(Jar::class) {
 
 val javadocJar by tasks.creating(Jar::class) {
   classifier = "javadoc"
+  from(java.docsDir)
 }
 
 tasks.withType(KotlinJvmCompile::class.java).all {
@@ -62,6 +63,7 @@ tasks.withType(KotlinJvmCompile::class.java).all {
   }
 }
 
+val javadoc: Javadoc by tasks
 val jar: Jar by tasks
 jar.apply {
   manifest {
@@ -70,6 +72,9 @@ jar.apply {
 }
 
 tasks {
+  "javadocJar" {
+    dependsOn(javadoc)
+  }
   "jar" {
     dependsOn(jarAll)
   }
@@ -92,7 +97,13 @@ publishing {
 
 bintray {
   user = "programingjd"
-  key = { "" }()
+  key = {
+    "bintrayApiKey".let { key: String ->
+      File("local.properties").readLines().findLast {
+        it.startsWith("${key}=")
+      }?.substring(key.length + 1)
+    }
+  }()
   dryRun = true
   publish = true
   setPublications("mavenJava")

@@ -7,7 +7,7 @@ An http/http2 server in kotlin using both threads and coroutines for maximum per
 The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.server/view)
 and [jcenter](https://bintray.com/search?query=info.jdavid.server).
 
-[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/ok/json/okjson/1.0.0/okjson-1.0.0.jar) the latest jar.
+[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/server/server/1.0.0/server-1.0.0.jar) the latest jar.
 
 __Maven__
 
@@ -30,6 +30,6 @@ repositories {
 ```
 ```
 dependencies {
-  compile 'info.jdavid.ok.json:okjson:1.0.0'
+  compile 'info.jdavid.server:server:1.0.0'
 }
 ```
