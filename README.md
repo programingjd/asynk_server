@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-1.0.0-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-28/28-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-1.0.0.1-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-28/28-green.png?style=flat)
 # server
 An http/http2 server in kotlin using both threads and coroutines for maximum performance.
 
@@ -17,7 +17,7 @@ Include [those settings](https://bintray.com/repo/downloadMavenRepoSettingsFile/
 <dependency>
   <groupId>info.jdavid.server</groupId>
   <artifactId>server</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.0.1</version>
 </dependency>
 ```
 __Gradle__
@@ -30,6 +30,6 @@ repositories {
 ```
 ```
 dependencies {
-  compile 'info.jdavid.server:server:1.0.0'
+  compile 'info.jdavid.server:server:1.0.0.1'
 }
 ```
