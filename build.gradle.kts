@@ -11,13 +11,13 @@ buildscript {
 }
 
 plugins {
-  kotlin("jvm") version "1.2.21"
+  kotlin("jvm") version "1.2.30"
   `maven-publish`
-  id("com.jfrog.bintray") version "1.7.3"
+  id("com.jfrog.bintray") version "1.8.0"
 }
 
 group = "info.jdavid.server"
-version = "1.0.0.1"
+version = "1.0.0.2"
 
 repositories {
   jcenter()
@@ -25,8 +25,8 @@ repositories {
 
 dependencies {
   compile(kotlin("stdlib-jdk8"))
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.1")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.22.1")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.3")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.22.3")
   implementation("org.slf4j:slf4j-api:1.7.25")
   implementation("com.codahale:aes-gcm-siv:0.4.2")
   testImplementation("junit:junit:4.12")
@@ -104,7 +104,7 @@ bintray {
       }?.substring(key.length + 1)
     }
   }()
-  dryRun = true
+  //dryRun = true
   publish = true
   setPublications("mavenJava")
   pkg(delegateClosureOf<BintrayExtension.PackageConfig>{
