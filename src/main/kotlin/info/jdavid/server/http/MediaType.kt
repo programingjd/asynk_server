@@ -2,6 +2,7 @@
 package info.jdavid.server.http
 
 import java.io.File
+import java.util.Collections
 
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 object MediaType {
@@ -154,39 +155,42 @@ object MediaType {
   private const val jsMaxAge = 0               // always re-validate
   private const val htmlMaxAge = 0             // always re-validate
 
-  val defaultCacheControls = mapOf(
-    HTML to CacheControl(false, htmlMaxAge),
-    XHTML to CacheControl(false, htmlMaxAge),
-    XML to CacheControl(false, smallFileMaxAge),
-    JSON to CacheControl(false, smallFileMaxAge),
-    ATOM to CacheControl(false, largeFileMaxAge),
-    WEB_MANIFEST to CacheControl(false, htmlMaxAge),
-    CSS to CacheControl(false, cssMaxAge),
-    JAVASCRIPT to CacheControl(false, jsMaxAge),
-    TEXT to CacheControl(false, htmlMaxAge),
-    CSV to CacheControl(false, largeFileMaxAge),
-    PNG to CacheControl(true, imageMaxAge),
-    JPG to CacheControl(true, imageMaxAge),
-    GIF to CacheControl(true, imageMaxAge),
-    ICO to CacheControl(true, imageMaxAge),
-    WEBP to CacheControl(true, imageMaxAge),
-    SVG to CacheControl(true, imageMaxAge),
-    WOFF to CacheControl(true, fontMaxAge),
-    WOFF2 to CacheControl(true, fontMaxAge),
-    TTF to CacheControl(true, fontMaxAge),
-    OTF to CacheControl(true, fontMaxAge),
-    EOT to CacheControl(true, fontMaxAge),
-    PDF to CacheControl(false, largeFileMaxAge),
-    OCTET_STREAM to CacheControl(false, largeFileMaxAge),
-    ZIP to CacheControl(false, largeFileMaxAge),
-    SEVENZ to CacheControl(false, largeFileMaxAge),
-    TAR to CacheControl(false, largeFileMaxAge),
-    XZ to CacheControl(false, largeFileMaxAge),
-    MP4 to CacheControl(false, largeFileMaxAge),
-    OGV to CacheControl(false, largeFileMaxAge),
-    WEBM to CacheControl(false, largeFileMaxAge),
-    MP3 to CacheControl(false, largeFileMaxAge),
-    OGG to CacheControl(false, largeFileMaxAge)
-  )
+  val defaultCacheControls: Map<String, CacheControl> =
+    Collections.unmodifiableMap(
+      mapOf(
+        HTML to CacheControl(false, htmlMaxAge),
+        XHTML to CacheControl(false, htmlMaxAge),
+        XML to CacheControl(false, smallFileMaxAge),
+        JSON to CacheControl(false, smallFileMaxAge),
+        ATOM to CacheControl(false, largeFileMaxAge),
+        WEB_MANIFEST to CacheControl(false, htmlMaxAge),
+        CSS to CacheControl(false, cssMaxAge),
+        JAVASCRIPT to CacheControl(false, jsMaxAge),
+        TEXT to CacheControl(false, htmlMaxAge),
+        CSV to CacheControl(false, largeFileMaxAge),
+        PNG to CacheControl(true, imageMaxAge),
+        JPG to CacheControl(true, imageMaxAge),
+        GIF to CacheControl(true, imageMaxAge),
+        ICO to CacheControl(true, imageMaxAge),
+        WEBP to CacheControl(true, imageMaxAge),
+        SVG to CacheControl(true, imageMaxAge),
+        WOFF to CacheControl(true, fontMaxAge),
+        WOFF2 to CacheControl(true, fontMaxAge),
+        TTF to CacheControl(true, fontMaxAge),
+        OTF to CacheControl(true, fontMaxAge),
+        EOT to CacheControl(true, fontMaxAge),
+        PDF to CacheControl(false, largeFileMaxAge),
+        OCTET_STREAM to CacheControl(false, largeFileMaxAge),
+        ZIP to CacheControl(false, largeFileMaxAge),
+        SEVENZ to CacheControl(false, largeFileMaxAge),
+        TAR to CacheControl(false, largeFileMaxAge),
+        XZ to CacheControl(false, largeFileMaxAge),
+        MP4 to CacheControl(false, largeFileMaxAge),
+        OGV to CacheControl(false, largeFileMaxAge),
+        WEBM to CacheControl(false, largeFileMaxAge),
+        MP3 to CacheControl(false, largeFileMaxAge),
+        OGG to CacheControl(false, largeFileMaxAge)
+      )
+    )
 
 }

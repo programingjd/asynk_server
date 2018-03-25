@@ -1,6 +1,10 @@
 package info.jdavid.server
 
 import info.jdavid.server.http.*
+import info.jdavid.server.http.base.AbstractHttpHandler
+import info.jdavid.server.http.base.DefaultHttpHandler
+import info.jdavid.server.http.base.SimpleHttpHandler
+import info.jdavid.server.http.handler.FileHandler
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.nio.aWrite
 import kotlinx.coroutines.experimental.runBlocking
@@ -30,7 +34,7 @@ fun serveDirectory(directory: File) {
 }
 
 fun connectFor(millis: Long) {
-  Server(object : SimpleHttpHandler() {
+  Server(object : DefaultHttpHandler() {
     override suspend fun connect(remoteAddress: InetSocketAddress) = true
     override suspend fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
                                 socket: AsynchronousSocketChannel, context: Context) {

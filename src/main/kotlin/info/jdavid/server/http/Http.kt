@@ -3,6 +3,7 @@
 package info.jdavid.server.http
 
 import info.jdavid.server.Handler
+import info.jdavid.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
