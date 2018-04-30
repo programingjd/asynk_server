@@ -11,13 +11,13 @@ buildscript {
 }
 
 plugins {
-  kotlin("jvm") version "1.2.31"
+  kotlin("jvm") version "1.2.40"
   `maven-publish`
   id("com.jfrog.bintray") version "1.8.0"
 }
 
 group = "info.jdavid.server"
-version = "1.0.0.3"
+version = "1.0.0.4"
 
 repositories {
   jcenter()
@@ -30,7 +30,7 @@ dependencies {
   implementation("org.slf4j:slf4j-api:1.7.25")
   implementation("com.codahale:aes-gcm-siv:0.4.2")
   testImplementation("junit:junit:4.12")
-  testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.4")
+  testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.5")
   testImplementation("org.apache.httpcomponents:httpclient:4.5.5")
   testRuntime("org.slf4j:slf4j-jdk14:1.7.25")
 }
