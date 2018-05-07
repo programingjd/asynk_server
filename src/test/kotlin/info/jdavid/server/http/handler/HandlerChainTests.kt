@@ -41,7 +41,7 @@ class HandlerChainTests {
         HttpClientBuilder.create().build().use {
           it.execute(request).use {
             Assert.assertEquals(200, it.statusLine.statusCode)
-            val bytes = it.entity.content.readAllBytes()
+            val bytes = it.entity.content.readBytes()
             Assert.assertEquals(it.getLastHeader(
               Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
             Assert.assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(

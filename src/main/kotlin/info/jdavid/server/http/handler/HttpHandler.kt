@@ -77,7 +77,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
     internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
-      val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear())
+      val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear() as ByteBuffer)
       writeHeaders(socket, buffer, statusMessage)
       if (method != Method.HEAD) writeBody(socket, buffer)
     }
@@ -98,7 +98,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
           val read = channel.aRead(buffer, position)
           if (read == -1) break
           position += read
-          socket.aWrite(buffer.flip(), 5000, TimeUnit.MILLISECONDS)
+          socket.aWrite(buffer.flip() as ByteBuffer, 5000, TimeUnit.MILLISECONDS)
         }
       }
     }

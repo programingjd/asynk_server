@@ -33,7 +33,7 @@ class HttpHandlerTests {
       HttpClientBuilder.create().build().use {
         it.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
-          val bytes = it.entity.content.readAllBytes()
+          val bytes = it.entity.content.readBytes()
           assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
           assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
           assertEquals(
@@ -128,7 +128,7 @@ class HttpHandlerTests {
       HttpClientBuilder.create().build().use {
         it.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
-          val bytes = it.entity.content.readAllBytes()
+          val bytes = it.entity.content.readBytes()
           assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
           assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
           assertEquals(
