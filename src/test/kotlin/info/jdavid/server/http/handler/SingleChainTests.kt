@@ -12,8 +12,6 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.net.InetSocketAddress
-import java.net.InetAddress
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -23,41 +21,36 @@ class SingleChainTests {
   private class Acceptance(val method: Method, val uri: String): Handler.Acceptance(false, false)
 
   @Test fun test() {
-    val chain = listOf(
-      object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
-        override fun context() = Context()
-        override suspend fun acceptUri(method: Method,
-                                       uri: String): Acceptance? {
-          if (method == Method.GET || method == Method.HEAD) {
-            return Acceptance(method, uri)
-          }
-          return null
+    val handler = object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
+      override fun context() = Context()
+      override suspend fun acceptUri(method: Method,
+                                     uri: String): Acceptance? {
+        if (method == Method.GET || method == Method.HEAD) {
+          return Acceptance(method, uri)
         }
-        override suspend fun handle(acceptance: Acceptance,
-                                    headers: Headers,
-                                    body: ByteBuffer,
-                                    socket: AsynchronousSocketChannel,
-                                    context: Context) {
-          val json = mapOf(
-            "method" to acceptance.method.toString(),
-            "path" to acceptance.uri,
-            "headers" to mapOf(*headers.keys().map { it to headers.value(it) }.toTypedArray())
-          )
-          val bytes = ObjectMapper().writeValueAsBytes(json)
-          body.clear()
-          body.put("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".
-            toByteArray(Charsets.US_ASCII))
-          body.put(bytes)
-          //ObjectMapper().writeValue(ByteBufferBackedOutputStream(body), json)
-          socket.aWrite(body.flip() as ByteBuffer)
-        }
+        return null
       }
-    )
-
-    Server(
-      HttpHandlerChain(chain),
-      InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-      4096
+      override suspend fun handle(acceptance: Acceptance,
+                                  headers: Headers,
+                                  body: ByteBuffer,
+                                  socket: AsynchronousSocketChannel,
+                                  context: Context) {
+        val json = mapOf(
+          "method" to acceptance.method.toString(),
+          "path" to acceptance.uri,
+          "headers" to mapOf(*headers.keys().map { it to headers.value(it) }.toTypedArray())
+        )
+        val bytes = ObjectMapper().writeValueAsBytes(json)
+        body.clear()
+        body.put("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".
+          toByteArray(Charsets.US_ASCII))
+        body.put(bytes)
+        //ObjectMapper().writeValue(ByteBufferBackedOutputStream(body), json)
+        socket.aWrite(body.flip() as ByteBuffer)
+      }
+    }
+    Server.http(
+      handler
     ).use {
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")

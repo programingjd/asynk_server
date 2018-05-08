@@ -10,8 +10,6 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert
 import org.junit.Test
 import org.junit.Assert.*
-import java.net.InetAddress
-import java.net.InetSocketAddress
 import java.net.URI
 
 class HandlerChainTests {
@@ -26,10 +24,8 @@ class HandlerChainTests {
         }
       )
     }
-    Server(
-      HttpHandlerChain(handlers),
-      InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-      4096
+    Server.http(
+      handlers
     ).use {
       range.forEach { n ->
         val request = HttpGet().apply {
