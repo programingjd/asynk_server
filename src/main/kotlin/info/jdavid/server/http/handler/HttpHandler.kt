@@ -117,6 +117,19 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  class ByteResponse(body: ByteArray?,
+                     private val mediaType: String,
+                     headers: Headers = Headers()): Response<ByteArray>(
+    Status.OK,
+    body,
+    headers) {
+    override fun bodyMediaType(body: ByteArray) = mediaType
+    override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
+    override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
+      socket.aWrite(ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
+    }
+  }
+
   open class Acceptance<out PARAMS>(bodyAllowed: Boolean,
                                     bodyRequired: Boolean,
                                     val method: Method,

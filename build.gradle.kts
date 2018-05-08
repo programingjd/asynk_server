@@ -17,7 +17,7 @@ plugins {
 }
 
 group = "info.jdavid.server"
-version = "1.0.0.6"
+version = "1.0.0.7"
 
 repositories {
   jcenter()
