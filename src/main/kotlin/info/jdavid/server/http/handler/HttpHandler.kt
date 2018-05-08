@@ -127,7 +127,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     fun match(method: Method, uri: String): PARAMS?
   }
 
-  internal companion object {
+  companion object {
     val CRLF = "\r\n".toByteArray(Charsets.US_ASCII)
     val ERROR_RESPONSE =
       ("HTTP/1.1 ${Status.INTERNAL_SERVER_ERROR} ${Status.HTTP_STATUSES[Status.INTERNAL_SERVER_ERROR]}\r\n" +
