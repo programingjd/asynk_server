@@ -8,7 +8,7 @@ import java.util.Base64
 abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                 DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                                 AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                                out PARAMS: Any>(
+                                PARAMS: Any>(
   delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
   private val realm: String
 ): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate) {

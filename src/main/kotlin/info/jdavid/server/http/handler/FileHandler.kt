@@ -107,9 +107,8 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
 
   final override fun context() = AbstractHttpHandler.Context()
 
-  final override suspend fun acceptUri(method: Method, uri: String): Acceptance<File>? {
-    val file = route?.match(method, uri) ?: return null
-    return Acceptance(false, false, method, uri, file)
+  final override suspend fun acceptUri(method: Method, uri: String, params: File): Acceptance<File>? {
+    return Acceptance(false, false, method, uri, params)
   }
 
 }

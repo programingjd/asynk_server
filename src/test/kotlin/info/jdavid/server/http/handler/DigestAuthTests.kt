@@ -7,6 +7,7 @@ import info.jdavid.server.http.Method
 import info.jdavid.server.http.Status
 import info.jdavid.server.http.base.AbstractHttpHandler
 import info.jdavid.server.http.base.AuthHandler
+import info.jdavid.server.http.route.NoParams
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
@@ -24,11 +25,11 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class DigestAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<Nothing>,
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
-    Nothing>(null) {
+    NoParams>(NoParams) {
 
-    override suspend fun handle(acceptance: Acceptance<Nothing>,
+    override suspend fun handle(acceptance: Acceptance<NoParams>,
                                 headers: Headers,
                                 body: ByteBuffer,
                                 context: Context): Response<*> {
@@ -44,8 +45,8 @@ class DigestAuthTests {
 
     override fun context() = Context()
 
-    override suspend fun acceptUri(method: Method, uri: String): Acceptance<Nothing> {
-      return Acceptance(true, false, method, uri, null)
+    override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams> {
+      return Acceptance(true, false, method, uri, params)
     }
 
   }
@@ -54,10 +55,10 @@ class DigestAuthTests {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
-  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<Nothing>,
+  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    Nothing>(HttpTestHandler(), "Test Realm",
+    NoParams>(HttpTestHandler(), "Test Realm",
              seed) {
 
     override fun ha1(username: String, context: AuthContext): String? {

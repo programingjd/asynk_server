@@ -10,13 +10,13 @@ import java.nio.channels.AsynchronousSocketChannel
 abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                           out PARAMS: Any>(
+                           PARAMS: Any>(
   @Suppress("MemberVisibilityCanBePrivate")
   protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
 ): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, PARAMS>(delegate.route) {
 
-  final override suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE? {
-    return delegate.acceptUri(method, uri)
+  final override suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE? {
+    return delegate.acceptUri(method, uri, params)
   }
 
   final override suspend fun handle(acceptance: ACCEPTANCE,

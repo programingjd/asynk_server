@@ -13,7 +13,7 @@ import kotlin.collections.HashMap
 abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                  DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                                  AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                                 out PARAMS: Any>(
+                                 PARAMS: Any>(
   delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
   private val realm: String,
   seed: ByteArray = SecureRandom().generateSeed(32)

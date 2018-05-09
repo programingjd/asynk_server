@@ -17,9 +17,14 @@ import java.util.concurrent.TimeUnit
 
 abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            CONTEXT: AbstractHttpHandler.Context,
-                           out PARAMS: Any>(
-  val route: Route<PARAMS>?
+                           PARAMS: Any>(
+  val route: Route<PARAMS>
 ): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
+  final override suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE? {
+    return route.match(method, uri)?.let { acceptUri(method, uri, it) }
+  }
+
+  abstract suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE?
 
   final override suspend fun handle(acceptance: ACCEPTANCE,
                                     headers: Headers,
@@ -148,7 +153,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       ("HTTP/1.1 ${Status.INTERNAL_SERVER_ERROR} ${Status.HTTP_STATUSES[Status.INTERNAL_SERVER_ERROR]}\r\n" +
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
-    fun <PARAMS: Any> of(route: Route<PARAMS>?,
+    fun <PARAMS: Any> of(route: Route<PARAMS>,
                          handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
                                    headers: Headers,
                                    body: ByteBuffer,
@@ -158,8 +163,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = handler.invoke(acceptance, headers, body, context)
         override fun context() = Context()
-        override suspend fun acceptUri(method: Method, uri: String) : HttpHandler.Acceptance<PARAMS>? {
-          val params = route?.match(method, uri) ?: return null
+        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
             Method.OPTIONS -> Acceptance(false, false, method, uri, params)
             Method.HEAD -> Acceptance(false,false, method, uri, params)
