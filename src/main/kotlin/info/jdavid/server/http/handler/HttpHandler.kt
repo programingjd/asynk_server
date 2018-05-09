@@ -104,12 +104,14 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
-  class StringResponse(body: String?,
+  class StringResponse private constructor(body: ByteArray?,
                        private val mediaType: String,
                        headers: Headers = Headers()): Response<ByteArray>(
     Status.OK,
-    body?.toByteArray(),
+    body,
     headers) {
+    constructor(body: String, mediaType: String, headers: Headers = Headers()): this(body.toByteArray(), mediaType, headers)
+    constructor(body: CharSequence?, mediaType: String, headers: Headers = Headers()): this(body?.toString()?.toByteArray(), mediaType, headers)
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
