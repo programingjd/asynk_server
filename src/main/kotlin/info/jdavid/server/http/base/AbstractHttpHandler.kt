@@ -41,7 +41,13 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
     }
     val code = Http.body(socket, exhausted, buffer, acceptance, headers, context)
     if (code != null) return response(socket, context.response(code))
-    handle(acceptance, headers, buffer, socket, context)
+    try {
+      handle(acceptance, headers, buffer, socket, context)
+    }
+    catch (e: Exception) {
+      logger.warn("Handling ${method} ${uri} failed", e)
+      serverError(socket, buffer, context)
+    }
   }
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
@@ -67,6 +73,10 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
     response(socket, context.NOT_FOUND)
   }
 
+  open suspend fun serverError(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
+    response(socket, context.INTERNAL_SERVER_ERROR)
+  }
+
   private suspend fun response(socket: AsynchronousSocketChannel, payload: ByteBuffer) {
     socket.aWrite(payload.rewind() as ByteBuffer)
   }
@@ -89,6 +99,9 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
       Status.FORBIDDEN)
     val NOT_FOUND = emptyResponse(
       Status.NOT_FOUND)
+    val INTERNAL_SERVER_ERROR = emptyResponse(
+      Status.INTERNAL_SERVER_ERROR
+    )
     val CONTINUE = "HTTP/1.1 100 Continue\r\n\r\n".
       toByteArray(Charsets.US_ASCII).let {
         val bytes = ByteBuffer.allocateDirect(it.size) ?: throw RuntimeException(); bytes.put(it); bytes

@@ -82,9 +82,7 @@ class DigestAuthTests {
 
   @Test fun test() {
     Server(
-      DigestAuthTestHandler(),
-      InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-      4096
+      DigestAuthTestHandler()
     ).use {
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")

@@ -81,9 +81,7 @@ class BasicAuthTests {
 
   @Test fun test() {
     Server(
-      BasicAuthTestHandler(),
-      InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
-      4096
+      BasicAuthTestHandler()
     ).use {
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")
