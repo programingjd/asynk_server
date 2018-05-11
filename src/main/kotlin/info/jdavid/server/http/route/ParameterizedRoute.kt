@@ -12,11 +12,10 @@ import java.util.regex.Pattern
 class ParameterizedRoute private constructor(
   private val methods: List<Method>,
   private val compiled: Pair<Pattern,List<String>>): HttpHandler.Route<Map<String, String>> {
-  constructor(path: String,
-              methods: List<Method> = listOf(Method.GET,
-                                             Method.HEAD)): this(methods,
-                                                                 compile(
-                                                                                                                   path))
+  constructor(
+    path: String,
+    methods: List<Method> = listOf(Method.GET, Method.HEAD)
+  ): this(methods, compile(path))
 
   override fun match(method: Method, uri: String): Map<String, String>? {
     if (methods.contains(method)) {
