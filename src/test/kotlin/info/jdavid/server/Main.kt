@@ -87,15 +87,15 @@ fun connectFor(millis: Long) {
 }
 
 fun connectMany() {
-  class ExtendedContext: AbstractHttpHandler.Context() {
-    val test =
+  class ExtendedContext(others: Collection<*>?): AbstractHttpHandler.Context(others) {
+    val test: ByteBuffer = (others?.find { it is ExtendedContext } as? ExtendedContext)?.test ?:
       "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\nConnection: close\r\n\r\nTest".
       toByteArray(Charsets.US_ASCII).let {
         val bytes = ByteBuffer.allocateDirect(it.size); bytes.put(it); bytes
       }
   }
   Server(object : SimpleHttpHandler() {
-    override fun context() = ExtendedContext()
+    override suspend fun context(others: Collection<*>?) = ExtendedContext(others)
     override suspend fun connect(remoteAddress: InetSocketAddress) = true
     override suspend fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
                                 socket: AsynchronousSocketChannel, context: Context) {

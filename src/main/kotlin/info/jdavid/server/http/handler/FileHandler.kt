@@ -105,9 +105,9 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     }
   }.header(Headers.CONNECTION, "close")
 
-  final override fun context() = AbstractHttpHandler.Context()
+  override suspend fun context(others: Collection<*>?) = Context(others)
 
-  final override suspend fun acceptUri(method: Method, uri: String, params: File): Acceptance<File>? {
+  override suspend fun acceptUri(method: Method, uri: String, params: File): Acceptance<File>? {
     return Acceptance(false, false, method, uri, params)
   }
 

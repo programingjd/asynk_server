@@ -162,7 +162,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       return object: HttpHandler<HttpHandler.Acceptance<PARAMS>, AbstractHttpHandler.Context, PARAMS>(route) {
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = handler.invoke(acceptance, headers, body, context)
-        override fun context() = Context()
+        override suspend fun context(others: Collection<*>?) = Context(others)
         override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
             Method.OPTIONS -> Acceptance(false, false, method, uri, params)

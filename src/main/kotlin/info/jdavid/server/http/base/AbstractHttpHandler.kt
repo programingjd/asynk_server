@@ -20,8 +20,6 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
 
   private val logger = LoggerFactory.getLogger(AbstractHttpHandler::class.java)
 
-  abstract override fun context(): CONTEXT
-
   final override suspend fun handle(socket: AsynchronousSocketChannel,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
@@ -82,28 +80,28 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
   }
 
   @Suppress("PropertyName", "unused", "MemberVisibilityCanBePrivate")
-  open class Context {
-    val OK = emptyResponse(
-      Status.OK)
-    val REQUEST_HEADER_FIELDS_TOO_LARGE = emptyResponse(
-      Status.REQUEST_HEADER_FIELDS_TOO_LARGE)
-    val PAYLOAD_TOO_LARGE = emptyResponse(
-      Status.PAYLOAD_TOO_LARGE)
-    val UNSUPPORTED_MEDIA_TYPE = emptyResponse(
-      Status.UNSUPPORTED_MEDIA_TYPE)
-    val NOT_IMPLEMENTED = emptyResponse(
-      Status.NOT_IMPLEMENTED)
-    val BAD_REQUEST = emptyResponse(
-      Status.BAD_REQUEST)
-    val FORBIDDEN = emptyResponse(
-      Status.FORBIDDEN)
-    val NOT_FOUND = emptyResponse(
-      Status.NOT_FOUND)
-    val INTERNAL_SERVER_ERROR = emptyResponse(
-      Status.INTERNAL_SERVER_ERROR
-    )
-    val CONTINUE = "HTTP/1.1 100 Continue\r\n\r\n".
-      toByteArray(Charsets.US_ASCII).let {
+  open class Context private constructor(other: Context? = null) {
+    constructor(others: Collection<*>?): this(others?.find { it is Context } as? Context)
+    val OK: ByteBuffer =
+      other?.OK ?: emptyResponse(Status.OK)
+    val REQUEST_HEADER_FIELDS_TOO_LARGE: ByteBuffer =
+      other?.REQUEST_HEADER_FIELDS_TOO_LARGE ?: emptyResponse(Status.REQUEST_HEADER_FIELDS_TOO_LARGE)
+    val PAYLOAD_TOO_LARGE: ByteBuffer =
+      other?.PAYLOAD_TOO_LARGE ?: emptyResponse(Status.PAYLOAD_TOO_LARGE)
+    val UNSUPPORTED_MEDIA_TYPE: ByteBuffer =
+      other?.UNSUPPORTED_MEDIA_TYPE ?: emptyResponse(Status.UNSUPPORTED_MEDIA_TYPE)
+    val NOT_IMPLEMENTED: ByteBuffer =
+      other?.NOT_IMPLEMENTED ?: emptyResponse(Status.NOT_IMPLEMENTED)
+    val BAD_REQUEST: ByteBuffer =
+      other?.BAD_REQUEST ?: emptyResponse(Status.BAD_REQUEST)
+    val FORBIDDEN: ByteBuffer =
+      other?.FORBIDDEN ?: emptyResponse(Status.FORBIDDEN)
+    val NOT_FOUND: ByteBuffer =
+      other?.NOT_FOUND ?: emptyResponse(Status.NOT_FOUND)
+    val INTERNAL_SERVER_ERROR: ByteBuffer =
+      other?.INTERNAL_SERVER_ERROR ?: emptyResponse(Status.INTERNAL_SERVER_ERROR)
+    val CONTINUE: ByteBuffer =
+      other?.CONTINUE ?: "HTTP/1.1 100 Continue\r\n\r\n".toByteArray(Charsets.US_ASCII).let {
         val bytes = ByteBuffer.allocateDirect(it.size) ?: throw RuntimeException(); bytes.put(it); bytes
       }
     internal fun response(code: Int): ByteBuffer {

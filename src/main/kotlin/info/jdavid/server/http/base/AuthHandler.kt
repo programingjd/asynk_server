@@ -70,7 +70,8 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   protected abstract fun wwwAuthenticate(acceptance: ACCEPTANCE,
                                          headers: Headers): String
 
-  open class Context<out CONTEXT>(val delegate: CONTEXT): AbstractHttpHandler.Context()
+  open class Context<out CONTEXT>(others: Collection<*>?,
+                                  val delegate: CONTEXT): AbstractHttpHandler.Context(others)
 
   class UnauthorizedResponse: Response<Nothing>(
     Status.UNAUTHORIZED) {

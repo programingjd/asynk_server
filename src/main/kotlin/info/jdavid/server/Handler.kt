@@ -8,7 +8,7 @@ import java.nio.channels.AsynchronousSocketChannel
 
 interface Handler<CONTEXT> {
 
-  fun context(): CONTEXT
+  suspend fun context(others: Collection<*>? = null): CONTEXT
 
   suspend fun connect(remoteAddress: InetSocketAddress): Boolean
 

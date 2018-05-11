@@ -22,7 +22,7 @@ class SingleChainTests {
 
   @Test fun test() {
     val handler = object: AbstractHttpHandler<Acceptance, AbstractHttpHandler.Context>() {
-      override fun context() = Context()
+      override suspend fun context(others: Collection<*>?) = Context(others)
       override suspend fun acceptUri(method: Method,
                                      uri: String): Acceptance? {
         if (method == Method.GET || method == Method.HEAD) {

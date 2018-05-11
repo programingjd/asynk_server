@@ -36,7 +36,7 @@ class ErrorTests {
       throw Exception()
     }
 
-    override fun context() = Context()
+    override suspend fun context(others: Collection<*>?) = Context(others)
 
     override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams> {
       return Acceptance(true, false, method, uri, params)

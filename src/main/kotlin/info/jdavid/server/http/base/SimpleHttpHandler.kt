@@ -8,7 +8,7 @@ import info.jdavid.server.http.Method
 abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
                                                       AbstractHttpHandler.Context>() {
 
-  override fun context() = Context()
+  override suspend fun context(others: Collection<*>?) = Context(others)
 
   override suspend fun acceptUri(method: Method, uri: String): Acceptance? {
     return when (method) {

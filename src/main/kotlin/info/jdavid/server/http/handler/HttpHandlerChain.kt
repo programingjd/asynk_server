@@ -15,8 +15,13 @@ internal class HttpHandlerChain(
   out AbstractHttpHandler.Context>,
   HttpHandlerChain.ChainContext>() {
 
-  override fun context() = ChainContext(
-    chain.associate { it to it.context() })
+  override suspend fun context(others: Collection<*>?): ChainContext {
+    val map = HashMap<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>(chain.size)
+    chain.forEach {
+      map[it] = it.context(map.values)
+    }
+   return ChainContext(others, map)
+  }
 
   override suspend fun acceptUri(method: Method, uri: String): HandlerAcceptance<out Handler.Acceptance,
     out Context>? {
@@ -51,7 +56,8 @@ internal class HttpHandlerChain(
   }
 
   internal class ChainContext(
+    others: Collection<*>?,
     val contexts: Map<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>
-  ): Context()
+  ): Context(others)
 
 }

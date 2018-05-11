@@ -17,8 +17,6 @@ import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.Assert.*
 import org.junit.Test
-import java.net.InetSocketAddress
-import java.net.InetAddress
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -43,7 +41,7 @@ class BasicAuthTests {
       }.body("Test".toByteArray(Charsets.US_ASCII))
     }
 
-    override fun context() = Context()
+    override suspend fun context(others: Collection<*>?) = Context(others)
 
     override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams> {
       return Acceptance(true, false, method, uri, params)
@@ -51,7 +49,8 @@ class BasicAuthTests {
 
   }
 
-  class AuthContext(c: AbstractHttpHandler.Context): AuthHandler.Context<AbstractHttpHandler.Context>(c) {
+  class AuthContext(others: Collection<*>?, c: AbstractHttpHandler.Context):
+        AuthHandler.Context<AbstractHttpHandler.Context>(others, c) {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
@@ -64,7 +63,7 @@ class BasicAuthTests {
         it.first, it.second) == auth } != null
     }
 
-    override fun context() = AuthContext(delegate.context())
+    override suspend fun context(others: Collection<*>?) = AuthContext(others, delegate.context(others))
 
   }
 
