@@ -16,8 +16,8 @@ plugins {
   id("com.jfrog.bintray") version "1.8.0"
 }
 
-group = "info.jdavid.server"
-version = "1.0.0.11"
+group = "info.jdavid.asynk"
+version = "0.0.0.1"
 
 repositories {
   jcenter()
@@ -42,7 +42,7 @@ kotlin {
 val jarAll by tasks.creating(Jar::class) {
   baseName = "${project.name}-all"
   manifest {
-    attributes["Main-Class"] = "info.jdavid.server.http.FileHandler"
+    attributes["Main-Class"] = "info.jdavid.asynk.server.http.FileHandler"
   }
   from(configurations.runtime.map { if (it.isDirectory) it as Any else zipTree(it) })
 }
@@ -109,14 +109,14 @@ bintray {
   setPublications("mavenJava")
   pkg(delegateClosureOf<BintrayExtension.PackageConfig>{
     repo = "maven"
-    name = "${project.group}"
-    websiteUrl = "https://github.com/programingjd/server"
-    issueTrackerUrl = "https://github.com/programingjd/server/issues"
-    vcsUrl = "https://github.com/programingjd/server.git"
-    githubRepo = "programingjd/server"
+    name = "${project.group}.${project.name}"
+    websiteUrl = "https://github.com/programingjd/asynk_server"
+    issueTrackerUrl = "https://github.com/programingjd/asynk_server/issues"
+    vcsUrl = "https://github.com/programingjd/asynk_server.git"
+    githubRepo = "programingjd/asynk_server"
     githubReleaseNotesFile = "README.md"
     setLicenses("Apache-2.0")
-    setLabels("server", "http", "java", "kotlin", "coroutines")
+    setLabels("asynk", "server", "http", "java", "kotlin", "async", "coroutines")
     publicDownloadNumbers = true
     version(delegateClosureOf<BintrayExtension.VersionConfig> {
       name = "${project.version}"

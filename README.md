@@ -4,8 +4,8 @@ An http/http2 server in kotlin using both threads and coroutines for maximum per
 
 ## Download ##
 
-The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.server/view)
-and [jcenter](https://bintray.com/search?query=info.jdavid.server).
+The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.asynk.server/view)
+and [jcenter](https://bintray.com/search?query=info.jdavid.asynk.server).
 
 [Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/server/server/1.0.0/server-1.0.0.2.jar) the latest jar.
 
@@ -15,7 +15,7 @@ Include [those settings](https://bintray.com/repo/downloadMavenRepoSettingsFile/
  to be able to resolve jcenter artifacts.
 ```
 <dependency>
-  <groupId>info.jdavid.server</groupId>
+  <groupId>info.jdavid.asynk.server</groupId>
   <artifactId>server</artifactId>
   <version>1.0.0.2</version>
 </dependency>
@@ -30,6 +30,6 @@ repositories {
 ```
 ```
 dependencies {
-  compile 'info.jdavid.server:server:1.0.0.2'
+  compile 'info.jdavid.asynk.server:server:1.0.0.2'
 }
 ```
