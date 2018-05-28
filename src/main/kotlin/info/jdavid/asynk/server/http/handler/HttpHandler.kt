@@ -222,12 +222,14 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       }
       fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
                                                out AbstractHttpHandler.Context>): HandlerDefinition {
-        list.add(handler)
+        list.add(this.handler)
         return this@Builder.handler(handler)
       }
 
-      fun build(): AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context> =
-        if (list.size == 1) list.first() else HttpHandlerChain(list)
+      fun build(): AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context> {
+        list.add(handler)
+        return if (list.size == 1) list.first() else HttpHandlerChain(list)
+      }
     }
 
   }
