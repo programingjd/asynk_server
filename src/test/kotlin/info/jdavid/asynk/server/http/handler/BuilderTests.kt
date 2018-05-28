@@ -17,7 +17,7 @@ class BuilderTests {
         HttpHandler.StringResponse(acceptance.routeParams?.get("p1") ?: "?", MediaType.TEXT)
       }).
       route(object: HttpHandler.Route<Boolean> {
-        override fun match(method: Method, uri: String) = true)
+        override fun match(method: Method, uri: String) = true
       }).to({ acceptance, _, _, _ ->
         HttpHandler.StringResponse(acceptance.routeParams?.toString(), MediaType.TEXT)
       }).
