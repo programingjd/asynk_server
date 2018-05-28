@@ -47,12 +47,12 @@ class ParameterizedRouteTests {
     route1.match(Method.GET, "/test")?.let {
       assertEquals(0, it.size)
     }
-    val route2 = ParameterizedRoute("/{a}/{b}/c/{d}")
+    val route2 = ParameterizedRoute("/{a}/{b1}/c/{d}")
     assertNotNull(route2.match(Method.GET, "/p1/p2/c/p4"))
     route2.match(Method.GET, "/p1/p2/c/p4")?.let {
       assertEquals(3, it.size)
       assertEquals("p1", it["a"])
-      assertEquals("p2", it["b"])
+      assertEquals("p2", it["b1"])
       assertEquals("p4", it["d"])
     }
   }

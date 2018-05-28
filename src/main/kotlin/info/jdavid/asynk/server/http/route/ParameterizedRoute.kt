@@ -29,7 +29,7 @@ class ParameterizedRoute private constructor(
 
 
   private companion object {
-    private val parameterPattern = Pattern.compile("[a-zA-Z0-9_]")
+    private val parameterPattern = Pattern.compile("[a-zA-Z0-9_]+")
     fun compile(path: String): Pair<Pattern, List<String>> {
       val params = mutableListOf<String>()
       val pattern = StringBuilder()
@@ -48,9 +48,9 @@ class ParameterizedRoute private constructor(
         end = path.indexOf('}', start + 1)
         if (end == -1) throw ParseException("Unclosed parameter definition: ${path}.", start)
         if (end == start + 1) throw ParseException("Missing parameter name: ${path}.", end)
-        path.substring(start+1, end).let {
+        path.substring(start + 1, end).let {
           if (!parameterPattern.matcher(it).matches()) {
-            throw ParseException("Invalid paramter name: ${path}.", start + 1)
+            throw ParseException("Invalid parameter name: ${path}.", start + 1)
           }
           params.add(it)
           pattern.append("(?<${it}>[^/]+)")
