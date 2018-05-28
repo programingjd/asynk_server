@@ -8,7 +8,6 @@ import info.jdavid.asynk.server.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
-import info.jdavid.asynk.server.http.route.NoParams
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -181,39 +180,52 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         }
       }
     }
-
   }
 
   class Builder {
     private val list = mutableListOf<AbstractHttpHandler<out Handler.Acceptance,
-      out AbstractHttpHandler.Context>>()
-    fun route() = Definition()
+                                                         out AbstractHttpHandler.Context>>()
     fun <PARAMS: Any> route(route: Route<PARAMS>) = RouteDefinition(route)
-
-    inner class Definition internal constructor() {
-      fun matchAll() = RouteDefinition(NoParams)
-      fun file(file: File) = RouteDefinition(FileRoute(file))
-      fun fixed(path: String) = RouteDefinition(FixedRoute(path))
-      fun parameterized(path: String) = RouteDefinition(ParameterizedRoute(path))
-      fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
-        out AbstractHttpHandler.Context>) =
-        HandlerDefinition(handler)
+    fun route(file: File) = RouteDefinition(FileRoute(file))
+    fun route(path: String): RouteDefinition<Map<String,String>> {
+      if (path.isEmpty()) throw IllegalArgumentException("Path is empty.")
+      return RouteDefinition(
+        if (path[0] == '/' &&
+            path.indexOf('{') != -1 && path.indexOf('}') != -1) ParameterizedRoute(path)
+        else FixedRoute(path)
+      )
     }
+    fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
+                                             out AbstractHttpHandler.Context>) = HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
-      fun handle(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
-                           headers: Headers,
-                           body: ByteBuffer,
-                           context: AbstractHttpHandler.Context) -> Response<*>) =
+      fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
+                       headers: Headers,
+                       body: ByteBuffer,
+                       context: AbstractHttpHandler.Context) -> Response<*>) =
         HandlerDefinition(of(route, handler))
     }
 
     inner class HandlerDefinition internal constructor(
       private val handler: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>) {
-      fun route(): Definition {
+      fun <PARAMS: Any> route(route: Route<PARAMS>): RouteDefinition<PARAMS> {
         list.add(handler)
-        return Definition()
+        return this@Builder.route(route)
       }
+      fun route(file: File): RouteDefinition<File> {
+        list.add(handler)
+        return this@Builder.route(file)
+      }
+      fun route(path: String): RouteDefinition<Map<String,String>> {
+        list.add(handler)
+        return this@Builder.route(path)
+      }
+      fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
+                                               out AbstractHttpHandler.Context>): HandlerDefinition {
+        list.add(handler)
+        return this@Builder.handler(handler)
+      }
+
       fun build(): AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context> =
         if (list.size == 1) list.first() else HttpHandlerChain(list)
     }
