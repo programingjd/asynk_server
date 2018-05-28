@@ -15,7 +15,7 @@ import java.net.URI
 class BuilderTests {
 
   @Test
-  fun test1() {
+  fun testBuilder() {
     val handler = HttpHandler.Builder().
       route("/fixed").to({ _ , _, _, _ ->
         HttpHandler.StringResponse("fixed", MediaType.TEXT)
