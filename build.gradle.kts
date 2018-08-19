@@ -1,8 +1,15 @@
 import com.jfrog.bintray.gradle.BintrayExtension
+import org.cyberneko.html.parsers.DOMParser
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.gradle.dsl.Coroutines
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.w3c.dom.Node
+import org.xml.sax.InputSource
+import java.io.FileInputStream
+import java.io.FileWriter
+import javax.xml.xpath.XPathConstants
+import javax.xml.xpath.XPathFactory
 
 buildscript {
   repositories {
@@ -142,3 +149,47 @@ bintray {
   })
 }
 
+tasks {
+  "test" {
+    val test = this as Test
+    doLast {
+      DOMParser().let {
+        it.parse(InputSource(FileInputStream(test.reports.html.entryPoint)))
+        XPathFactory.newInstance().newXPath().apply {
+          val total =
+            (
+              evaluate("DIV", it.document.getElementById("tests"), XPathConstants.NODE) as Node
+            ).textContent.toInt()
+          val failed =
+            (
+              evaluate("DIV", it.document.getElementById("failures"), XPathConstants.NODE) as Node
+            ).textContent.toInt()
+          val badge = { label: String, text: String, color: String ->
+            "https://img.shields.io/badge/_${label}_-${text}-${color}.png?style=flat"
+          }
+          val color = if (failed == 0) "green" else if (failed < 3) "yellow" else "red"
+          File("README.md").apply {
+            readLines().mapIndexed { i, line ->
+              when (i) {
+                0 -> "![jcenter](${badge("jcenter", "${project.version}", "6688ff")}) &#x2003; " +
+                     "![jcenter](${badge("Tests", "${total-failed}/${total}", color)})"
+                9 -> "[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/${project.version}/server-${project.version}.jar) the latest jar."
+                19 -> "  <version>${project.version}</version>"
+                32 -> "  compile 'info.jdavid.asynk:server:${project.version}'"
+                else -> line
+              }
+            }.joinToString("\n").let {
+              FileWriter(this).apply {
+                write(it)
+                close()
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  "bintrayUpload" {
+    //dependsOn("check")
+  }
+}
