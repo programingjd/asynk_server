@@ -8,8 +8,8 @@ import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.route.FixedRoute
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.URI
 
 class BuilderTests {
@@ -17,23 +17,23 @@ class BuilderTests {
   @Test
   fun testBuilder() {
     val handler = HttpHandler.Builder().
-      route("/fixed").to({ _ , _, _, _ ->
+      route("/fixed").to { _ , _, _, _ ->
         HttpHandler.StringResponse("fixed", MediaType.TEXT)
-      }).
-      route("/param/{p1}").to({ acceptance, _, _, _ ->
+      }.
+      route("/param/{p1}").to { acceptance, _, _, _ ->
         HttpHandler.StringResponse(acceptance.routeParams?.get("p1") ?: "?", MediaType.TEXT)
-      }).
+      }.
       route(object: HttpHandler.Route<Boolean> {
         override fun match(method: Method, uri: String) = if (Uri.path(uri) == "/route") true else null
-      }).to({ acceptance, _, _, _ ->
+      }).to { acceptance, _, _, _ ->
         HttpHandler.StringResponse(acceptance.routeParams?.toString(), MediaType.TEXT)
-      }).
+      }.
       handler(HttpHandler.of(
-        FixedRoute("/handler"),
-        { _ , _, _, _ ->
+        FixedRoute("/handler")
+      ) { _ , _, _, _ ->
           HttpHandler.StringResponse("handler", MediaType.TEXT)
         }
-      )).
+      ).
       build()
     Server.http(
       handler
@@ -50,9 +50,9 @@ class BuilderTests {
           uri = URI("http://localhost:8080/fixed")
         }
         it.execute(request).use {
-          Assert.assertEquals(200, it.statusLine.statusCode)
+          assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
-          Assert.assertEquals(
+          assertEquals(
             "fixed",
             String(bytes)
           )
@@ -61,9 +61,9 @@ class BuilderTests {
           uri = URI("http://localhost:8080/param/param1")
         }
         it.execute(request).use {
-          Assert.assertEquals(200, it.statusLine.statusCode)
+          assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
-          Assert.assertEquals(
+          assertEquals(
             "param1",
             String(bytes)
           )
@@ -72,9 +72,9 @@ class BuilderTests {
           uri = URI("http://localhost:8080/route")
         }
         it.execute(request).use {
-          Assert.assertEquals(200, it.statusLine.statusCode)
+          assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
-          Assert.assertEquals(
+          assertEquals(
             "true",
             String(bytes)
           )
@@ -83,9 +83,9 @@ class BuilderTests {
           uri = URI("http://localhost:8080/handler")
         }
         it.execute(request).use {
-          Assert.assertEquals(200, it.statusLine.statusCode)
+          assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
-          Assert.assertEquals(
+          assertEquals(
             "handler",
             String(bytes)
           )

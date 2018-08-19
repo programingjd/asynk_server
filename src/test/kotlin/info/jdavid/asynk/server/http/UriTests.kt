@@ -1,7 +1,7 @@
 package info.jdavid.asynk.server.http
 
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 
 class UriTests {
 
@@ -15,7 +15,7 @@ class UriTests {
     assertEquals("", Uri.query("/some/path?1")?.get("1"))
     assertEquals("d", Uri.query("/some/path/?abc=d")?.get("abc"))
     assertEquals("", Uri.query("/some/path?q#fragment")?.get("q"))
-    assertNull("", Uri.query("/some/path?q#fragment")?.get("abc"))
+    assertNull(Uri.query("/some/path?q#fragment")?.get("abc"))
     assertEquals("1", Uri.query("/some/path?a=1&b=2#fragment")?.get("a"))
     assertEquals("2", Uri.query("/some/path?a=1&b=2#fragment")?.get("b"))
   }

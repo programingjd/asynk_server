@@ -24,9 +24,9 @@ fun main(args: Array<String>) {
     path = path.parentFile
     if (path.isDirectory && File(path, ".git").exists()) break
   }
-  serveDirectory(path.resolve("src/test/resources"))
+//  serveDirectory(path.resolve("src/test/resources"))
 //  connectFor(60000L)
-//  connectMany()
+  connectMany()
 }
 
 fun serveDirectory(directory: File) {

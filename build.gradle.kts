@@ -11,13 +11,13 @@ buildscript {
 }
 
 plugins {
-  kotlin("jvm") version "1.2.50"
+  kotlin("jvm") version "1.2.60"
   `maven-publish`
   id("com.jfrog.bintray") version "1.8.1"
 }
 
 group = "info.jdavid.asynk"
-version = "0.0.0.2"
+version = "0.0.0.5"
 
 repositories {
   jcenter()
@@ -25,14 +25,17 @@ repositories {
 
 dependencies {
   compile(kotlin("stdlib-jdk8"))
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.23.2")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.23.2")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.24.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.24.0")
   implementation("org.slf4j:slf4j-api:1.7.25")
   implementation("com.codahale:aes-gcm-siv:0.4.2")
-  testImplementation("junit:junit:4.12")
+  testImplementation("org.junit.jupiter:junit-jupiter-api:5.2.0")
+  testImplementation("org.junit.jupiter:junit-jupiter-params:5.2.0")
+  testRuntime("org.junit.jupiter:junit-jupiter-engine:5.2.0")
   testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.6")
   testImplementation("org.apache.httpcomponents:httpclient:4.5.5")
   testRuntime("org.slf4j:slf4j-jdk14:1.7.25")
+//  testRuntime("org.slf4j:slf4j-nop:1.7.25")
 }
 
 kotlin {
@@ -57,9 +60,21 @@ val javadocJar by tasks.creating(Jar::class) {
   from(java.docsDir)
 }
 
+configure<JavaPluginConvention> {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 tasks.withType(KotlinJvmCompile::class.java).all {
   kotlinOptions {
     jvmTarget = "1.8"
+  }
+}
+
+tasks.withType<Test> {
+  useJUnitPlatform()
+  testLogging {
+    events("passed", "skipped", "failed")
   }
 }
 

@@ -7,9 +7,8 @@ import info.jdavid.asynk.server.http.Method
 import info.jdavid.asynk.server.http.Uri
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert
-import org.junit.Test
-import org.junit.Assert.*
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.URI
 
 class HandlerChainTests {
@@ -36,11 +35,11 @@ class HandlerChainTests {
         }
         HttpClientBuilder.create().build().use {
           it.execute(request).use {
-            Assert.assertEquals(200, it.statusLine.statusCode)
+            assertEquals(200, it.statusLine.statusCode)
             val bytes = it.entity.content.readBytes()
-            Assert.assertEquals(it.getLastHeader(
+            assertEquals(it.getLastHeader(
               Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
-            Assert.assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(
+            assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(
               MediaType.TEXT))
             assertEquals(n.toString(), String(bytes))
           }

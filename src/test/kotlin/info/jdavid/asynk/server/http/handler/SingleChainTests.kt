@@ -10,8 +10,8 @@ import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aWrite
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel

@@ -1,8 +1,8 @@
 package info.jdavid.asynk.server.http.route
 
 import info.jdavid.asynk.server.http.Method
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.text.ParseException
 
 class ParameterizedRouteTests {
@@ -21,22 +21,22 @@ class ParameterizedRouteTests {
   @Test fun testInvalid() {
     try {
       ParameterizedRoute("/test/{abc")
-      fail()
+      fail<Nothing>()
     }
     catch (e: ParseException) {}
     try {
       ParameterizedRoute("/{ab!c}/test")
-      fail()
+      fail<Nothing>()
     }
     catch (e: ParseException) {}
     try {
       ParameterizedRoute("/{ab{c}}/test")
-      fail()
+      fail<Nothing>()
     }
     catch (e: ParseException) {}
     try {
       ParameterizedRoute("/{a}/b/{d/e}/f")
-      fail()
+      fail<Nothing>()
     }
     catch (e: ParseException) {}
   }

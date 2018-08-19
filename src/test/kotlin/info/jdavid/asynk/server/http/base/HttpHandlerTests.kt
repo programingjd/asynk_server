@@ -6,8 +6,8 @@ import info.jdavid.asynk.server.http.MediaType
 import org.apache.http.client.methods.*
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.InetSocketAddress
 import java.net.InetAddress
 import java.net.URI

@@ -15,8 +15,8 @@ import org.apache.http.client.protocol.HttpClientContext
 import org.apache.http.impl.client.BasicAuthCache
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -90,7 +90,7 @@ class DigestAuthTests {
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use { 
+      HttpClientBuilder.create().build().use {
         it.execute(request, context()).use {
           assertEquals(401, it.statusLine.statusCode)
         }

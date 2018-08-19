@@ -2,26 +2,15 @@ package info.jdavid.asynk.server.http.handler
 
 import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
 import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
-import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.route.NoParams
-import org.apache.http.auth.AuthScope
-import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
-import org.apache.http.client.protocol.HttpClientContext
-import org.apache.http.impl.client.BasicAuthCache
-import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
-import org.junit.Assert.*
-import org.junit.Test
-import java.net.InetSocketAddress
-import java.net.InetAddress
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.net.URI
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 
 class ErrorTests {
 

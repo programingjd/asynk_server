@@ -1,8 +1,8 @@
 package info.jdavid.asynk.server.http.route
 
 import info.jdavid.asynk.server.http.Method
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
 import java.lang.IllegalArgumentException
 
 class FixedRouteTests {
@@ -21,7 +21,7 @@ class FixedRouteTests {
   @Test fun testInvalid() {
     try {
       FixedRoute("")
-      fail()
+      fail<Nothing>()
     }
     catch (e: IllegalArgumentException) {}
   }
