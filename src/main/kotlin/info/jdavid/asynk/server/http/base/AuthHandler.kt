@@ -33,8 +33,7 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
           acceptance.method) && cacheableStatusCode(
           response.statusCode))
       if (cacheControl == null) {
-        if (cacheable) response.header(Headers.CACHE_CONTROL,
-                                       PRIVATE)
+        if (cacheable) response.header(Headers.CACHE_CONTROL, PRIVATE)
       }
       else {
         loop@ for (directive in cacheControl.split(',')) {
