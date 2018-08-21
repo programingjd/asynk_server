@@ -27,7 +27,7 @@ class EchoTests {
       override suspend fun connect(remoteAddress: InetSocketAddress) = true
       override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Nothing?) {
         while (socket.aRead(buffer, 5, TimeUnit.SECONDS) > -1) {
-          socket.aWrite(buffer.flip(), 5, TimeUnit.SECONDS)
+          socket.aWrite(buffer.flip() as ByteBuffer, 5, TimeUnit.SECONDS)
           buffer.flip()
         }
       }
@@ -47,7 +47,7 @@ class EchoTests {
               val buffer = ByteBuffer.allocate(128)
               assertEquals(23, aRead(it, buffer))
               assertEquals("abc\r\ndef\r\nghi\r\njkl\r\nmno",
-                           String(ByteArray(23).apply { buffer.flip().get(this) }))
+                           String(ByteArray(23).apply { (buffer.flip() as ByteBuffer).get(this) }))
             }
           },
           async {
@@ -62,7 +62,7 @@ class EchoTests {
               val buffer = ByteBuffer.allocate(128)
               assertEquals(13, aRead(it, buffer))
               assertEquals("123\r\n456\r\n789",
-                           String(ByteArray(13).apply { buffer.flip().get(this) }))
+                           String(ByteArray(13).apply { (buffer.flip() as ByteBuffer).get(this) }))
             }
           }
         )
