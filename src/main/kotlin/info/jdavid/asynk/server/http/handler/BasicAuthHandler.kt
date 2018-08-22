@@ -17,7 +17,7 @@ abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                                  headers: Headers,
                                                  context: AUTH_CONTEXT): Boolean {
     val auth = headers.value(Headers.AUTHORIZATION) ?: return false
-    return credentialsAreValid(auth, context)
+    return auth.startsWith("Basic ") && credentialsAreValid(auth, context)
   }
 
   abstract fun credentialsAreValid(auth: String,
@@ -30,6 +30,12 @@ abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     fun authorizationHeaderValue(user: String, password: String): String {
       val b64 = Base64.getEncoder().encodeToString("${user}:${password}".toByteArray())
       return "Basic ${b64}"
+    }
+    fun userPassword(authorizationHeaderValue: String): Pair<String, String> {
+      val decoded = String(Base64.getDecoder().decode(authorizationHeaderValue.substring(6)))
+      val index = decoded.indexOf(':')
+      if (index == -1) throw IllegalArgumentException("Invalid basic authorization header.")
+      return decoded.substring(0, index) to decoded.substring(index + 1)
     }
   }
 

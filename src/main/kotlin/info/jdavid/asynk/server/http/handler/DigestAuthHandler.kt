@@ -26,17 +26,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                                  headers: Headers,
                                                  context: AUTH_CONTEXT): Boolean {
     val auth = headers.value(Headers.AUTHORIZATION) ?: return false
-    val matcher = PATTERN.matcher(auth.substring(auth.indexOf(' ') + 1))
-    val map = HashMap<String, String>(12)
-    while (matcher.find()) {
-      val key = matcher.group(1)
-      for (i in 2..5) {
-        if (matcher.group(i) != null) {
-          map[key] = matcher.group(i)
-          break
-        }
-      }
-    }
+    if (!auth.startsWith("Digest ")) return false
+    val map = map(auth)
     val host = headers.value(Headers.HOST) ?: return false
     if (map[REALM] != realm) return false
     val username = map[USERNAME] ?: return false
@@ -92,9 +83,23 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     private const val RESPONSE = "response"
     private const val OPAQUE = "opaque"
     private fun md5(text: String) = MessageDigest.getInstance("MD5").digest(text.toByteArray())
+    private fun map(auth: String): Map<String, String> {
+      val map = HashMap<String, String>(12)
+      val matcher = PATTERN.matcher(auth.substring(7))
+      while (matcher.find()) {
+        val key = matcher.group(1)
+        for (i in 2..5) {
+          if (matcher.group(i) != null) {
+            map[key] = matcher.group(i)
+            break
+          }
+        }
+      }
+      return map
+    }
     fun ha1(username: String, password: String,
-            realm: String) = Crypto.hex(
-      md5("${username}:${realm}:${password}"))
+            realm: String) = Crypto.hex(md5("${username}:${realm}:${password}"))
+    fun user(authorizationHeaderValue: String) = map(authorizationHeaderValue)[USERNAME]
   }
 
 }
