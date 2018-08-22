@@ -25,33 +25,7 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     context: AUTH_CONTEXT): Response<*> {
     if (credentialsAreValid(acceptance, headers, context)) {
       val response = delegate.handle(acceptance, headers, body, context.delegate)
-      val cacheControl = response.header(Headers.CACHE_CONTROL)
-      val expires = response.header(Headers.EXPIRES)
-      val cacheable =
-        expires != null ||
-        (cacheableMethod(
-          acceptance.method) && cacheableStatusCode(
-          response.statusCode))
-      if (cacheControl == null) {
-        if (cacheable) response.header(Headers.CACHE_CONTROL, PRIVATE)
-      }
-      else {
-        loop@ for (directive in cacheControl.split(',')) {
-          when (directive) {
-            NO_STORE, PRIVATE, PUBLIC -> break@loop
-          }
-          if (!cacheable) {
-            val i = directive.indexOf('=')
-            val d = if (i == -1) directive else directive.substring(0, i + 1)
-            when (d) {
-              MAX_AGE_EQUALS, S_MAX_AGE_EQUALS, STALE_WHILE_REVALIDATE_EQUALS, STALE_IF_ERROR_EQUALS -> {
-                response.header(Headers.CACHE_CONTROL, "private, ${cacheControl}")
-              }
-            }
-          }
-          else response.header(Headers.CACHE_CONTROL, "private, ${cacheControl}")
-        }
-      }
+      updateResponse(acceptance, headers, context, response)
       return response
     }
     else {
@@ -59,6 +33,37 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         Headers.WWW_AUTHENTICATE,
         wwwAuthenticate(acceptance, headers)
       )
+    }
+  }
+
+  protected open fun updateResponse(acceptance: ACCEPTANCE, headers: Headers, context: AUTH_CONTEXT,
+                               response: Response<*>) {
+    val cacheControl = response.header(Headers.CACHE_CONTROL)
+    val expires = response.header(Headers.EXPIRES)
+    val cacheable =
+      expires != null ||
+      (cacheableMethod(
+        acceptance.method) && cacheableStatusCode(
+        response.statusCode))
+    if (cacheControl == null) {
+      if (cacheable) response.header(Headers.CACHE_CONTROL, PRIVATE)
+    }
+    else {
+      loop@ for (directive in cacheControl.split(',')) {
+        when (directive) {
+          NO_STORE, PRIVATE, PUBLIC -> break@loop
+        }
+        if (!cacheable) {
+          val i = directive.indexOf('=')
+          val d = if (i == -1) directive else directive.substring(0, i + 1)
+          when (d) {
+            MAX_AGE_EQUALS, S_MAX_AGE_EQUALS, STALE_WHILE_REVALIDATE_EQUALS, STALE_IF_ERROR_EQUALS -> {
+              response.header(Headers.CACHE_CONTROL, "private, ${cacheControl}")
+            }
+          }
+        }
+        else response.header(Headers.CACHE_CONTROL, "private, ${cacheControl}")
+      }
     }
   }
 
