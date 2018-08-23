@@ -36,7 +36,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     val uri = map[URI] ?: return false
     if (uri != acceptance.uri) return false
     val nonce = map[NONCE] ?: return false
-    val decrypted = String(Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce)), Charsets.US_ASCII)
+    val decrypted =
+      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let { String(it, Charsets.US_ASCII) } ?: return false
     val time = decrypted.substring(0, 12).toLong(16)
     if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
     if (decrypted.substring(76) != "${host}${uri}") return false

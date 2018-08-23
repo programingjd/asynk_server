@@ -48,7 +48,10 @@ object Crypto {
 
   fun encrypt(key: Key, iv: ByteArray, bytes: ByteArray): ByteArray = AEAD(key.encoded).seal(bytes, iv)
 
-  fun decrypt(key: Key, iv: ByteArray, crypted: ByteArray): ByteArray = AEAD(key.encoded).open(crypted, iv).get()
+  fun decrypt(key: Key, iv: ByteArray, crypted: ByteArray): ByteArray? =
+    AEAD(key.encoded).open(crypted, iv).let {
+      if (it.isPresent) it.get() else null
+    }
 
   fun iv(seed: ByteArray) = ByteArray(32).apply {
     SecureRandom(seed).nextBytes(this)
