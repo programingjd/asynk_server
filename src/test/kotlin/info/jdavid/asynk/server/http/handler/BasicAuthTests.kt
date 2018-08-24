@@ -8,6 +8,7 @@ import info.jdavid.asynk.server.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.route.NoParams
+import kotlinx.coroutines.experimental.nio.aWrite
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
@@ -36,7 +37,7 @@ class BasicAuthTests {
         override fun bodyMediaType(body: ByteArray) = MediaType.TEXT
         override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
         override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-          this.body?.let { (buffer.clear() as ByteBuffer).put(it) }
+          this.body?.let { socket.aWrite((buffer.clear() as ByteBuffer).put(it).flip() as ByteBuffer) }
         }
       }.body("Test".toByteArray(Charsets.US_ASCII))
     }
@@ -101,6 +102,7 @@ class BasicAuthTests {
         }
         it.execute(request, context("user1", "password1")).use {
           assertEquals(200, it.statusLine.statusCode)
+          assertEquals("Test", String(it.entity.content.readBytes()))
         }
       }
     }

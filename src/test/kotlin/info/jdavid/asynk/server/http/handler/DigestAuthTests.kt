@@ -8,6 +8,7 @@ import info.jdavid.asynk.server.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.route.NoParams
+import kotlinx.coroutines.experimental.nio.aWrite
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
@@ -36,7 +37,7 @@ class DigestAuthTests {
         override fun bodyMediaType(body: ByteArray) = MediaType.TEXT
         override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
         override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-          this.body?.let { (buffer.clear() as ByteBuffer).put(it) }
+          this.body?.let { socket.aWrite((buffer.clear() as ByteBuffer).put(it).flip() as ByteBuffer) }
         }
       }.body("Test".toByteArray(Charsets.US_ASCII))
     }
@@ -83,25 +84,40 @@ class DigestAuthTests {
     Server(
       DigestAuthTestHandler()
     ).use {
-      val request = HttpGet().apply {
-        uri = URI("http://localhost:8080")
+      val request1 = HttpGet().apply {
+        uri = URI("http://localhost:8080/uri1")
         setHeader(Headers.USER_AGENT, "Test user agent")
         setHeader(Headers.CACHE_CONTROL, "no-cache")
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request, context()).use {
+      val request2 = HttpGet().apply {
+        uri = URI("http://localhost:8080/uri2")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.CONNECTION, "close")
+      }
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request1, context()).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user1", "")).use {
+        client.execute(request1, context("user1", "")).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user", "password1")).use {
+        client.execute(request1, context("user", "password1")).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user1", "password1")).use {
+        client.execute(request1, context("user1", "password1")).use {
           assertEquals(200, it.statusLine.statusCode)
+          assertEquals("Test", String(it.entity.content.readBytes()))
+        }
+        client.execute(request2, context("user1", "password1")).use {
+          assertEquals(200, it.statusLine.statusCode)
+          assertEquals("Test", String(it.entity.content.readBytes()))
+        }
+        client.execute(request2, context("user", "password1")).use {
+          assertEquals(401, it.statusLine.statusCode)
         }
       }
     }
@@ -109,6 +125,20 @@ class DigestAuthTests {
 
   companion object {
     val seed = "Test123abc!@#L<e".toByteArray(Charsets.US_ASCII)
+
+    class Debug {
+
+      companion object {
+
+        @JvmStatic
+        fun main(args: Array<String>) {
+          Server(
+            DigestAuthTestHandler()
+          )
+        }
+
+      }
+    }
   }
 
 }
