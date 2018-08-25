@@ -134,6 +134,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                       algorithm: Algorithm, nonce: String, cnonce: String) =
       h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
 
+    override fun algorithm() = Algorithm.SHA256
+
     override fun algorithmKey() = "${algorithm().key}-sess"
 
   }

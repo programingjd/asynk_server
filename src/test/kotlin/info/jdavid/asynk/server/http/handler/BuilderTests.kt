@@ -37,7 +37,7 @@ class BuilderTests {
       build()
     Server.http(
       handler
-    ).use {
+    ).use { _ ->
       val request = HttpGet().apply {
         setHeader(Headers.USER_AGENT, "Test user agent")
         setHeader(Headers.CACHE_CONTROL, "no-cache")
@@ -45,11 +45,11 @@ class BuilderTests {
         setHeader(Headers.CONNECTION, "close")
         setHeader(Headers.ACCEPT_ENCODING, "gzip")
       }
-      HttpClientBuilder.create().build().use {
+      HttpClientBuilder.create().build().use { client ->
         request.apply {
           uri = URI("http://localhost:8080/fixed")
         }
-        it.execute(request).use {
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(
@@ -60,7 +60,7 @@ class BuilderTests {
         request.apply {
           uri = URI("http://localhost:8080/param/param1")
         }
-        it.execute(request).use {
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(
@@ -71,7 +71,7 @@ class BuilderTests {
         request.apply {
           uri = URI("http://localhost:8080/route")
         }
-        it.execute(request).use {
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(
@@ -82,7 +82,7 @@ class BuilderTests {
         request.apply {
           uri = URI("http://localhost:8080/handler")
         }
-        it.execute(request).use {
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(

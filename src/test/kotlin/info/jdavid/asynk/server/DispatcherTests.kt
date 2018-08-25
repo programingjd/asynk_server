@@ -37,7 +37,7 @@ class DispatcherTests {
                                   socket: AsynchronousSocketChannel, context: Context) {
         socket.aWrite((context as ExtendedContext).test.rewind() as ByteBuffer)
       }
-    }).use {
+    }).use { _ ->
       runBlocking {
         (1..count).map { i: Int ->
           async {
@@ -59,8 +59,8 @@ class DispatcherTests {
             }
             System.nanoTime() - t
           }
-        }.let {
-          it.map { it.await() }
+        }.let { jobs ->
+          jobs.map { it.await() }
         }
       }
     }

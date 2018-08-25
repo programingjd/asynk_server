@@ -23,7 +23,7 @@ class EchoTests {
   @Test
   fun echo() {
     Server(object: Handler<Nothing?> {
-      override suspend fun context(others: Collection<*>?) = null
+      override suspend fun context(others: Collection<*>?): Nothing? = null
       override suspend fun connect(remoteAddress: InetSocketAddress) = true
       override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Nothing?) {
         while (socket.aRead(buffer, 5, TimeUnit.SECONDS) > -1) {
@@ -31,7 +31,7 @@ class EchoTests {
           buffer.flip()
         }
       }
-    }).use {
+    }).use { _ ->
       //Thread.sleep(20000L)
       runBlocking {
         awaitAll(

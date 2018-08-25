@@ -98,16 +98,57 @@ class DigestAuthTests {
 
   @Test
   fun test() {
-    test(DigestAuthTestHandler())
+    testBasic(DigestAuthTestHandler())
   }
 
   @Test
   fun testSession() {
-    test(DigestAuthTestSessionHandler())
+    testExtended(DigestAuthTestSessionHandler())
   }
 
-  fun test(handler: DigestAuthHandler<*,*,*,*>) {
-    Server(handler).use {
+  private fun testBasic(handler: DigestAuthHandler<*,*,*,*>) {
+    Server(handler).use { _ ->
+      val request1 = HttpGet().apply {
+        uri = URI("http://localhost:8080/uri1")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.CONNECTION, "close")
+      }
+      val request2 = HttpGet().apply {
+        uri = URI("http://localhost:8080/uri2")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.CONNECTION, "close")
+      }
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request1, context()).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+        client.execute(request1, context("user1", "")).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+        client.execute(request1, context("user", "password1")).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+        client.execute(request1, context("user1", "password1")).use {
+          assertEquals(200, it.statusLine.statusCode)
+          assertEquals("Test", String(it.entity.content.readBytes()))
+        }
+        client.execute(request2, context("user1", "password1")).use {
+          assertEquals(200, it.statusLine.statusCode)
+          assertEquals("Test", String(it.entity.content.readBytes()))
+        }
+        client.execute(request2, context("user", "password1")).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+      }
+    }
+  }
+
+  private fun testExtended(handler: DigestAuthHandler<*,*,*,*>) {
+    Server(handler).use { _ ->
       val request1 = HttpGet().apply {
         uri = URI("http://localhost:8080/uri1")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -157,7 +198,7 @@ class DigestAuthTests {
         @JvmStatic
         fun main(args: Array<String>) {
           Server(
-            DigestAuthTestHandler()
+            DigestAuthTestSessionHandler()
           )
         }
 

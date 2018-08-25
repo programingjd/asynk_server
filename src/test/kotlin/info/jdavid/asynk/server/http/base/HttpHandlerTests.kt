@@ -19,7 +19,7 @@ class HttpHandlerTests {
       DefaultHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
-    ).use {
+    ).use { _ ->
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -30,8 +30,8 @@ class HttpHandlerTests {
         setHeader("Test", "123")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
@@ -62,7 +62,7 @@ class HttpHandlerTests {
       DefaultHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
-    ).use {
+    ).use { _ ->
       val request = HttpPost().apply {
         uri = URI("http://localhost:8080")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -73,8 +73,8 @@ class HttpHandlerTests {
         setHeader(Headers.CONNECTION, "close")
         setHeader(Headers.CONTENT_TYPE, "text/plain")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
           assertEquals(400, it.statusLine.statusCode)
         }
       }
@@ -86,7 +86,7 @@ class HttpHandlerTests {
       DefaultHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
-    ).use {
+    ).use { _ ->
       val request = object: HttpEntityEnclosingRequestBase() {
         override fun getMethod() = "HEAD"
       }.apply {
@@ -100,8 +100,8 @@ class HttpHandlerTests {
         setHeader(Headers.CONTENT_TYPE, "text/plain")
         entity = StringEntity("Test")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
           assertEquals(400, it.statusLine.statusCode)
         }
       }
@@ -113,7 +113,7 @@ class HttpHandlerTests {
       DefaultHttpHandler(),
       InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
       4096
-    ).use {
+    ).use { _ ->
       val request = HttpPut().apply {
         uri = URI("http://localhost:8080")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -125,8 +125,8 @@ class HttpHandlerTests {
         setHeader(Headers.CONTENT_TYPE, "text/plain")
         entity = StringEntity("Test")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
           assertEquals(200, it.statusLine.statusCode)
           val bytes = it.entity.content.readBytes()
           assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)

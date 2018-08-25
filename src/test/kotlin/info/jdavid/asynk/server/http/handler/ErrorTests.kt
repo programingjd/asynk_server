@@ -36,7 +36,7 @@ class ErrorTests {
   @Test fun test() {
     Server(
       FailingHandler()
-    ).use {
+    ).use { _ ->
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -44,8 +44,8 @@ class ErrorTests {
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
           assertEquals(500, it.statusLine.statusCode)
         }
       }

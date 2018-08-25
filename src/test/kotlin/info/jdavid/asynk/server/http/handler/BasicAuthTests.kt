@@ -82,7 +82,7 @@ class BasicAuthTests {
   @Test fun test() {
     Server(
       BasicAuthTestHandler()
-    ).use {
+    ).use { _ ->
       val request = HttpGet().apply {
         uri = URI("http://localhost:8080")
         setHeader(Headers.USER_AGENT, "Test user agent")
@@ -90,17 +90,17 @@ class BasicAuthTests {
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      HttpClientBuilder.create().build().use {
-        it.execute(request, context()).use {
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request, context()).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user1", "")).use {
+        client.execute(request, context("user1", "")).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user", "password1")).use {
+        client.execute(request, context("user", "password1")).use {
           assertEquals(401, it.statusLine.statusCode)
         }
-        it.execute(request, context("user1", "password1")).use {
+        client.execute(request, context("user1", "password1")).use {
           assertEquals(200, it.statusLine.statusCode)
           assertEquals("Test", String(it.entity.content.readBytes()))
         }

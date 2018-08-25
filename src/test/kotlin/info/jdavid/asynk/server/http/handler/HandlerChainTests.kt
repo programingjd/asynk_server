@@ -24,7 +24,7 @@ class HandlerChainTests {
     }
     Server.http(
       handlers
-    ).use {
+    ).use { _ ->
       range.forEach { n ->
         val request = HttpGet().apply {
           uri = URI("http://localhost:8080/${n}")
@@ -32,8 +32,8 @@ class HandlerChainTests {
           setHeader(Headers.PRAGMA, "no-cache")
           setHeader(Headers.CONNECTION, "close")
         }
-        HttpClientBuilder.create().build().use {
-          it.execute(request).use {
+        HttpClientBuilder.create().build().use { client ->
+          client.execute(request).use {
             assertEquals(200, it.statusLine.statusCode)
             val bytes = it.entity.content.readBytes()
             assertEquals(it.getLastHeader(
