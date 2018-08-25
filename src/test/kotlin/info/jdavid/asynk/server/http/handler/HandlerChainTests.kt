@@ -17,11 +17,10 @@ class HandlerChainTests {
     val range = (1..5)
     val handlers = range.map {
       HttpHandler.of(
-        NumberedRoute(it),
-        { _ , _, _, _ ->
+        NumberedRoute(it)
+        ) { _ , _, _, _ ->
           HttpHandler.StringResponse(it.toString(), MediaType.TEXT)
         }
-      )
     }
     Server.http(
       handlers

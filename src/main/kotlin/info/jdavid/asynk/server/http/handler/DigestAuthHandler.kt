@@ -27,34 +27,52 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                                  context: AUTH_CONTEXT): Boolean {
     val auth = headers.value(Headers.AUTHORIZATION) ?: return false
     if (!auth.startsWith("Digest ")) return false
-    val map = map(auth)
     val host = headers.value(Headers.HOST) ?: return false
+
+    val map = map(auth)
     if (map[REALM] != realm) return false
-    val username = map[USERNAME] ?: return false
-    val ha1 = ha1(username, context) ?: return false
 
     val uri = map[URI] ?: return false
     if (uri != acceptance.uri) return false
-    val nonce = map[NONCE] ?: return false
-    val decrypted =
-      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let { String(it, Charsets.US_ASCII) } ?: return false
-    val time = decrypted.substring(0, 12).toLong(16)
-    if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
-    if (decrypted.substring(76) != "${host}${uri}") return false
+
+    val username = map[USERNAME] ?: return false
+
+    val algorithm = when (map[ALGORITHM]) {
+      null, "MD5" -> Algorithm.MD5
+      "SHA-256" -> Algorithm.SHA256
+      else -> return false
+    }
+
     if (map[QOP] != "auth") return false
-    val nc = map[NC] ?: return false
-    val cnonce = map[CNONCE] ?: return false
+
     if (map[OPAQUE] != opaque(host)) return false
+
+    val nonce = map[NONCE] ?: return false
+    val decryptedNounce =
+      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let { String(it, Charsets.US_ASCII) } ?: return false
+    val time = decryptedNounce.substring(0, 12).toLong(16)
+    if ((System.currentTimeMillis() - time) > 600000) return false // nonce older than 10 mins
+    if (decryptedNounce.substring(76) != "${host}${uri}") return false
+
+    val cnonce = map[CNONCE] ?: return false
+
+    val nc = map[NC] ?: return false
+
+    val ha1 = ha1(username, context, algorithm, nonce, cnonce) ?: return false
+
     val response = map[RESPONSE] ?: return false
 
-    val ha2 = Crypto.hex(
-      md5("${acceptance.method}:${uri}"))
-    val expected = Crypto.hex(md5(
-      "${ha1}:${nonce}:${nc}:${cnonce}:auth:${ha2}"))
+    val ha2 = h("${acceptance.method}:${uri}", algorithm)
+    val expected = h("${ha1}:${nonce}:${nc}:${cnonce}:auth:${ha2}", algorithm)
     return expected == response
   }
 
-  abstract fun ha1(username: String, context: AUTH_CONTEXT): String?
+  /**
+   * @param nonce (only used in session variant of the algorithm).
+   * @param cnonce (only used in session variant of the algorithm).
+   */
+  protected abstract fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm,
+                             nonce: String, cnonce: String): String?
 
   final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
@@ -64,18 +82,41 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)
     ))
     val opaque = opaque(host)
-    return "Digest realm=\"${realm}\", qop=\"auth\", algorithm=MD5, nonce=\"${nonce}\", opaque=\"${opaque}\""
+    return "Digest realm=\"${realm}\", qop=\"auth\", algorithm=SHA-256, nonce=\"${nonce}\", opaque=\"${opaque}\", Digest realm=\"${realm}\", qop=\"auth\", algorithm=SHA-256, nonce=\"${nonce}\", opaque=\"${opaque}\""
   }
 
-  private fun opaque(host: String) = Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
+  protected open fun opaque(host: String) = Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
 
-  protected fun ha1(username: String, password: String) = ha1(
-    username, password, realm)
+  protected fun ha1(username: String, password: String, algorithm: Algorithm, nonce: String, cnonce: String) =
+    internalHa1(username, password, algorithm, nonce, cnonce)
+
+  internal open fun internalHa1(username: String, password: String,
+                                algorithm: Algorithm, nonce: String, cnonce: String) =
+    h("${username}:${realm}:${password}", algorithm)
+
+  enum class Algorithm(internal val digest: MessageDigest?) {
+    MD5(try { MessageDigest.getInstance("MD5") } catch (ignore: Exception) { null }),
+    SHA256(try { MessageDigest.getInstance("SHA-256") } catch (ignore: Exception) { null })
+  }
+
+  abstract class Session<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+    DELEGATE_CONTEXT: AbstractHttpHandler.Context,
+    AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
+    PARAMS: Any>(
+    delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
+    val realm: String,
+    seed: ByteArray = SecureRandom().generateSeed(32)
+  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, realm, seed) {
+    override fun internalHa1(username: String, password: String,
+                             algorithm: Algorithm, nonce: String, cnonce: String) =
+      h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
+  }
 
   companion object {
     private val PATTERN = "([^=]+)=(?:\"([^\"]*)\"|([0-9a-f]{8})|(auth)|(MD5)),?\\s?".toPattern()
     private const val USERNAME = "username"
     private const val REALM = "realm"
+    private const val ALGORITHM = "algorithm"
     private const val NONCE = "nonce"
     private const val URI = "uri"
     private const val QOP = "qop"
@@ -83,7 +124,9 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     private const val CNONCE = "cnonce"
     private const val RESPONSE = "response"
     private const val OPAQUE = "opaque"
-    private fun md5(text: String) = MessageDigest.getInstance("MD5").digest(text.toByteArray())
+    private fun h(text: String, algorithm: Algorithm) = Crypto.hex(
+      (algorithm.digest ?: throw RuntimeException("Unsupported digest algorithm.")).digest(text.toByteArray())
+    )
     private fun map(auth: String): Map<String, String> {
       val map = HashMap<String, String>(12)
       val matcher = PATTERN.matcher(auth.substring(7))
@@ -98,8 +141,6 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       }
       return map
     }
-    fun ha1(username: String, password: String,
-            realm: String) = Crypto.hex(md5("${username}:${realm}:${password}"))
     fun user(authorizationHeaderValue: String) = map(authorizationHeaderValue)[USERNAME]
   }
 
