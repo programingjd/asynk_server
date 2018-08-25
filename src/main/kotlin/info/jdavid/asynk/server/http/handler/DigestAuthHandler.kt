@@ -67,12 +67,10 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return expected == response
   }
 
-  /**
-   * @param nonce (only used in session variant of the algorithm).
-   * @param cnonce (only used in session variant of the algorithm).
-   */
-  protected abstract fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm,
-                             nonce: String, cnonce: String): String?
+  internal open fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm,
+                        nonce: String, cnonce: String) = ha1(username, context, algorithm)
+
+  protected abstract fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm): String?
 
   final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
@@ -82,21 +80,26 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)
     ))
     val opaque = opaque(host)
-    return "Digest realm=\"${realm}\", qop=\"auth\", algorithm=SHA-256, nonce=\"${nonce}\", opaque=\"${opaque}\", Digest realm=\"${realm}\", qop=\"auth\", algorithm=SHA-256, nonce=\"${nonce}\", opaque=\"${opaque}\""
+    return allowedAlgorithms().map {
+      "Digest realm=\"${realm}\", qop=\"auth\", algorithm=${it.key}, nonce=\"${nonce}\", opaque=\"${opaque}\""
+    }.joinToString(", ")
   }
 
-  protected open fun opaque(host: String) = Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
+  protected open fun allowedAlgorithms() = ALGORITHMS
 
-  protected fun ha1(username: String, password: String, algorithm: Algorithm, nonce: String, cnonce: String) =
-    internalHa1(username, password, algorithm, nonce, cnonce)
+  protected open fun opaque(host: String) =
+    Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
 
-  internal open fun internalHa1(username: String, password: String,
-                                algorithm: Algorithm, nonce: String, cnonce: String) =
-    h("${username}:${realm}:${password}", algorithm)
+  protected fun ha1(username: String, password: String, algorithm: Algorithm): String? {
+    throwIfSession()
+    return h("${username}:${realm}:${password}", algorithm)
+  }
 
-  enum class Algorithm(internal val digest: MessageDigest?) {
-    MD5(try { MessageDigest.getInstance("MD5") } catch (ignore: Exception) { null }),
-    SHA256(try { MessageDigest.getInstance("SHA-256") } catch (ignore: Exception) { null })
+  internal open fun throwIfSession() = null
+
+  enum class Algorithm(internal val key: String, internal val digest: MessageDigest?) {
+    MD5("MD5", try { MessageDigest.getInstance("MD5") } catch (ignore: Exception) { null }),
+    SHA256("SHA-256", try { MessageDigest.getInstance("SHA-256") } catch (ignore: Exception) { null })
   }
 
   abstract class Session<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
@@ -107,8 +110,16 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     val realm: String,
     seed: ByteArray = SecureRandom().generateSeed(32)
   ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, realm, seed) {
-    override fun internalHa1(username: String, password: String,
-                             algorithm: Algorithm, nonce: String, cnonce: String) =
+    final override fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm) =
+      throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
+    final override fun throwIfSession() =
+      throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
+
+    abstract override fun ha1(username: String, context: AUTH_CONTEXT,
+                              algorithm: Algorithm, nonce: String, cnonce: String): String?
+
+    protected fun ha1(username: String, password: String,
+                      algorithm: Algorithm, nonce: String, cnonce: String) =
       h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
   }
 
@@ -124,6 +135,7 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     private const val CNONCE = "cnonce"
     private const val RESPONSE = "response"
     private const val OPAQUE = "opaque"
+    private val ALGORITHMS = listOf(Algorithm.SHA256, Algorithm.MD5)
     private fun h(text: String, algorithm: Algorithm) = Crypto.hex(
       (algorithm.digest ?: throw RuntimeException("Unsupported digest algorithm.")).digest(text.toByteArray())
     )

@@ -61,9 +61,8 @@ class DigestAuthTests {
     NoParams>(HttpTestHandler(), "Test Realm",
              seed) {
 
-    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm,
-                     nonce: String, cnonce: String): String? {
-      return context.users[username]?.let { ha1(username, it, algorithm, nonce, cnonce) }
+    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm): String? {
+      return context.users[username]?.let { ha1(username, it, algorithm) }
     }
 
     override suspend fun context(others: Collection<*>?) = AuthContext(others, delegate.context(others))
