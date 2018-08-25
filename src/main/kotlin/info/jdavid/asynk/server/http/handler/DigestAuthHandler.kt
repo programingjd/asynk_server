@@ -40,8 +40,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     val username = map[USERNAME] ?: return InvalidAuthorizationErrors.GENERIC
 
     val algorithm = when (map[ALGORITHM]) {
-      null, "MD5" -> Algorithm.MD5
-      "SHA-256" -> Algorithm.SHA256
+      null, "MD5", "MD5-sess" -> Algorithm.MD5
+      "SHA-256", "SHA-256-sess" -> Algorithm.SHA256
       else -> return InvalidAuthorizationErrors.GENERIC
     }
     if (algorithm != algorithm()) return InvalidAuthorizationErrors.GENERIC
@@ -87,14 +87,16 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     ))
     val opaque = opaque(host)
     return if (error == InvalidAuthorizationErrors.STALE_NONCE) {
-      "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithm().key}, stale=true, nonce=\"${nonce}\", opaque=\"${opaque}\""
+      "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithmKey()}, stale=true, nonce=\"${nonce}\", opaque=\"${opaque}\""
     }
     else {
-      "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithm().key}, nonce=\"${nonce}\", opaque=\"${opaque}\""
+      "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithmKey()}, nonce=\"${nonce}\", opaque=\"${opaque}\""
     }
   }
 
   protected open fun algorithm() = Algorithm.MD5
+
+  internal open fun algorithmKey() = algorithm().key
 
   protected open fun opaque(host: String) =
     Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
@@ -131,6 +133,9 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     protected fun ha1(username: String, password: String,
                       algorithm: Algorithm, nonce: String, cnonce: String) =
       h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
+
+    override fun algorithmKey() = "${algorithm().key}-sess"
+
   }
 
   enum class InvalidAuthorizationErrors: ValidationError {

@@ -70,6 +70,21 @@ class DigestAuthTests {
 
   }
 
+  class DigestAuthTestSessionHandler: DigestAuthHandler.Session<HttpHandler.Acceptance<NoParams>,
+    AbstractHttpHandler.Context,
+    AuthContext,
+    NoParams>(HttpTestHandler(), "Test Realm", listOf("/"), seed) {
+
+    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, nonce: String,
+                     cnonce: String): String? =
+      context.users[username]?.let { ha1(username, it, algorithm, nonce, cnonce) }
+
+    //    override fun algorithm() = Algorithm.SHA256
+
+    override suspend fun context(others: Collection<*>?) = AuthContext(others, delegate.context(others))
+
+  }
+
   private fun context(user: String? = null, password: String? = null): HttpClientContext {
     val credentials = BasicCredentialsProvider()
     if (user != null && password != null) {
@@ -81,10 +96,18 @@ class DigestAuthTests {
     }
   }
 
-  @Test fun test() {
-    Server(
-      DigestAuthTestHandler()
-    ).use {
+  @Test
+  fun test() {
+    test(DigestAuthTestHandler())
+  }
+
+  @Test
+  fun testSession() {
+    test(DigestAuthTestSessionHandler())
+  }
+
+  fun test(handler: DigestAuthHandler<*,*,*,*>) {
+    Server(handler).use {
       val request1 = HttpGet().apply {
         uri = URI("http://localhost:8080/uri1")
         setHeader(Headers.USER_AGENT, "Test user agent")
