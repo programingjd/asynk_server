@@ -10,7 +10,7 @@ import java.nio.channels.AsynchronousSocketChannel
 abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                           PARAMS: Any>(
+                           PARAMS: Any, VALIDATION_ERROR: AuthHandler.ValidationError>(
   @Suppress("MemberVisibilityCanBePrivate")
   protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
 ): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, PARAMS>(delegate.route) {
@@ -23,7 +23,8 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     context: AUTH_CONTEXT): Response<*> {
-    if (credentialsAreValid(acceptance, headers, context)) {
+    val error = validateCredentials(acceptance, headers, context)
+    if (error == null) {
       val response = delegate.handle(acceptance, headers, body, context.delegate)
       updateResponse(acceptance, headers, context, response)
       return response
@@ -31,7 +32,7 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     else {
       return UnauthorizedResponse().header(
         Headers.WWW_AUTHENTICATE,
-        wwwAuthenticate(acceptance, headers)
+        wwwAuthenticate(acceptance, headers, error)
       )
     }
   }
@@ -67,12 +68,15 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
-  abstract suspend fun credentialsAreValid(acceptance: ACCEPTANCE,
+  abstract suspend fun validateCredentials(acceptance: ACCEPTANCE,
                                            headers: Headers,
-                                           context: AUTH_CONTEXT): Boolean
+                                           context: AUTH_CONTEXT): VALIDATION_ERROR?
 
   protected abstract fun wwwAuthenticate(acceptance: ACCEPTANCE,
-                                         headers: Headers): String
+                                         headers: Headers,
+                                         error: VALIDATION_ERROR): String
+
+  interface ValidationError
 
   open class Context<out CONTEXT>(others: Collection<*>?,
                                   val delegate: CONTEXT): AbstractHttpHandler.Context(others)

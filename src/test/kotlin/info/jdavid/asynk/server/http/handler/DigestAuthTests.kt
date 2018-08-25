@@ -58,12 +58,13 @@ class DigestAuthTests {
   class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    NoParams>(HttpTestHandler(), "Test Realm",
-             seed) {
+    NoParams>(HttpTestHandler(), "Test Realm", listOf("/"), seed) {
 
     override fun ha1(username: String, context: AuthContext, algorithm: Algorithm): String? {
       return context.users[username]?.let { ha1(username, it, algorithm) }
     }
+
+//    override fun algorithm() = Algorithm.SHA256
 
     override suspend fun context(others: Collection<*>?) = AuthContext(others, delegate.context(others))
 
