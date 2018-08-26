@@ -4,9 +4,9 @@ import info.jdavid.asynk.server.Crypto
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
+import java.math.BigInteger
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.*
 import kotlin.collections.HashMap
 
 abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
@@ -44,7 +44,9 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
     if (map[QOP] != "auth") return InvalidAuthorizationErrors.GENERIC
 
-    if (map[OPAQUE] != opaque(host, acceptance.uri, realm)) return InvalidAuthorizationErrors.GENERIC
+    val opaque = map[OPAQUE] ?: return InvalidAuthorizationErrors.GENERIC
+    val opaqueError = validateOpaque(opaque, realm)
+    if (opaqueError != null) return opaqueError
 
     val nonce = map[NONCE] ?: return InvalidAuthorizationErrors.GENERIC
     val nounceError = validateNonce(nonce, host, realm)
@@ -64,38 +66,50 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return if (expected == response) null else InvalidAuthorizationErrors.GENERIC
   }
 
-  private val rand = Crypto.hex(SecureRandom().generateSeed(32))
+  /**
+   * @return a byte array 32 bytes long
+   */
+  protected open fun salt(): ByteArray = SecureRandom().generateSeed(32)
+
+  protected val seed by lazy {
+    salt().apply { if (size != 32) throw RuntimeException("Salt should be 32 bytes long.") }
+  }
 
   protected open fun realm(host: String, uri: String) = host
 
-  protected open fun nonce(host: String, realm: String) = h("${host}:${rand}:${realm}", algorithm())
+  protected open fun opaque(realm: String) = h("${seed}:${realm}", algorithm())
 
-  protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
-    return if (nonce(host, realm) == nonce) null else InvalidAuthorizationErrors.GENERIC
+  protected open fun validateOpaque(opaque: String, realm: String): InvalidAuthorizationErrors? {
+    return if (opaque(realm) == opaque) null else InvalidAuthorizationErrors.GENERIC
   }
 
-//  private val key = Crypto.secretKey(SecureRandom().generateSeed(32))
-//  private val nonceIv = Crypto.iv(SecureRandom().generateSeed(32))
-//
-//  protected open fun nonce(host: String, realm: String): String {
-//    val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
-//    val rand = Crypto.hex(SecureRandom().generateSeed(32))
-//    return Crypto.hex(Crypto.encrypt(
-//      key, nonceIv, "${time}${rand}${host}".toByteArray(Charsets.US_ASCII)
-//    ))
-//  }
+//  protected open fun nonce(host: String, realm: String) = h("${host}:${seed}:${realm}", algorithm())
 //
 //  protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
-//    val decrypted =
-//      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
-//        String(it, Charsets.US_ASCII)
-//      } ?: return InvalidAuthorizationErrors.GENERIC
-//    val time = decrypted.substring(0, 12).toLong(16)
-//    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
-//    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
-//    if (decrypted.substring(76) != host) return InvalidAuthorizationErrors.GENERIC
-//    return null
+//    return if (nonce(host, realm) == nonce) null else InvalidAuthorizationErrors.GENERIC
 //  }
+
+  private val key = Crypto.secretKey(seed)
+  private val nonceIv = Crypto.iv(seed)
+
+  protected open fun nonce(host: String, realm: String): String {
+    val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
+    val rand = Crypto.hex(SecureRandom().generateSeed(32))
+    return Crypto.hex(Crypto.encrypt(
+      key, nonceIv, "${time}${rand}${host}".toByteArray(Charsets.US_ASCII)
+    ))
+  }
+
+  protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
+    val decrypted =
+      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
+        String(it, Charsets.US_ASCII)
+      } ?: return InvalidAuthorizationErrors.GENERIC
+    val time = decrypted.substring(0, 12).toLong(16)
+    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
+    if (decrypted.substring(76) != host) return InvalidAuthorizationErrors.GENERIC
+    return null
+  }
 
   internal open fun ha1(username: String, context: AUTH_CONTEXT,
                         algorithm: Algorithm, realm: String,
@@ -109,7 +123,7 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val realm = realm(host, acceptance.uri)
     val nonce = nonce(host, realm)
-    val opaque = opaque(host, acceptance.uri, realm)
+    val opaque = opaque(realm)
     return if (error == InvalidAuthorizationErrors.STALE_NONCE) {
       "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithmKey()}, stale=true, nonce=\"${nonce}\", opaque=\"${opaque}\""
     }
@@ -121,9 +135,6 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   protected open fun algorithm() = Algorithm.MD5
 
   internal open fun algorithmKey() = algorithm().key
-
-  protected open fun opaque(host: String, realm: String, uri: String) =
-    Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
 
   protected fun ha1(username: String, password: String, algorithm: Algorithm, realm: String): String? {
     throwIfSession()

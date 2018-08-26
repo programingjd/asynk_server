@@ -173,22 +173,4 @@ class DigestAuthTests {
     }
   }
 
-  companion object {
-    val seed = "Test123abc!@#L<e".toByteArray(Charsets.US_ASCII)
-
-    class Debug {
-
-      companion object {
-
-        @JvmStatic
-        fun main(args: Array<String>) {
-          Server(
-            DigestAuthTestHandler()
-          )
-        }
-
-      }
-    }
-  }
-
 }
