@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.9-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-35/35-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.6-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-36/36-green.png?style=flat)
 # server
 A server implementation in kotlin using both threads and coroutines for maximum performance.
 
@@ -7,7 +7,7 @@ A server implementation in kotlin using both threads and coroutines for maximum 
 The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.asynk.server/view)
 and [jcenter](https://bintray.com/search?query=info.jdavid.asynk.server).
 
-[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/0.0.0.9/server-0.0.0.9.jar) the latest jar.
+[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/0.0.0.6/server-0.0.0.6.jar) the latest jar.
 
 __Maven__
 
@@ -17,7 +17,7 @@ Include [those settings](https://bintray.com/repo/downloadMavenRepoSettingsFile/
 <dependency>
   <groupId>info.jdavid.asynk.server</groupId>
   <artifactId>server</artifactId>
-  <version>0.0.0.9</version>
+  <version>0.0.0.6</version>
 </dependency>
 ```
 __Gradle__
@@ -30,7 +30,7 @@ repositories {
 ```
 ```
 dependencies {
-  compile 'info.jdavid.asynk:server:0.0.0.9'
+  compile 'info.jdavid.asynk:server:0.0.0.6'
 }
 ```
 
