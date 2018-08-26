@@ -58,10 +58,10 @@ class DigestAuthTests {
   class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    NoParams>(HttpTestHandler(), "Test Realm", listOf("/"), seed) {
+    NoParams>(HttpTestHandler(), seed) {
 
-    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm): String? {
-      return context.users[username]?.let { ha1(username, it, algorithm) }
+    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String): String? {
+      return context.users[username]?.let { ha1(username, it, algorithm, realm) }
     }
 
 //    override fun algorithm() = Algorithm.SHA256
@@ -73,11 +73,11 @@ class DigestAuthTests {
   class DigestAuthTestSessionHandler: DigestAuthHandler.Session<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    NoParams>(HttpTestHandler(), "Test Realm", listOf("/"), seed) {
+    NoParams>(HttpTestHandler(), seed) {
 
-    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, nonce: String,
-                     cnonce: String): String? =
-      context.users[username]?.let { ha1(username, it, algorithm, nonce, cnonce) }
+    override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String,
+                     nonce: String, cnonce: String): String? =
+      context.users[username]?.let { ha1(username, it, algorithm, realm, nonce, cnonce) }
 
     //    override fun algorithm() = Algorithm.SHA256
 

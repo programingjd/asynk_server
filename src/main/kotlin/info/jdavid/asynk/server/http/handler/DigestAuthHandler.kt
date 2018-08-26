@@ -15,9 +15,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                  AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
                                  PARAMS: Any>(
   delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
-  private val realm: String,
-  domainUris: List<String> = listOf("/"),
-  seed: ByteArray = SecureRandom().generateSeed(32)
+  seed: ByteArray = SecureRandom().generateSeed(32),
+  domainUris: List<String> = listOf("/")
 ): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS,
                DigestAuthHandler.InvalidAuthorizationErrors>(delegate) {
 
@@ -32,10 +31,11 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     val host = headers.value(Headers.HOST) ?: return InvalidAuthorizationErrors.GENERIC
 
     val map = map(auth)
-    if (map[REALM] != realm) return InvalidAuthorizationErrors.GENERIC
-
     val uri = map[URI] ?: return InvalidAuthorizationErrors.GENERIC
     if (uri != acceptance.uri) return InvalidAuthorizationErrors.GENERIC
+
+    val realm = realm(host, acceptance.uri)
+    if (map[REALM] != realm) return InvalidAuthorizationErrors.GENERIC
 
     val username = map[USERNAME] ?: return InvalidAuthorizationErrors.GENERIC
 
@@ -48,22 +48,18 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
     if (map[QOP] != "auth") return InvalidAuthorizationErrors.GENERIC
 
-    if (map[OPAQUE] != opaque(host)) return InvalidAuthorizationErrors.GENERIC
+    if (map[OPAQUE] != opaque(host, acceptance.uri, realm)) return InvalidAuthorizationErrors.GENERIC
 
     val nonce = map[NONCE] ?: return InvalidAuthorizationErrors.GENERIC
-    val decryptedNounce =
-      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
-        String(it, Charsets.US_ASCII)
-      } ?: return InvalidAuthorizationErrors.GENERIC
-    val time = decryptedNounce.substring(0, 12).toLong(16)
-    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
-    if (decryptedNounce.substring(76) != "${host}${uri}") return InvalidAuthorizationErrors.GENERIC
+    val nounceError = validateNounce(nonce, acceptance, headers)
+    if (nounceError != null) return nounceError
 
     val cnonce = map[CNONCE] ?: return InvalidAuthorizationErrors.GENERIC
 
     val nc = map[NC] ?: return InvalidAuthorizationErrors.GENERIC
 
-    val ha1 = ha1(username, context, algorithm, nonce, cnonce) ?: return InvalidAuthorizationErrors.GENERIC
+    val ha1 =
+      ha1(username, context, algorithm, realm, nonce, cnonce) ?: return InvalidAuthorizationErrors.GENERIC
 
     val response = map[RESPONSE] ?: return InvalidAuthorizationErrors.GENERIC
 
@@ -72,20 +68,43 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return if (expected == response) null else InvalidAuthorizationErrors.GENERIC
   }
 
-  internal open fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm,
-                        nonce: String, cnonce: String) = ha1(username, context, algorithm)
+  protected open fun realm(host: String, uri: String) = host
 
-  protected abstract fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm): String?
-
-  final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers,
-                                     error: InvalidAuthorizationErrors): String {
+  protected open fun nonce(acceptance: ACCEPTANCE, headers: Headers): String {
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
     val rand = Crypto.hex(SecureRandom().generateSeed(32))
-    val nonce = Crypto.hex(Crypto.encrypt(
-      key, nonceIv, "${time}${rand}${host}${acceptance.uri}".toByteArray(Charsets.US_ASCII)
+    return Crypto.hex(Crypto.encrypt(
+      key, nonceIv, "${time}${rand}${host}".toByteArray(Charsets.US_ASCII)
     ))
-    val opaque = opaque(host)
+  }
+
+  protected open fun validateNounce(nonce: String,
+                                    acceptance: ACCEPTANCE, headers: Headers): InvalidAuthorizationErrors? {
+    val decrypted =
+      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
+        String(it, Charsets.US_ASCII)
+      } ?: return InvalidAuthorizationErrors.GENERIC
+    val time = decrypted.substring(0, 12).toLong(16)
+    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
+    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
+    if (decrypted.substring(76) != host) return InvalidAuthorizationErrors.GENERIC
+    return null
+  }
+
+  internal open fun ha1(username: String, context: AUTH_CONTEXT,
+                        algorithm: Algorithm, realm: String,
+                        nonce: String, cnonce: String) = ha1(username, context, algorithm, realm)
+
+  protected abstract fun ha1(username: String, context: AUTH_CONTEXT,
+                             algorithm: Algorithm, realm: String): String?
+
+  final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers,
+                                     error: InvalidAuthorizationErrors): String {
+    val nonce = nonce(acceptance, headers)
+    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
+    val realm = realm(host, acceptance.uri)
+    val opaque = opaque(host, acceptance.uri, realm)
     return if (error == InvalidAuthorizationErrors.STALE_NONCE) {
       "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithmKey()}, stale=true, nonce=\"${nonce}\", opaque=\"${opaque}\""
     }
@@ -98,10 +117,10 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
   internal open fun algorithmKey() = algorithm().key
 
-  protected open fun opaque(host: String) =
+  protected open fun opaque(host: String, realm: String, uri: String) =
     Base64.getEncoder().encodeToString("${realm}@${host}".toByteArray())
 
-  protected fun ha1(username: String, password: String, algorithm: Algorithm): String? {
+  protected fun ha1(username: String, password: String, algorithm: Algorithm, realm: String): String? {
     throwIfSession()
     return h("${username}:${realm}:${password}", algorithm)
   }
@@ -118,20 +137,19 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
     PARAMS: Any>(
     delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
-    val realm: String,
-    domainUris: List<String> = listOf("/"),
-    seed: ByteArray = SecureRandom().generateSeed(32)
-  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, realm, domainUris, seed) {
-    final override fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm) =
+    seed: ByteArray = SecureRandom().generateSeed(32),
+    domainUris: List<String> = listOf("/")
+  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, seed, domainUris) {
+    final override fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm, realm: String) =
       throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
     final override fun throwIfSession() =
       throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
 
     abstract override fun ha1(username: String, context: AUTH_CONTEXT,
-                              algorithm: Algorithm, nonce: String, cnonce: String): String?
+                              algorithm: Algorithm, realm: String, nonce: String, cnonce: String): String?
 
     protected fun ha1(username: String, password: String,
-                      algorithm: Algorithm, nonce: String, cnonce: String) =
+                      algorithm: Algorithm, realm: String, nonce: String, cnonce: String) =
       h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
 
     override fun algorithm() = Algorithm.SHA256
