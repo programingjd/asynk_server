@@ -4,7 +4,6 @@ import info.jdavid.asynk.server.Crypto
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
-import java.math.BigInteger
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.*
@@ -15,14 +14,11 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                  AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
                                  PARAMS: Any>(
   delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
-  seed: ByteArray = SecureRandom().generateSeed(32),
   domainUris: List<String> = listOf("/")
 ): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS,
                DigestAuthHandler.InvalidAuthorizationErrors>(delegate) {
 
   private val domain = domainUris.joinToString(" ") {it.replace("\"", "\\\"") }
-  private val key = Crypto.secretKey(SecureRandom(seed).generateSeed(32))
-  private val nonceIv = Crypto.iv(seed)
 
   final override suspend fun validateCredentials(acceptance: ACCEPTANCE, headers: Headers,
                                                  context: AUTH_CONTEXT): InvalidAuthorizationErrors? {
@@ -51,7 +47,7 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     if (map[OPAQUE] != opaque(host, acceptance.uri, realm)) return InvalidAuthorizationErrors.GENERIC
 
     val nonce = map[NONCE] ?: return InvalidAuthorizationErrors.GENERIC
-    val nounceError = validateNounce(nonce, acceptance, headers)
+    val nounceError = validateNonce(nonce, host, realm)
     if (nounceError != null) return nounceError
 
     val cnonce = map[CNONCE] ?: return InvalidAuthorizationErrors.GENERIC
@@ -68,29 +64,38 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return if (expected == response) null else InvalidAuthorizationErrors.GENERIC
   }
 
+  private val rand = Crypto.hex(SecureRandom().generateSeed(32))
+
   protected open fun realm(host: String, uri: String) = host
 
-  protected open fun nonce(acceptance: ACCEPTANCE, headers: Headers): String {
-    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
-    val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
-    val rand = Crypto.hex(SecureRandom().generateSeed(32))
-    return Crypto.hex(Crypto.encrypt(
-      key, nonceIv, "${time}${rand}${host}".toByteArray(Charsets.US_ASCII)
-    ))
+  protected open fun nonce(host: String, realm: String) = h("${host}:${rand}:${realm}", algorithm())
+
+  protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
+    return if (nonce(host, realm) == nonce) null else InvalidAuthorizationErrors.GENERIC
   }
 
-  protected open fun validateNounce(nonce: String,
-                                    acceptance: ACCEPTANCE, headers: Headers): InvalidAuthorizationErrors? {
-    val decrypted =
-      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
-        String(it, Charsets.US_ASCII)
-      } ?: return InvalidAuthorizationErrors.GENERIC
-    val time = decrypted.substring(0, 12).toLong(16)
-    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
-    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
-    if (decrypted.substring(76) != host) return InvalidAuthorizationErrors.GENERIC
-    return null
-  }
+//  private val key = Crypto.secretKey(SecureRandom().generateSeed(32))
+//  private val nonceIv = Crypto.iv(SecureRandom().generateSeed(32))
+//
+//  protected open fun nonce(host: String, realm: String): String {
+//    val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
+//    val rand = Crypto.hex(SecureRandom().generateSeed(32))
+//    return Crypto.hex(Crypto.encrypt(
+//      key, nonceIv, "${time}${rand}${host}".toByteArray(Charsets.US_ASCII)
+//    ))
+//  }
+//
+//  protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
+//    val decrypted =
+//      Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
+//        String(it, Charsets.US_ASCII)
+//      } ?: return InvalidAuthorizationErrors.GENERIC
+//    val time = decrypted.substring(0, 12).toLong(16)
+//    if ((System.currentTimeMillis() - time) > 600000) return InvalidAuthorizationErrors.STALE_NONCE // >10mins
+//    val host = headers.value(Headers.HOST) ?: throw RuntimeException()
+//    if (decrypted.substring(76) != host) return InvalidAuthorizationErrors.GENERIC
+//    return null
+//  }
 
   internal open fun ha1(username: String, context: AUTH_CONTEXT,
                         algorithm: Algorithm, realm: String,
@@ -101,9 +106,9 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
   final override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers,
                                      error: InvalidAuthorizationErrors): String {
-    val nonce = nonce(acceptance, headers)
     val host = headers.value(Headers.HOST) ?: throw RuntimeException()
     val realm = realm(host, acceptance.uri)
+    val nonce = nonce(host, realm)
     val opaque = opaque(host, acceptance.uri, realm)
     return if (error == InvalidAuthorizationErrors.STALE_NONCE) {
       "Digest realm=\"${realm}\", domain=\"${domain}\", qop=\"auth\", algorithm=${algorithmKey()}, stale=true, nonce=\"${nonce}\", opaque=\"${opaque}\""
@@ -137,9 +142,8 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
     PARAMS: Any>(
     delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
-    seed: ByteArray = SecureRandom().generateSeed(32),
     domainUris: List<String> = listOf("/")
-  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, seed, domainUris) {
+  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, domainUris) {
     final override fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm, realm: String) =
       throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
     final override fun throwIfSession() =

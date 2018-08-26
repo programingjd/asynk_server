@@ -58,7 +58,7 @@ class DigestAuthTests {
   class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    NoParams>(HttpTestHandler(), seed) {
+    NoParams>(HttpTestHandler()) {
 
     override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String): String? {
       return context.users[username]?.let { ha1(username, it, algorithm, realm) }
@@ -73,7 +73,7 @@ class DigestAuthTests {
   class DigestAuthTestSessionHandler: DigestAuthHandler.Session<HttpHandler.Acceptance<NoParams>,
     AbstractHttpHandler.Context,
     AuthContext,
-    NoParams>(HttpTestHandler(), seed) {
+    NoParams>(HttpTestHandler()) {
 
     override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String,
                      nonce: String, cnonce: String): String? =
@@ -183,7 +183,7 @@ class DigestAuthTests {
         @JvmStatic
         fun main(args: Array<String>) {
           Server(
-            DigestAuthTestSessionHandler()
+            DigestAuthTestHandler()
           )
         }
 
