@@ -156,13 +156,13 @@ class DigestAuthTests {
         setHeader(Headers.PRAGMA, "no-cache")
         setHeader(Headers.CONNECTION, "close")
       }
-      val request2 = HttpGet().apply {
-        uri = URI("http://localhost:8080/uri2")
-        setHeader(Headers.USER_AGENT, "Test user agent")
-        setHeader(Headers.CACHE_CONTROL, "no-cache")
-        setHeader(Headers.PRAGMA, "no-cache")
-        setHeader(Headers.CONNECTION, "close")
-      }
+//      val request2 = HttpGet().apply {
+//        uri = URI("http://localhost:8080/uri2")
+//        setHeader(Headers.USER_AGENT, "Test user agent")
+//        setHeader(Headers.CACHE_CONTROL, "no-cache")
+//        setHeader(Headers.PRAGMA, "no-cache")
+//        setHeader(Headers.CONNECTION, "close")
+//      }
       HttpClientBuilder.create().build().use { client ->
         client.execute(request1, context()).use {
           assertEquals(401, it.statusLine.statusCode)
