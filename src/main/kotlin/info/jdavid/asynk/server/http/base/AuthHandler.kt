@@ -24,21 +24,23 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     body: ByteBuffer,
                                     context: AUTH_CONTEXT): Response<*> {
     val error = validateCredentials(acceptance, headers, context)
-    if (error == null) {
+    return if (error == null) {
       val response = delegate.handle(acceptance, headers, body, context.delegate)
       updateResponse(acceptance, headers, context, response)
-      return response
+      response
     }
     else {
-      return UnauthorizedResponse().header(
+      val response = unauthorizedResponse(acceptance.uri, headers)
+      response.headers.set(
         Headers.WWW_AUTHENTICATE,
         wwwAuthenticate(acceptance, headers, error)
       )
+      response
     }
   }
 
   protected open fun updateResponse(acceptance: ACCEPTANCE, headers: Headers, context: AUTH_CONTEXT,
-                               response: Response<*>) {
+                                    response: Response<*>) {
     val cacheControl = response.header(Headers.CACHE_CONTROL)
     val expires = response.header(Headers.EXPIRES)
     val cacheable =
@@ -66,6 +68,10 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         else response.header(Headers.CACHE_CONTROL, "private, ${cacheControl}")
       }
     }
+  }
+
+  protected open fun unauthorizedResponse(uri: String, headers: Headers): Response<*> {
+    return UnauthorizedResponse()
   }
 
   abstract suspend fun validateCredentials(acceptance: ACCEPTANCE,
