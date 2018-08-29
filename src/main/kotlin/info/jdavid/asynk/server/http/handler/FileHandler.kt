@@ -17,8 +17,8 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.util.Base64
 
 open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<File>,
-  AbstractHttpHandler.Context,
-  File>(route) {
+                                                      AbstractHttpHandler.Context,
+                                                      File>(route) {
 
   companion object {
     internal fun serveDirectory(directory: File, port: Int) {
@@ -39,7 +39,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
 
   final override suspend fun handle(acceptance: Acceptance<File>, headers: Headers, body: ByteBuffer,
                                     context: Context): Response<*> {
-    val uriParams = acceptance.routeParams ?: return notFound(context)
+    val uriParams = acceptance.routeParams
     val file = if (uriParams.isDirectory) {
       val path = Uri.path(acceptance.uri)
       if (path.last() != '/') return redirect("${path}/${acceptance.uri.substring(path.length)}")

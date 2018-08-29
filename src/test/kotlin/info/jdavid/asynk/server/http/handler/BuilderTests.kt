@@ -21,12 +21,12 @@ class BuilderTests {
         HttpHandler.StringResponse("fixed", MediaType.TEXT)
       }.
       route("/param/{p1}").to { acceptance, _, _, _ ->
-        HttpHandler.StringResponse(acceptance.routeParams?.get("p1") ?: "?", MediaType.TEXT)
+        HttpHandler.StringResponse(acceptance.routeParams["p1"] ?: "?", MediaType.TEXT)
       }.
       route(object: HttpHandler.Route<Boolean> {
         override fun match(method: Method, uri: String) = if (Uri.path(uri) == "/route") true else null
       }).to { acceptance, _, _, _ ->
-        HttpHandler.StringResponse(acceptance.routeParams?.toString(), MediaType.TEXT)
+        HttpHandler.StringResponse(acceptance.routeParams.toString(), MediaType.TEXT)
       }.
       handler(HttpHandler.of(
         FixedRoute("/handler")

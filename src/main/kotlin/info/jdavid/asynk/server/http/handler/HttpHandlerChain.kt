@@ -23,7 +23,7 @@ internal class HttpHandlerChain(
   override suspend fun acceptUri(method: Method, uri: String,
                                  params: Any): HttpHandler.Acceptance<Any>? {
     for (handler in chain) {
-      val acceptance = handler.acceptUri(method, uri)
+      val acceptance = handler.acceptUri(method, uri) as? Acceptance<Any>
       if (acceptance != null) return HandlerAcceptance(
         handler, acceptance)
     }
@@ -45,7 +45,7 @@ internal class HttpHandlerChain(
   internal class HandlerAcceptance<ACCEPTANCE: HttpHandler.Acceptance<*>,
                                    CONTEXT: AbstractHttpHandler.Context>(
     private val handler: HttpHandler<ACCEPTANCE, CONTEXT, *>,
-    private val acceptance: HttpHandler.Acceptance<*>): Acceptance<Any>(acceptance.bodyAllowed,
+    private val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.bodyAllowed,
                                                                         acceptance.bodyRequired,
                                                                         acceptance.method,
                                                                         acceptance.uri,

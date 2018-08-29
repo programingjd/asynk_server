@@ -146,7 +146,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     bodyRequired: Boolean,
                                     val method: Method,
                                     val uri: String,
-                                    val routeParams: PARAMS?): Handler.Acceptance(bodyAllowed, bodyRequired)
+                                    val routeParams: PARAMS): Handler.Acceptance(bodyAllowed, bodyRequired)
 
   interface Route<out PARAMS> {
     fun match(method: Method, uri: String): PARAMS?
