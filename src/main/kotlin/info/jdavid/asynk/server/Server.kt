@@ -2,7 +2,7 @@
 
 package info.jdavid.asynk.server
 
-import info.jdavid.asynk.server.http.base.AbstractHttpHandler
+import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.handler.HttpHandlerChain
 import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
@@ -121,29 +121,21 @@ open class Server<CONTEXT>(
   }
 
   companion object {
-    fun http(address: InetSocketAddress,
-             maxRequestSize: Int,
-             vararg chain: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>):
+    fun http(address: InetSocketAddress, maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
-    fun http(vararg chain: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>) =
+    fun http(vararg chain: HttpHandler<*,*,*>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, *chain)
-    fun http(address: InetSocketAddress,
-             vararg chain: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>) =
+    fun http(address: InetSocketAddress, vararg chain: HttpHandler<*,*,*>) =
       http(address, 4096, *chain)
-    fun http(maxRequestSize: Int,
-             vararg chain: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>) =
+    fun http(maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, *chain)
-    fun http(address: InetSocketAddress,
-             maxRequestSize: Int,
-             chain: List<AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>>):
+    fun http(address: InetSocketAddress, maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
-    fun http(chain: List<AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>>) =
+    fun http(chain: List<HttpHandler<*,*,*>>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, chain)
-    fun http(address: InetSocketAddress,
-             chain: List<AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>>) =
+    fun http(address: InetSocketAddress, chain: List<HttpHandler<*,*,*>>) =
       http(address, 4096, chain)
-    fun http(maxRequestSize: Int,
-             chain: List<AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>>) =
+    fun http(maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, chain)
   }
 

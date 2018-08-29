@@ -21,9 +21,11 @@ import java.util.concurrent.TimeUnit
 abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            CONTEXT: AbstractHttpHandler.Context,
                            PARAMS: Any>(
-  val route: Route<PARAMS>
+  private val route: Route<PARAMS>
 ): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
-  final override suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE? {
+  final override suspend fun acceptUri(method: Method, uri: String) = acceptUriInternal(method, uri)
+
+  internal open suspend fun acceptUriInternal(method: Method, uri: String): ACCEPTANCE? {
     return route.match(method, uri)?.let { acceptUri(method, uri, it) }
   }
 
@@ -183,8 +185,8 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   }
 
   class Builder {
-    private val list = mutableListOf<AbstractHttpHandler<out Handler.Acceptance,
-                                                         out AbstractHttpHandler.Context>>()
+    private val list = mutableListOf<HttpHandler<out HttpHandler.Acceptance<*>,
+                                                 out AbstractHttpHandler.Context, *>>()
     fun <PARAMS: Any> route(route: Route<PARAMS>) = RouteDefinition(route)
     fun route(file: File) = RouteDefinition(FileRoute(file))
     fun route(path: String): RouteDefinition<Map<String,String>> {
@@ -195,8 +197,8 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         else FixedRoute(path)
       )
     }
-    fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
-                                             out AbstractHttpHandler.Context>) = HandlerDefinition(handler)
+    fun handler(handler: HttpHandler<out HttpHandler.Acceptance<*>, out AbstractHttpHandler.Context, *>) =
+      HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
       fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
@@ -207,7 +209,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
 
     inner class HandlerDefinition internal constructor(
-      private val handler: AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context>) {
+      private val handler: HttpHandler<*,*,*>) {
       fun <PARAMS: Any> route(route: Route<PARAMS>): RouteDefinition<PARAMS> {
         list.add(handler)
         return this@Builder.route(route)
@@ -220,13 +222,12 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         list.add(handler)
         return this@Builder.route(path)
       }
-      fun handler(handler: AbstractHttpHandler<out Handler.Acceptance,
-                                               out AbstractHttpHandler.Context>): HandlerDefinition {
+      fun handler(handler: HttpHandler<*,*,*>): HandlerDefinition {
         list.add(this.handler)
         return this@Builder.handler(handler)
       }
 
-      fun build(): AbstractHttpHandler<out Handler.Acceptance, out AbstractHttpHandler.Context> {
+      fun build(): HttpHandler<*,*,*> {
         list.add(handler)
         return if (list.size == 1) list.first() else HttpHandlerChain(list)
       }

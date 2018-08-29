@@ -4,16 +4,24 @@ import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.Method
 import info.jdavid.asynk.server.http.Status
+import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
-abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<*>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
                            PARAMS: Any, VALIDATION_ERROR: AuthHandler.ValidationError>(
   @Suppress("MemberVisibilityCanBePrivate")
   protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
-): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, PARAMS>(delegate.route) {
+): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, NoParams>(NoParams) {
+
+  override suspend fun acceptUriInternal(method: Method, uri: String): ACCEPTANCE? {
+    return route.match(method, uri)?.let { acceptUri(method, uri, it) }
+
+    return delegate.route()
+    return super.acceptUriInternal(method, uri)
+  }
 
   final override suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE? {
     return delegate.acceptUri(method, uri, params)

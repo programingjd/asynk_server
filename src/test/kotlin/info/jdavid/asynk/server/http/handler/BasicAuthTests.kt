@@ -55,10 +55,11 @@ class BasicAuthTests {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
-  class BasicAuthTestHandler: BasicAuthHandler<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    AuthContext,
-    NoParams>(HttpTestHandler(), "Test Realm") {
+  class BasicAuthTestHandler:
+    BasicAuthHandler<HttpHandler.Acceptance<NoParams>,
+                     AbstractHttpHandler.Context,
+                     AuthContext,
+                     NoParams>(HttpTestHandler(), "Test Realm") {
     override fun credentialsAreValid(auth: String, context: AuthContext): Boolean {
       return context.users.toList().find { authorizationHeaderValue(
         it.first, it.second) == auth } != null
@@ -106,6 +107,24 @@ class BasicAuthTests {
         }
       }
     }
+  }
+
+  @Test fun testWrapChain() {
+    val credentials = mapOf(
+      "u1" to "p1",
+      "u2" to "p2",
+      "u3" to "p3"
+    )
+    Server(
+      BasicAuthHandler.of(
+        "Test Realm",
+          HttpHandler.Builder().
+            route("/test1").to { _, _, _, _ -> HttpHandler.StringResponse("1", MediaType.TEXT) }.
+            route("/test2").to { _, _, _, _ -> HttpHandler.StringResponse("2", MediaType.TEXT) }.
+            route("/test3").to { _, _, _, _ -> HttpHandler.StringResponse("3", MediaType.TEXT) }.
+            build()
+        ) { user, password -> credentials[user] == password }
+    )
   }
 
 }

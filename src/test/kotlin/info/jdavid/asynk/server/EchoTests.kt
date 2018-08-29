@@ -22,10 +22,10 @@ class EchoTests {
 
   @Test
   fun echo() {
-    Server(object: Handler<Nothing?> {
-      override suspend fun context(others: Collection<*>?): Nothing? = null
+    Server(object: Handler<Unit> {
+      override suspend fun context(others: Collection<*>?) = Unit
       override suspend fun connect(remoteAddress: InetSocketAddress) = true
-      override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Nothing?) {
+      override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
         while (socket.aRead(buffer, 5, TimeUnit.SECONDS) > -1) {
           socket.aWrite(buffer.flip() as ByteBuffer, 5, TimeUnit.SECONDS)
           buffer.flip()

@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.7-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-36/36-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.7-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-2/2-green.png?style=flat)
 # server
 A server implementation in kotlin using both threads and coroutines for maximum performance.
 
@@ -80,7 +80,7 @@ suspend fun context(others: Collection<*>?): CONTEXT
 ```
 
 This is the method called to allocate the context object. If you don't need any, you can specify
-```CONTEXT``` to be ```Nothing?``` and return null.
+```CONTEXT``` to be ```Unit``` and return ```Unit```.
 
 Some handlers can delegate their implementation to sub handlers. In this case, the **others** collection
 represents the list of already allocated context objects for the other sub handlers. This gives the

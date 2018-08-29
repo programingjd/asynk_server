@@ -2,29 +2,26 @@
 
 package info.jdavid.asynk.server.http.handler
 
-import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.Method
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
+import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer
-import java.nio.channels.AsynchronousSocketChannel
 
 internal class HttpHandlerChain(
-  private val chain: List<AbstractHttpHandler<out Handler.Acceptance, out Context>>
-): AbstractHttpHandler<HttpHandlerChain.HandlerAcceptance<out Handler.Acceptance,
-  out AbstractHttpHandler.Context>,
-  HttpHandlerChain.ChainContext>() {
+  private val chain: List<HttpHandler<*,*,*>>
+): HttpHandler<HttpHandler.Acceptance<Any>, HttpHandlerChain.ChainContext, Any>(NoParams) {
 
   override suspend fun context(others: Collection<*>?): ChainContext {
-    val map = HashMap<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>(chain.size)
+    val map = HashMap<HttpHandler<*,*,*>, AbstractHttpHandler.Context>(chain.size)
     chain.forEach {
       map[it] = it.context(map.values)
     }
    return ChainContext(others, map)
   }
 
-  override suspend fun acceptUri(method: Method, uri: String): HandlerAcceptance<out Handler.Acceptance,
-    out Context>? {
+  override suspend fun acceptUri(method: Method, uri: String,
+                                 params: Any): HttpHandler.Acceptance<Any>? {
     for (handler in chain) {
       val acceptance = handler.acceptUri(method, uri)
       if (acceptance != null) return HandlerAcceptance(
@@ -33,31 +30,37 @@ internal class HttpHandlerChain(
     return null
   }
 
-  override suspend fun handle(acceptance: HandlerAcceptance<out Handler.Acceptance, out Context>,
-                              headers: Headers,
-                              body: ByteBuffer,
-                              socket: AsynchronousSocketChannel,
-                              context: ChainContext) {
-    acceptance.handle(headers, body, socket, context)
-  }
+  override suspend fun handle(acceptance: HttpHandler.Acceptance<Any>, headers: Headers,
+                              body: ByteBuffer, context: ChainContext) =
+    (acceptance as HandlerAcceptance<*,*>).handle(headers, body, context)
 
-  internal class HandlerAcceptance<ACCEPTANCE: Handler.Acceptance, CONTEXT: Context>(
-    private val handler: AbstractHttpHandler<ACCEPTANCE, CONTEXT>,
-    private val acceptance: Handler.Acceptance): Handler.Acceptance(acceptance.bodyAllowed,
-                                                                    acceptance.bodyRequired
-  ) {
+  //  override suspend fun handle(acceptance: HandlerAcceptance<out Handler.Acceptance, out Context>,
+//                              headers: Headers,
+//                              body: ByteBuffer,
+//                              socket: AsynchronousSocketChannel,
+//                              context: ChainContext) {
+//    acceptance.handle(headers, body, socket, context)
+//  }
+
+  internal class HandlerAcceptance<ACCEPTANCE: HttpHandler.Acceptance<*>,
+                                   CONTEXT: AbstractHttpHandler.Context>(
+    private val handler: HttpHandler<ACCEPTANCE, CONTEXT, *>,
+    private val acceptance: HttpHandler.Acceptance<*>): Acceptance<Any>(acceptance.bodyAllowed,
+                                                                        acceptance.bodyRequired,
+                                                                        acceptance.method,
+                                                                        acceptance.uri,
+                                                                        acceptance.routeParams) {
     suspend fun handle(headers: Headers,
-                       body: ByteBuffer,
-                       socket: AsynchronousSocketChannel,
-                       context: ChainContext) {
+         body: ByteBuffer,
+         context: ChainContext): Response<*> {
       @Suppress("UNCHECKED_CAST")
-      handler.handle(acceptance as ACCEPTANCE, headers, body, socket, context.contexts[handler] as CONTEXT)
+      return handler.handle(acceptance as ACCEPTANCE, headers, body, context.contexts[handler] as CONTEXT)
     }
   }
 
   internal class ChainContext(
     others: Collection<*>?,
-    val contexts: Map<AbstractHttpHandler<out Handler.Acceptance, out Context>, Context>
-  ): Context(others)
+    val contexts: Map<HttpHandler<*,*,*>, AbstractHttpHandler.Context>
+  ): AbstractHttpHandler.Context(others)
 
 }
