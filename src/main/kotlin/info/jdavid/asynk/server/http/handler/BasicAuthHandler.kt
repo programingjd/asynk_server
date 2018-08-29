@@ -42,19 +42,20 @@ abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       if (index == -1) throw IllegalArgumentException("Invalid basic authorization header.")
       return decoded.substring(0, index) to decoded.substring(index + 1)
     }
-    fun <ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
-         CONTEXT: AbstractHttpHandler.Context,
-         PARAMS: Any>of(realm: String,
-                        delegate: HttpHandler<ACCEPTANCE, CONTEXT, PARAMS>,
-                        credentialsAreValid: (user: String, password: String) -> Boolean) =
-      object: BasicAuthHandler<ACCEPTANCE,
-                               CONTEXT,
-                               AuthHandler.Context<CONTEXT>,
-                               PARAMS>(delegate, realm) {
+    @Suppress("UNCHECKED_CAST")
+    fun of(realm: String,
+           delegate: HttpHandler<*, *, *>,
+           userPassword: (user: String) -> String?) =
+      object: BasicAuthHandler<HttpHandler.Acceptance<Any>,
+                               AbstractHttpHandler.Context,
+                               AuthHandler.Context<AbstractHttpHandler.Context>,
+                               Any>(delegate as HttpHandler<HttpHandler.Acceptance<Any>,
+                                                            AbstractHttpHandler.Context,
+                                                            Any>, realm) {
         override fun credentialsAreValid(auth: String,
-                                         context: AuthHandler.Context<CONTEXT>): Boolean {
-          val (user, password) = userPassword(auth)
-          return credentialsAreValid(user, password)
+                                         context: AuthHandler.Context<AbstractHttpHandler.Context>): Boolean {
+          val (user, password) = BasicAuthHandler.userPassword(auth)
+          return (userPassword(user) ?: return false) == password
         }
         override suspend fun context(others: Collection<*>?) =
           AuthHandler.Context(others, delegate.context(others))

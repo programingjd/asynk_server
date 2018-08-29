@@ -207,6 +207,25 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       }
       return map
     }
+    @Suppress("UNCHECKED_CAST")
+    fun of(realm: String,
+           delegate: HttpHandler<*, *, *>,
+           userPassword: (user: String) -> String?) =
+      object: DigestAuthHandler<HttpHandler.Acceptance<Any>,
+                                AbstractHttpHandler.Context,
+                                AuthHandler.Context<AbstractHttpHandler.Context>,
+                                Any>(delegate as HttpHandler<HttpHandler.Acceptance<Any>,
+                                AbstractHttpHandler.Context,
+                                Any>) {
+        override fun ha1(username: String, context: Context<AbstractHttpHandler.Context>,
+                         algorithm: Algorithm, realm: String): String? {
+          val password = userPassword(username) ?: return null
+          return ha1(username, password, algorithm, realm)
+        }
+        override suspend fun context(others: Collection<*>?) =
+          AuthHandler.Context(others, delegate.context(others))
+        override fun realm(host: String, uri: String) = realm
+      }
     fun user(authorizationHeaderValue: String) = map(authorizationHeaderValue)[USERNAME]
   }
 
