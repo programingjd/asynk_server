@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            CONTEXT: AbstractHttpHandler.Context,
                            PARAMS: Any>(
-  private val route: Route<PARAMS>
+  internal val route: Route<PARAMS>
 ): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
   final override suspend fun acceptUri(method: Method, uri: String) = acceptUriInternal(method, uri)
 

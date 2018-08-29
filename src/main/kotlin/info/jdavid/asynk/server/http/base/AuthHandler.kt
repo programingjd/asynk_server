@@ -8,40 +8,37 @@ import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
-abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<*>,
+abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
                            PARAMS: Any, VALIDATION_ERROR: AuthHandler.ValidationError>(
   @Suppress("MemberVisibilityCanBePrivate")
   protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
-): HttpHandler<ACCEPTANCE, AUTH_CONTEXT, NoParams>(NoParams) {
+): HttpHandler<AuthHandler.Acceptance<ACCEPTANCE, PARAMS>, AUTH_CONTEXT, NoParams>(NoParams) {
 
-  override suspend fun acceptUriInternal(method: Method, uri: String): ACCEPTANCE? {
-    return route.match(method, uri)?.let { acceptUri(method, uri, it) }
-
-    return delegate.route()
-    return super.acceptUriInternal(method, uri)
+  override suspend fun acceptUriInternal(method: Method,
+                                         uri: String): AuthHandler.Acceptance<ACCEPTANCE, PARAMS>? {
+    val acceptance = delegate.route.match(method, uri)?.let { delegate.acceptUri(method, uri, it) }
+    return if (acceptance == null) null else Acceptance(acceptance)
   }
 
-  final override suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE? {
-    return delegate.acceptUri(method, uri, params)
-  }
+  final override suspend fun acceptUri(method: Method, uri: String, params: NoParams) = throw UnsupportedOperationException()
 
-  final override suspend fun handle(acceptance: ACCEPTANCE,
+  final override suspend fun handle(acceptance: Acceptance<ACCEPTANCE, PARAMS>,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     context: AUTH_CONTEXT): Response<*> {
-    val error = validateCredentials(acceptance, headers, context)
+    val error = validateCredentials(acceptance.delegate, headers, context)
     return if (error == null) {
-      val response = delegate.handle(acceptance, headers, body, context.delegate)
-      updateResponse(acceptance, headers, context, response)
+      val response = delegate.handle(acceptance.delegate, headers, body, context.delegate)
+      updateResponse(acceptance.delegate, headers, context, response)
       response
     }
     else {
       val response = unauthorizedResponse(acceptance.uri, headers)
       response.headers.set(
         Headers.WWW_AUTHENTICATE,
-        wwwAuthenticate(acceptance, headers, error)
+        wwwAuthenticate(acceptance.delegate, headers, error)
       )
       response
     }
@@ -91,6 +88,11 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<*>,
                                          error: VALIDATION_ERROR): String
 
   interface ValidationError
+
+  class Acceptance<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>, PARAMS: Any>(
+    internal val delegate: ACCEPTANCE
+  ): HttpHandler.Acceptance<NoParams>(delegate.bodyAllowed, delegate.bodyRequired,
+                                      delegate.method, delegate.uri, NoParams)
 
   open class Context<out CONTEXT>(others: Collection<*>?,
                                   val delegate: CONTEXT): AbstractHttpHandler.Context(others)

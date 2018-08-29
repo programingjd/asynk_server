@@ -50,9 +50,7 @@ internal class HttpHandlerChain(
                                                                         acceptance.method,
                                                                         acceptance.uri,
                                                                         acceptance.routeParams) {
-    suspend fun handle(headers: Headers,
-         body: ByteBuffer,
-         context: ChainContext): Response<*> {
+    suspend fun handle(headers: Headers, body: ByteBuffer, context: ChainContext): Response<*> {
       @Suppress("UNCHECKED_CAST")
       return handler.handle(acceptance as ACCEPTANCE, headers, body, context.contexts[handler] as CONTEXT)
     }

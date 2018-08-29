@@ -122,7 +122,7 @@ class BasicAuthTests {
             route("/test1").to { _, _, _, _ -> HttpHandler.StringResponse("1", MediaType.TEXT) }.
             route("/test2").to { _, _, _, _ -> HttpHandler.StringResponse("2", MediaType.TEXT) }.
             route("/test3").to { _, _, _, _ -> HttpHandler.StringResponse("3", MediaType.TEXT) }.
-            build()
+            build() as HttpHandler<HttpHandler.Acceptance<Any>, AbstractHttpHandler.Context, Any>
         ) { user, password -> credentials[user] == password }
     )
   }
