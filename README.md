@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.7-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-2/2-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.7-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-1/1-green.png?style=flat)
 # server
 A server implementation in kotlin using both threads and coroutines for maximum performance.
 

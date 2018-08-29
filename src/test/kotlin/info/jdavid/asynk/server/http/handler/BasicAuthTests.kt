@@ -124,7 +124,48 @@ class BasicAuthTests {
             route("/test3").to { _, _, _, _ -> HttpHandler.StringResponse("3", MediaType.TEXT) }.
             build() as HttpHandler<HttpHandler.Acceptance<Any>, AbstractHttpHandler.Context, Any>
         ) { user, password -> credentials[user] == password }
-    )
+    ).use { _ ->
+      HttpClientBuilder.create().build().use { client ->
+        val request1 = HttpGet().apply {
+          uri = URI("http://localhost:8080")
+          setHeader(Headers.USER_AGENT, "Test user agent")
+          setHeader(Headers.CACHE_CONTROL, "no-cache")
+          setHeader(Headers.PRAGMA, "no-cache")
+          setHeader(Headers.CONNECTION, "close")
+        }
+        client.execute(request1, context()).use {
+          assertEquals(404, it.statusLine.statusCode)
+        }
+        val request2 = HttpGet().apply {
+          uri = URI("http://localhost:8080/test1")
+          setHeader(Headers.USER_AGENT, "Test user agent")
+          setHeader(Headers.CACHE_CONTROL, "no-cache")
+          setHeader(Headers.PRAGMA, "no-cache")
+          setHeader(Headers.CONNECTION, "close")
+        }
+        client.execute(request2, context()).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+        client.execute(request2, context("u1", "p2")).use {
+          assertEquals(401, it.statusLine.statusCode)
+        }
+        client.execute(request2, context("u1", "p1")).use {
+          assertEquals(200, it.statusLine.statusCode)
+          assertEquals("1", String(it.entity.content.readBytes()))
+        }
+        val request3 = HttpGet().apply {
+          uri = URI("http://localhost:8080/test3")
+          setHeader(Headers.USER_AGENT, "Test user agent")
+          setHeader(Headers.CACHE_CONTROL, "no-cache")
+          setHeader(Headers.PRAGMA, "no-cache")
+          setHeader(Headers.CONNECTION, "close")
+        }
+        client.execute(request3, context("u2", "p2")).use {
+          assertEquals(200, it.statusLine.statusCode)
+          assertEquals("3", String(it.entity.content.readBytes()))
+        }
+      }
+    }
   }
 
 }
