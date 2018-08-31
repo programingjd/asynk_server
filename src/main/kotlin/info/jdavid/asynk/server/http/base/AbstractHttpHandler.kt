@@ -16,6 +16,12 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
+/**
+ * Abstract handler for http requests.
+ * @param ACCEPTANCE the Acceptance object returned when accepting the connection.
+ * @param CONTEXT the thread-level context object that is shared by all instances of this handler
+ * running on the same thread.
+ */
 abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
                                    CONTEXT: AbstractHttpHandler.Context>: Handler<CONTEXT> {
 
@@ -54,24 +60,54 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     return true
   }
 
+  /**
+   * Returns whether this handler can handle an http request to the specified uri with the specified http
+   * method by either returning null (it can't) or an acceptance object.
+   * @param method the http method used for the request.
+   * @param uri the http request uri.
+   * @return the acceptance object, or null if the request is not accepted.
+   */
   abstract suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE?
 
+  /**
+   * Request handler method, responsible for writing the request response to the socket.
+   * @param acceptance the acceptance object returned by [acceptUri].
+   * @param headers the request headers.
+   * @param body the request body as a ByteBuffer (may not contain any data). It can be reused to write
+   * the response to the socket. The buffer size is maxRequestSize.
+   * @param the thread-level context object that is shared by all instances of this handler running on
+   * the same thread.
+   */
   abstract suspend fun handle(acceptance: ACCEPTANCE, headers: Headers, body: ByteBuffer,
                               socket: AsynchronousSocketChannel,
                               context: CONTEXT)
 
+  /***
+   * Writes the response for a rejected ([connect] returned false) request
+   * (sends a 400 Bad Request by default).
+   */
   open suspend fun reject(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     badRequest(socket, buffer, context)
   }
 
+  /***
+   * Writes the response for an invalid request (sends a 400 Bad Request by default).
+   */
   open suspend fun badRequest(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     response(socket, context.BAD_REQUEST)
   }
 
+  /***
+   * Writes the response for a request that was not accepted (sends a 400 Bad Request by default).
+   */
   open suspend fun notFound(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     response(socket, context.NOT_FOUND)
   }
 
+  /**
+   * Writes the response for a request that was accepted but the [handle] method threw an exception
+   * (sends a 500 Server Error by default).
+   */
   open suspend fun serverError(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: CONTEXT) {
     response(socket, context.INTERNAL_SERVER_ERROR)
   }
@@ -80,6 +116,9 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     socket.aWrite(payload.rewind() as ByteBuffer)
   }
 
+  /**
+   * Abstract Context class for http handlers (contains some prebuilt responses).
+   */
   @Suppress("PropertyName", "unused", "MemberVisibilityCanBePrivate")
   open class Context private constructor(other: Context? = null) {
     constructor(others: Collection<*>?): this(others?.find { it is Context } as? Context)

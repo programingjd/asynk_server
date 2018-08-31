@@ -8,6 +8,19 @@ import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
+/**
+ * Abstract HTTP Authentication handler. It validates the Authentication header value, and either
+ * returns a WWW-Authenticate with the supported authentication methods if it isn't valid, or forwards
+ * the handling to another handler.
+ * @param delegate the delegate handler that should handle accepted requests with valid authentication.
+ * @param ACCEPTANCE the delegate acceptance object type.
+ * @param PARAMS the delegate acceptance object params type.
+ * @param DELEGATE_CONTEXT the delegate context object type.
+ * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
+ * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+ * @param VALIDATION_ERROR an error type that should include any information necessary to generate the
+ * appropriate WWW-Authenticate header.
+ */
 abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
@@ -44,6 +57,15 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Modifies the response of the delegate handler. By default, it changes the Cache-Control policy to
+   * private.
+   * @param acceptance the acceptance object returned by the delegate handler when accepting the request.
+   * @param headers the request headers.
+   * @param context the thread-level context object shared by all instances of this handler running on the
+   * same thread.
+   * @param response the response sent by the delegate handler.
+   */
   protected open fun updateResponse(acceptance: ACCEPTANCE, headers: Headers, context: AUTH_CONTEXT,
                                     response: Response<*>) {
     val cacheControl = response.header(Headers.CACHE_CONTROL)
@@ -75,30 +97,59 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Creates the response for unauthorized requests (WWW-Authenticate header is added later).
+   * @param uri the request uri.
+   * @param headers the request headers.
+   */
   protected open fun unauthorizedResponse(uri: String, headers: Headers): Response<*> {
     return UnauthorizedResponse()
   }
 
+  /**
+   * Checks for authentication errors by validating the credentials. It either returns null if the credentials
+   * are correct, or the error if they aren't.
+   * @param acceptance the acceptance object returned by the delegate handler when accepting the request.
+   * @param headers the request headers.
+   * @param context the thread-level context object shared by all instances of this handler running on the
+   * same thread.
+   * @return an error or null if the credentials are valid.
+   */
   abstract suspend fun validateCredentials(acceptance: ACCEPTANCE,
                                            headers: Headers,
                                            context: AUTH_CONTEXT): VALIDATION_ERROR?
 
+  /**
+   * Returns the correct WWW-Authenticate header value from the specified error.
+   * @param acceptance the acceptance object returned by the delegate handler when accepting the request.
+   * @param headers the request headers.
+   * @param error the authentication error.
+   * @return the WWW-Authenticate header value.
+   */
   protected abstract fun wwwAuthenticate(acceptance: ACCEPTANCE,
                                          headers: Headers,
                                          error: VALIDATION_ERROR): String
 
   interface ValidationError
 
+  /**
+   * Base Acceptance object type for Authentication handlers.
+   */
   class Acceptance<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>, PARAMS: Any>(
     internal val delegate: ACCEPTANCE
   ): HttpHandler.Acceptance<NoParams>(delegate.bodyAllowed, delegate.bodyRequired,
                                       delegate.method, delegate.uri, NoParams)
 
+  /**
+   * Base Context object type for Authentication handlers.
+   */
   open class Context<out CONTEXT>(others: Collection<*>?,
                                   val delegate: CONTEXT): AbstractHttpHandler.Context(others)
 
-  class UnauthorizedResponse: Response<Nothing>(
-    Status.UNAUTHORIZED) {
+  /**
+   * Default response for unauthorized requests (401 Unauthorized with no body).
+   */
+  class UnauthorizedResponse: Response<Nothing>(Status.UNAUTHORIZED) {
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
