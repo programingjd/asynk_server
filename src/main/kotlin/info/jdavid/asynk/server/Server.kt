@@ -24,6 +24,19 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.experimental.coroutineContext
 
+/**
+ * Generic TCP server implementation.
+ * Requests are dispatched on a small thread pull (its size depends on the number
+ * of cpu cores). Those threads are using coroutines to handle the requests.
+ * Calling the constructor starts the server, and the [close] method stops it.
+ * @param handler the handler responsible for accepting requests and sending responses.
+ * @param address the address and port the server should bind to (defaults to localhost:8080).
+ * @param maxRequestSize the maximum request size.
+ * @param CONTEXT a context object stored by each dispatcher thread. Each thread calls [Handler.context]
+ * and then shares the instance to all the request calls on that thread. This is used to share resources
+ * (such as connection pools for instance). As long as [Handler.context] returns a new object instance,
+ * then using thread safe objects or locks is unnecessary.
+ */
 open class Server<CONTEXT>(
   private val handler: Handler<CONTEXT>,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
@@ -121,22 +134,72 @@ open class Server<CONTEXT>(
   }
 
   companion object {
+    /**
+     * Starts an http server on the specified address using the default port (8080).
+     * @param address the server address.
+     * @param maxRequestSize the max request size.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
     fun http(address: InetSocketAddress, maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
-    fun http(vararg chain: HttpHandler<*,*,*>) =
-      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, *chain)
-    fun http(address: InetSocketAddress, vararg chain: HttpHandler<*,*,*>) =
-      http(address, 4096, *chain)
-    fun http(maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>) =
-      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, *chain)
+    /**
+     * Starts an http server on the specified address using the default port (8080).
+     * @param address the server address.
+     * @param maxRequestSize the max request size.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
     fun http(address: InetSocketAddress, maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
-    fun http(chain: List<HttpHandler<*,*,*>>) =
-      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, chain)
+    /**
+     * Starts an http server on the specified address using using the default port and with the
+     * default max request size of 4kb.
+     * @param address the server address.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
+    fun http(address: InetSocketAddress, vararg chain: HttpHandler<*,*,*>) =
+      http(address, 4096, *chain)
+    /**
+     * Starts an http server on the specified address using using the default port and with the
+     * default max request size of 4kb.
+     * @param address the server address.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
     fun http(address: InetSocketAddress, chain: List<HttpHandler<*,*,*>>) =
       http(address, 4096, chain)
+    /**
+     * Starts an http server on  localhost:8080.
+     * @param maxRequestSize the max request size.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
+    fun http(maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>) =
+      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, *chain)
+    /**
+     * Starts an http server on  localhost:8080.
+     * @param maxRequestSize the max request size.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
     fun http(maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, chain)
+    /**
+     * Starts an http server on  localhost:8080 with the default max request size of 4kb.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
+    fun http(vararg chain: HttpHandler<*,*,*>) =
+      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, *chain)
+    /**
+     * Starts an http server on  localhost:8080 with the default max request size of 4kb.
+     * @param chain an ordered list of http handlers (the first one that accepts the request wins).
+     * @return the server instance.
+     */
+    fun http(chain: List<HttpHandler<*,*,*>>) =
+      http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, chain)
   }
 
 }
