@@ -1,9 +1,20 @@
 package info.jdavid.asynk.server.http
 
-
+/**
+ * HTTP Headers.<br>
+ *   Field-1: value1\r\n
+ *   Field-2: value2\r\n
+ *   ...
+ */
 @Suppress("MemberVisibilityCanBePrivate")
 class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
 
+  /**
+   * Adds a header line.
+   * @param name the header field name.
+   * @param value the header value.
+   * @return this.
+   */
   fun add(name: String, value: String): Headers {
     lines.add("${name}: ${value}")
     return this
@@ -27,22 +38,44 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     return this
   }
 
+  /**
+   * Sets a header field value (same as [add] but removes any previous header line for the same field if there
+   * are any).
+   * @param name the header field name.
+   * @param value the header value.
+   * @return this.
+   */
   fun set(name: String, value: String): Headers {
     unset(name)
     add(name, value)
     return this
   }
 
+  /**
+   * Returns the header field value. If there are multiple header lines for the same field, the value of
+   * the last one is returned. If there are no header line for that field, then null is returned.
+   * @param name the header field name.
+   * @return the last header value or null if the header is missing.
+   */
   fun value(name: String): String? {
     val lower = name.toLowerCase()
     return lines.findLast { matches(it, lower) }?.substring(name.length + 1)?.trim()
   }
 
+  /**
+   * Returns the (ordered) list of values for a header field.
+   * @param name the header field name.
+   * @return the list of values (can be empty).
+   */
   fun values(name: String): List<String> {
     val lower = name.toLowerCase()
     return lines.filter { matches(it, lower) }.map { it.substring(name.length + 1).trim() }
   }
 
+  /**
+   * Returns a list of header field names (in lower case, without duplicates).
+   * @return the list of header field names present in the headers.
+   */
   fun keys(): List<String> {
     val set = HashSet<String>(lines.size)
     val list = ArrayList<String>(lines.size)
@@ -53,6 +86,10 @@ class Headers(internal val lines: MutableList<String> = ArrayList(16)) {
     return list
   }
 
+  /**
+   * Returns whether a given header field is present in the headers or not.
+   * @return true if the header field is present, false if it isn't.
+   */
   fun has(name: String): Boolean {
     val lower = name.toLowerCase()
     return lines.find { matches(it, lower) } != null
