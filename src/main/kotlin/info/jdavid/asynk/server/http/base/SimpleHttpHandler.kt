@@ -2,7 +2,6 @@
 
 package info.jdavid.asynk.server.http.base
 
-import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Method
 
 abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
@@ -43,6 +42,6 @@ abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptan
   }
 
   open class Acceptance(bodyAllowed: Boolean, bodyRequired: Boolean,
-                        val method: Method, val uri: String): Handler.Acceptance(bodyAllowed, bodyRequired)
+                        val method: Method, val uri: String): info.jdavid.asynk.server.http.Acceptance(bodyAllowed, bodyRequired)
 
 }

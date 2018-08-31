@@ -3,6 +3,7 @@
 package info.jdavid.asynk.server.http.base
 
 import info.jdavid.asynk.server.Handler
+import info.jdavid.asynk.server.http.Acceptance
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.Http
 import info.jdavid.asynk.server.http.Method
@@ -15,7 +16,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
 
-abstract class AbstractHttpHandler<ACCEPTANCE: Handler.Acceptance,
+abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
                                    CONTEXT: AbstractHttpHandler.Context>: Handler<CONTEXT> {
 
   private val logger = LoggerFactory.getLogger(AbstractHttpHandler::class.java)

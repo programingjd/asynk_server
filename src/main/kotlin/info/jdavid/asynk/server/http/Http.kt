@@ -2,7 +2,6 @@
 
 package info.jdavid.asynk.server.http
 
-import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -140,7 +139,7 @@ internal object Http {
   suspend fun body(socket: AsynchronousSocketChannel,
                    alreadyExhausted: Boolean,
                    buffer: ByteBuffer,
-                   acceptance: Handler.Acceptance,
+                   acceptance: Acceptance,
                    headers: Headers,
                    context: AbstractHttpHandler.Context): Int? {
     var exhausted = alreadyExhausted

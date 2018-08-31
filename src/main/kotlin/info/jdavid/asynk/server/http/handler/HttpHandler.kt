@@ -1,6 +1,5 @@
 package info.jdavid.asynk.server.http.handler
 
-import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.MediaType
 import info.jdavid.asynk.server.http.Method
@@ -146,7 +145,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     bodyRequired: Boolean,
                                     val method: Method,
                                     val uri: String,
-                                    val routeParams: PARAMS): Handler.Acceptance(bodyAllowed, bodyRequired)
+                                    val routeParams: PARAMS): info.jdavid.asynk.server.http.Acceptance(bodyAllowed, bodyRequired)
 
   interface Route<out PARAMS> {
     fun match(method: Method, uri: String): PARAMS?
