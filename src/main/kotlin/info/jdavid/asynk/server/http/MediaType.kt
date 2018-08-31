@@ -4,6 +4,9 @@ package info.jdavid.asynk.server.http
 import java.io.File
 import java.util.Collections
 
+/**
+ * MediaTypes (Content-Types with no charset information).
+ */
 @Suppress("MemberVisibilityCanBePrivate", "unused")
 object MediaType {
 
@@ -115,6 +118,11 @@ object MediaType {
     "webm" to WEBM
   )
 
+  /**
+   * Tries to identify the media type of the resource represented by the specified uri.
+   * @param uri the uri.
+   * @return the media type, or null if it could not be identified.
+   */
   fun fromUri(uri: String): String? {
     val path = Uri.path(uri)
     if (path.last() == '/') return DIRECTORY
@@ -125,6 +133,11 @@ object MediaType {
     return map[ext]
   }
 
+  /**
+   * Tries to identify the media type of the resource represented by the specified file.
+   * @param file the file.
+   * @return the media type, or null if it could not be identified.
+   */
   fun fromFile(file: File): String? {
     if (file.isDirectory) return DIRECTORY
     val filename = file.name
@@ -139,6 +152,11 @@ object MediaType {
     return map[ext]
   }
 
+  /**
+   * Cache-Control policy information used to store desired cache control options for a particular media type.
+   * @param immutable the immutable Cache-Control flag.
+   * @param maxAge the Cache-Control maxAge value (-1 represents no-store, 0 represents no-cache).
+   */
   class CacheControl(val immutable: Boolean, val maxAge: Int) {
     fun value() = when (maxAge) {
       -1 -> "no-store"
@@ -155,6 +173,9 @@ object MediaType {
   private const val jsMaxAge = 0               // always re-validate
   private const val htmlMaxAge = 0             // always re-validate
 
+  /**
+   * The default Cache-Control policies for the various media types.
+   */
   val defaultCacheControls: Map<String, CacheControl> =
     Collections.unmodifiableMap(
       mapOf(

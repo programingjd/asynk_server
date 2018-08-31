@@ -1,5 +1,8 @@
 package info.jdavid.asynk.server.http
 
+/**
+ * HTTP Status Codes.
+ */
 class Status private constructor() {
 
   @Suppress("unused")

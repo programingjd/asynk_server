@@ -1,6 +1,8 @@
 package info.jdavid.asynk.server.http
 
-
+/**
+ * HTTP Methods.
+ */
 sealed class Method {
 
   override fun toString(): String {
