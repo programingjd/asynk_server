@@ -147,3 +147,48 @@ Server(
 )
 ```
 
+[_HTTP Handlers_](#http_handlers)
+
+An `HttpHandler` needs to implement 3 methods.  
+The first is the method that returns a new context object.   
+The second is a method that accepts the request based on its http method and uri.  
+The third is the handle method itself, responsible for returning a response object.   
+The handle method can get the request method and uri from the acceptance object returned by the second method. 
+The request headers, the request body (which can be empty) and the context are also available.
+
+The constructor of `HttpHandler` takes a `Route` object that can restrict which request are processed by the
+handler. The special `NoParams` route accepts all requests.
+
+```kotlin
+Server(
+  object: HttpHandler<HttpHandler.Acceptance<NoParams>, AbstractHttpHandler.Context, NoParams>(NoParams) {
+    override suspend fun context(others: Collection<*>?) = Context(others)
+    override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams>? {
+      return when (method) {
+        Method.HEAD, Method.GET -> Acceptance(false, false, method, uri, NoParams)
+        else -> null
+      }
+    }
+    override suspend fun handle(acceptance: Acceptance<NoParams>, headers: Headers, body: ByteBuffer,
+                                context: Context) = StringResponse(
+      "Method: ${acceptance.method}\r\nUri: ${acceptance.uri}",
+      MediaType.TEXT
+    )
+  }
+)
+```
+
+For a less verbose way of creating the same handler, you can make use of the helper method `HttpHandler.of`.
+
+```kotlin
+Server(
+  HttpHandler.of(NoParams) { acceptance, _, _, _ ->
+    HttpHandler.StringResponse(
+      "Method: ${acceptance.method}\r\nUri: ${acceptance.uri}",
+      MediaType.TEXT
+    )
+  }
+)
+```
+
+The first syntax is useful when you need a custom `Context` object, or `Acceptance` object.
