@@ -172,7 +172,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   }
 
   /**
-   * Response implementation with a [File] body.
+   * [Response] implementation with a [File] body.
    * @param file the file that the response represents.
    * @param mediaType the file media type. [MediaType.fromFile] can be used if the media type is not known.
    * @param headers the response headers.
@@ -200,7 +200,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   }
 
   /**
-   * Response implementation with a [String] body.
+   * [Response] implementation with a [String] body.
    */
   class StringResponse private constructor(body: ByteArray?,
                                            private val mediaType: String,
@@ -231,7 +231,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   }
 
   /**
-   * Response implementation with a [ByteArray] body.
+   * [Response] implementation with a [ByteArray] body.
    * @param body the response body.
    * @param mediaType the file media type.
    * @param headers the response headers.

@@ -16,6 +16,14 @@ import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.Base64
 
+/**
+ * File-based HTTP Handler.<br>
+ * By default, it uses the default [MediaType.CacheControl] policies.<br>
+ * ETags are generated based on the last modification date and time.<br>
+ * No cache is used by default. All new requests (unless Unmodified is returned because of the ETag) are
+ * reading the file content directly from disk. It is possible (and recommended) to extend this handler
+ * to implement a caching mechanism.
+ */
 open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<File>,
                                                       AbstractHttpHandler.Context,
                                                       File>(route) {
@@ -23,15 +31,18 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
   companion object {
     internal fun serveDirectory(directory: File, port: Int) {
       Server(
-        HttpHandlerChain(
-          listOf(FileHandler(FileRoute(directory)))
-        ),
+        FileHandler(FileRoute(directory)),
         InetSocketAddress(InetAddress.getLoopbackAddress(), port),
         4096
       ).use {
         Thread.sleep(Long.MAX_VALUE)
       }
     }
+
+    /**
+     * Starts a server that serves the current directory on localhost:8080.
+     * @param args are not used.
+     */
     @JvmStatic fun main(args: Array<String>) {
       serveDirectory(File("."), 8080)
     }
@@ -61,14 +72,28 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     }
   }
 
+  /**
+   * Returns the ETag value for the specified file.<br>
+   * By default, the ETag is generated based on the file last modification date and time.
+   * @param file the file to serve.
+   * @return the ETag value (can be null, in which case no ETag will be sent).
+   */
   protected open fun etag(file: File): String? {
     return Base64.getUrlEncoder().encodeToString(
       String.format("%012x", file.lastModified()).toByteArray(Charsets.US_ASCII)
     )
   }
 
+  /**
+   * Returns the media types that are allowed with their cache control policies.
+   * @return the map of key/value entries with the key being the allowed media type and the value being the
+   * associated cache control policy.
+   */
   protected open fun mediaTypes() = MediaType.defaultCacheControls
 
+  /**
+   *
+   */
   protected open fun indexFilenames(): Sequence<String> = sequenceOf("index.html")
 
   private fun notModified(h: Headers) = object: Response<Nothing>(

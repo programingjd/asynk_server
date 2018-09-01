@@ -6,6 +6,17 @@ import info.jdavid.asynk.server.http.Uri
 import java.io.File
 import java.net.URLDecoder
 
+/**
+ * File-based [Route] implementation.<br>
+ * Accepts uris of the form:<br>
+ *   prefix/root_directory<br>
+ *   prefix/root_directory/sub_directory<br>
+ *   prefix/root_directory/sub_directory/file<br>
+ * The default prefix is simply "/".
+ * Only GET and HEAD requests are accepted.
+ * @param root the root directory.
+ * @param prefix the prefix.
+ */
 open class FileRoute(private val root: File, private val prefix: String = "/"): HttpHandler.Route<File> {
   init {
     if (root.isFile) throw IllegalArgumentException()

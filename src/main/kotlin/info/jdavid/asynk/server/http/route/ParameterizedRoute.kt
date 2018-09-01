@@ -7,7 +7,14 @@ import java.text.ParseException
 import java.util.regex.Pattern
 
 /**
- * /some/path/with/{param1}/and/{param2}
+ * [Route] implementation that captures path parameters into a map.<br>
+ * Example:<br>
+ * path: /some/path/with/{param1}/and/{param2}<br>
+ * uri:  /some/path/with/123/and/abc<br>
+ * params: mapOf(param1 to "123", param2 to "abc")
+ *
+ * @param path the path expression (may contain {param} capture groups).
+ * @param methods the list of accepted request methods (HEAD and GET by default).
  */
 class ParameterizedRoute private constructor(
   private val methods: List<Method>,
