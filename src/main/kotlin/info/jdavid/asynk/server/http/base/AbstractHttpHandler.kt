@@ -75,7 +75,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
    * @param headers the request headers.
    * @param body the request body as a ByteBuffer (may not contain any data). It can be reused to write
    * the response to the socket. The buffer size is maxRequestSize.
-   * @param the thread-level context object that is shared by all instances of this handler running on
+   * @param context the thread-level context object that is shared by all instances of this handler running on
    * the same thread.
    */
   abstract suspend fun handle(acceptance: ACCEPTANCE, headers: Headers, body: ByteBuffer,

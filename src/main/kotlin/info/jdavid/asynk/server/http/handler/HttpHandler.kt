@@ -17,6 +17,16 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 
+/**
+ * Route-based HTTP Handler.
+ *
+ * @param ACCEPTANCE the Acceptance object returned when accepting the connection. It carries information
+ * about the request, such as its method and uri.
+ * @param CONTEXT the thread-level context object that is shared by all instances of this handler
+ * running on the same thread.
+ * @param PARAMS the parameter type captured by the route when matching the request.
+ * @param route the route that the handler serves.
+ */
 abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                            CONTEXT: AbstractHttpHandler.Context,
                            PARAMS: Any>(
@@ -28,6 +38,15 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return route.match(method, uri)?.let { acceptUri(method, uri, it) }
   }
 
+  /**
+   * Returns whether this handler can handle an http request to the specified uri with the specified http
+   * method by either returning null (it can't) or an acceptance object.
+   * This validation is done after route matching and the parameters captured by the route matching are
+   * also available for deciding whether to accept the request or not.
+   * @param method the http method used for the request.
+   * @param uri the http request uri.
+   * @return the acceptance object, or null if the request is not accepted.
+   */
   abstract suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE?
 
   final override suspend fun handle(acceptance: ACCEPTANCE,
@@ -40,30 +59,90 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     response.write(socket, body, acceptance.method)
   }
 
+  /**
+   * Request handler method, responsible for returning an appropriate response object.
+   * @param acceptance the acceptance object returned by [acceptUri].
+   * @param headers the request headers.
+   * @param body the request body as a ByteBuffer (may not contain any data). It can be reused to write
+   * the response to the socket. The buffer size is maxRequestSize.
+   * @param context the thread-level context object that is shared by all instances of this handler running on
+   * the same thread.
+   * @return the response.
+   */
   abstract suspend fun handle(acceptance: ACCEPTANCE,
                               headers: Headers,
                               body: ByteBuffer,
                               context: CONTEXT): Response<*>
 
+  /**
+   * Abstract response object comprised of a status code, headers and an optional body.
+   * @param statusCode the response status code.
+   * @param body the return body or null if the response doesn't have a body.
+   * @param headers the response headers (empty by default).
+   * @param BODY the type of the body object.
+   */
   abstract class Response<BODY>(val statusCode: Int,
                                 protected var body: BODY? = null,
                                 val headers: Headers = Headers()) {
+    /**
+     * Adds a header line with the specified header field name and value.
+     * @param name the header field name.
+     * @param value the header value.
+     * @return this.
+     */
     fun header(name: String, value: String): Response<BODY> {
       headers.add(name, value)
       return this
     }
+
+    /**
+     * Returns the header field value from the already added response header lines.
+     * @param name the header field name.
+     * @return the last header value or null if the header is missing.
+     */
     fun header(name: String) = headers.value(name)
+
+    /**
+     * Adds a body to the response.
+     * @param body the response body.
+     * @return this.
+     */
     fun body(body: BODY): Response<BODY> {
       this.body = body
       return this
     }
+
+    /**
+     * Specifies that this response doesn't have a body.
+     * @return this.
+     */
     fun noBody(): Response<BODY> {
       body = null
       return this
     }
+
+    /**
+     * Returns the body media type. If no media type is returned, then application/octet-stream will be used.
+     * It is recommanded to use the predefined media types in [MediaType].
+     * @param body the response body.
+     * @return the media type, or null if it is not known.
+     */
     protected abstract fun bodyMediaType(body: BODY): String?
+
+    /**
+     * Returns the length in bytes of the response body.
+     * @param body the response body.
+     * @return the byte size.
+     */
     protected abstract suspend fun bodyByteLength(body: BODY): Long
+
+    /**
+     * Writes the body to the socket channel.
+     * @param socket the socket channel to write to.
+     * @param buffer a buffer (of maxRequestSize) that can be used to write to the socket more efficiently.
+     */
     protected abstract suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer)
+
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(ERROR_RESPONSE)
       socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
@@ -92,10 +171,17 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
-  class FileResponse(file: File?,
+  /**
+   * Response implementation with a [File] body.
+   * @param file the file that the response represents.
+   * @param mediaType the file media type. [MediaType.fromFile] can be used if the media type is not known.
+   * @param headers the response headers.
+   */
+  class FileResponse(file: File,
                      private val mediaType: String,
                      headers: Headers = Headers()): Response<File>(
-    Status.OK, file, headers) {
+    Status.OK, file, headers
+  ) {
     override fun bodyMediaType(body: File) = mediaType
     override suspend fun bodyByteLength(body: File) = body.length()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
@@ -113,14 +199,30 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Response implementation with a [String] body.
+   */
   class StringResponse private constructor(body: ByteArray?,
-                       private val mediaType: String,
-                       headers: Headers = Headers()): Response<ByteArray>(
-    Status.OK,
-    body,
-    headers) {
-    constructor(body: String, mediaType: String, headers: Headers = Headers()): this(body.toByteArray(), mediaType, headers)
-    constructor(body: CharSequence?, mediaType: String, headers: Headers = Headers()): this(body?.toString()?.toByteArray(), mediaType, headers)
+                                           private val mediaType: String,
+                                           headers: Headers = Headers()): Response<ByteArray>(
+    Status.OK, body, headers
+  ) {
+    /**
+     * @param body the response body.
+     * @param mediaType the file media type.
+     * @param headers the response headers.
+     */
+    constructor(body: String, mediaType: String, headers: Headers = Headers()): this(
+      body.toByteArray(), mediaType, headers
+    )
+    /**
+     * @param body the response body.
+     * @param mediaType the file media type.
+     * @param headers the response headers.
+     */
+    constructor(body: CharSequence?, mediaType: String, headers: Headers = Headers()): this(
+      body?.toString()?.toByteArray(), mediaType, headers
+    )
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
@@ -128,12 +230,19 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Response implementation with a [ByteArray] body.
+   * @param body the response body.
+   * @param mediaType the file media type.
+   * @param headers the response headers.
+   */
   class ByteResponse(body: ByteArray?,
                      private val mediaType: String,
                      headers: Headers = Headers()): Response<ByteArray>(
     Status.OK,
     body,
-    headers) {
+    headers
+  ) {
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
@@ -141,22 +250,47 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Base class for HTTP Handlers acceptance objects. It stores the request method, uri and the captured
+   * route parameters.
+   * @param bodyAllowed specifies whether the request is allowed to include incoming data.
+   * @param bodyRequired specifies whether the request body when allowed is required or not.
+   * @param method the request method.
+   * @param uri the request uri.
+   * @param routeParams the captured route parameters.
+   */
   open class Acceptance<out PARAMS>(bodyAllowed: Boolean,
                                     bodyRequired: Boolean,
                                     val method: Method,
                                     val uri: String,
-                                    val routeParams: PARAMS): info.jdavid.asynk.server.http.Acceptance(bodyAllowed, bodyRequired)
+                                    val routeParams: PARAMS): info.jdavid.asynk.server.http.Acceptance(
+    bodyAllowed, bodyRequired
+  )
 
+  /**
+   * A route is responsible for accepting or rejecting a request based on the its method and uri, and to
+   * capture uri parameters from the request uri path.
+   * @param PARAMS the type of the parameter object. If there is no parameter needed, then the
+   * [info.jdavid.asynk.server.http.route.NoParams] object should be used.
+   */
   interface Route<out PARAMS> {
+    /**
+     * Returns whether the route matches the specified request uri and method by either return null when it
+     * doesn't match or by returning the captured parameters if it does.
+     * @param method the request method.
+     * @param uri the request uri.
+     * @return the captured parameters or null if the route doesn't match.
+     */
     fun match(method: Method, uri: String): PARAMS?
   }
 
   companion object {
-    val CRLF = "\r\n".toByteArray(Charsets.US_ASCII)
-    val ERROR_RESPONSE =
+    internal val CRLF = "\r\n".toByteArray(Charsets.US_ASCII)
+    internal val ERROR_RESPONSE =
       ("HTTP/1.1 ${Status.INTERNAL_SERVER_ERROR} ${Status.HTTP_STATUSES[Status.INTERNAL_SERVER_ERROR]}\r\n" +
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
+
     fun <PARAMS: Any> of(route: Route<PARAMS>,
                          handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
                                    headers: Headers,
