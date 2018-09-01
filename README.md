@@ -46,6 +46,10 @@ dependencies {
   + [Handlers](#handlers)
     + [Context](#context)
     + [TCP Handlers](#tcp_handlers)
+    + [HTTP Handlers](#http_handlers)
+    + [HTTP Authentication Handlers](#auth_handlers)
+    + [File Handlers](#file_handlers)
+  + [Routing and combining handlers]()
 
 [__Starting and stopping the server__](#starting_and_stopping)
 
@@ -120,4 +124,26 @@ without having to worry about thread safety.
 
 [_TCP Handlers_](#tcp_handlers)
 
+A generic TCP `Handler` has to implement 3 methods.  
+The first is the method that returns a new context object.   
+The second is a method that accepts the connection.   
+The third is the handle method itself, responsible for reading the request and sending back the response.
+The server dispatcher keeps a pool of `ByteBuffer` and supplies one for each call to the `handle` method.
+
+Here's a simple implementation of an [Echo](https://tools.ietf.org/html/rfc862) server.
+```kotlin
+Server(
+  object: Handler<Unit> {
+    override suspend fun context(others: Collection<*>?) {}
+    override suspend fun connect(remoteAddress: InetSocketAddress) = true
+    override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
+      while (socket.aRead(buffer) != -1) {
+        socket.aWrite(buffer.flip() as ByteBuffer)
+        buffer.flip()
+      }
+    }
+  },
+  InetSocketAddress(InetAddress.getLoopbackAddress(), 7)
+)
+```
 
