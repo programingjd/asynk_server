@@ -185,9 +185,9 @@ tasks {
               when (i) {
                 0 -> "![jcenter](${badge("jcenter", "${project.version}", "6688ff")}) &#x2003; " +
                      "![jcenter](${badge("Tests", "${total-failed}/${total}", color)})"
-                9 -> "[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/${project.version}/server-${project.version}.jar) the latest jar."
-                19 -> "  <version>${project.version}</version>"
-                32 -> "  compile 'info.jdavid.asynk:server:${project.version}'"
+                14 -> "[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/${project.version}/server-${project.version}.jar) the latest jar."
+                24 -> "  <version>${project.version}</version>"
+                37 -> "  compile 'info.jdavid.asynk:server:${project.version}'"
                 else -> line
               }
             }.joinToString("\n").let {
