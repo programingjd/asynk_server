@@ -21,8 +21,6 @@ import java.util.Base64
  * @param DELEGATE_CONTEXT the delegate context object type.
  * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
  * to carry extra information used to validate credentials (a list of revoked tokens for instance).
- * @param VALIDATION_ERROR an error type that should include any information necessary to generate the
- * appropriate WWW-Authenticate header.
  */
 abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                 DELEGATE_CONTEXT: AbstractHttpHandler.Context,
@@ -56,6 +54,9 @@ abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                      error: InvalidCredentialsError) =
     "Basic realm=\"$realm\", charset=\"UTF-8\""
 
+  /**
+   * Generic error reprensenting invalid or unauthorized credentials.
+   */
   object InvalidCredentialsError: ValidationError
 
   companion object {

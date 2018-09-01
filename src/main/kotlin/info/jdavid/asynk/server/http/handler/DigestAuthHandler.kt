@@ -9,6 +9,32 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import kotlin.collections.HashMap
 
+/**
+ * AuthHandler for Digest Authentication. This is a user/password authentication, but unlike with
+ * Basic Authentication, the password is not sent in clear text.<br>
+ * Server:<br>
+ * 401 Unauthorized<br>
+ * WWW-Authenticate: Digest realm="Example",<br>
+ *                          qop="auth",
+ *                          nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093"
+ *                          opaque="5ccc069c403ebaf9f0171e9517f40e41"<br>
+ * This indicates that digest authentication is required for accessing the resource, and that requests should
+ * include the appropriate Authorization header. This credential header can be reused for other uris in the
+ * same realm.<br>
+ * Most browsers implement RFC2617. There's also a draft RFC7616 with extensions to allow for the use
+ * of SHA-256 hashing instead of MD5 and that adds a few more features. Those extensions are backward
+ * compatible with older implementations.
+ *
+ * @param domainUris the list of root uris that fall under the protected space. This is an RFC7616 extension
+ * and will be ignored by most clients. It defaults to "/" to indicate that all uris on this domain require
+ * authentication.
+ * @param delegate the delegate handler that should handle accepted requests with valid authentication.
+ * @param ACCEPTANCE the delegate acceptance object type.
+ * @param PARAMS the delegate acceptance object params type.
+ * @param DELEGATE_CONTEXT the delegate context object type.
+ * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
+ * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+ */
 abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                  DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                                  AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
@@ -67,6 +93,10 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   }
 
   /**
+   * Returns a salt used for initializing encryption primitives. If you need the authorization headers
+   * sent by the clients to still be valid after a server restart, you should override this function
+   * and make it always return the same array of 32 bytes.<br>
+   * This method should not be called directly. The [seed] property should be called instead.
    * @return a byte array 32 bytes long
    */
   protected open fun salt(): ByteArray = SecureRandom().generateSeed(32)
@@ -75,10 +105,31 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     salt().apply { if (size != 32) throw RuntimeException("Salt should be 32 bytes long.") }
   }
 
+  /**
+   * Returns the realm name (defaults to the host name).
+   * @param host the host name (taken from the Host header value).
+   * @param uri the request uri.
+   * @return the realm name.
+   */
   protected open fun realm(host: String, uri: String) = host
 
+  /**
+   * Returns the opaque for the given realm name. The opaque should stay the same for all requests of uris
+   * within the same realm. Its string representation should be in hex or base64.<br>
+   * The default implementation returns a hash of the seed and realm name. If this method is overridden, then
+   * the [validateOpaque] method should be changed accordingly.
+   * @param realm the realm name.
+   * @return the opaque value.
+   */
   protected open fun opaque(realm: String) = h("${seed}:${realm}", algorithm())
 
+  /**
+   * Validates the opaque value. It should check that the opaque matches the value returned by the [opaque]
+   * method.
+   * @param opaque the opaque value to verify.
+   * @param realm the realm name.
+   * @return an error if the opaque is not valid, or null if it is valid.
+   */
   protected open fun validateOpaque(opaque: String, realm: String): InvalidAuthorizationErrors? {
     return if (opaque(realm) == opaque) null else InvalidAuthorizationErrors.GENERIC
   }
@@ -92,6 +143,17 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   private val key = Crypto.secretKey(seed)
   private val nonceIv = Crypto.iv(seed)
 
+  /**
+   * Returns the server nonce for the request. Its string representation should be in hex or base64.
+   * The nonce is used in the digest hashing algorithm. It should change for every unauthorized request.
+   * It's a good idea to also include a time component and invalidate nonce values that are too old.<br>
+   * The default implementation includes a random component, a time component, and the host value; all in a
+   * crypted form. If this method is overridden, then the [validateNonce] method should be changed
+   * accordingly.
+   * @param host the host name (taken from the Host header value).
+   * @param realm the realm name.
+   * @return the nonce value.
+   */
   protected open fun nonce(host: String, realm: String): String {
     val time = Crypto.hex(BigInteger.valueOf(System.currentTimeMillis()))
     val rand = Crypto.hex(SecureRandom().generateSeed(32))
@@ -100,6 +162,14 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     ))
   }
 
+  /**
+   * Validates the nonce value. It should check that the nonce matches the value returned by the [nonce]
+   * method.
+   * @param nonce the nonce value to verify.
+   * @param host the host name (taken from the Host header value).
+   * @param realm the realm name.
+   * @return an error if the nonce is not valid, or null if it is valid.
+   */
   protected open fun validateNonce(nonce: String, host: String, realm: String): InvalidAuthorizationErrors? {
     val decrypted =
       Crypto.decrypt(key, nonceIv, Crypto.unhex(nonce))?.let {
@@ -115,6 +185,16 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                         algorithm: Algorithm, realm: String,
                         nonce: String, cnonce: String) = ha1(username, context, algorithm, realm)
 
+  /**
+   * Returns the ha1 hash component of the Authorization header value. The [ha1] method that takes a username
+   * and password can be used to help create the ha1 value.
+   * @param username the username.
+   * @param context the thread-level context object shared by all instances of this handler running on the
+   * same thread.
+   * @param algorithm the hashing algorithm.
+   * @param realm the realm name.
+   * @return the ha1 value.
+   */
   protected abstract fun ha1(username: String, context: AUTH_CONTEXT,
                              algorithm: Algorithm, realm: String): String?
 
@@ -132,10 +212,22 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Returns which hashing algorithm to use. This is MD5 by default because SHA-256 use is only defined in
+   * the draft RFC7616 and few clients implement it.
+   */
   protected open fun algorithm() = Algorithm.MD5
 
   internal open fun algorithmKey() = algorithm().key
 
+  /**
+   * Helper method used to create the ha1 hash component from a username and password.
+   * @param username the username.
+   * @param password the password.
+   * @param algorithm the hashing algorithm.
+   * @param realm the realm name.
+   * @return the ha1 value.
+   */
   protected fun ha1(username: String, password: String, algorithm: Algorithm, realm: String): String? {
     throwIfSession()
     return h("${username}:${realm}:${password}", algorithm)
@@ -143,11 +235,25 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
   internal open fun throwIfSession() = null
 
+  /**
+   * Hashing algorithms.
+   */
   enum class Algorithm(internal val key: String, internal val digest: MessageDigest?) {
     MD5("MD5", try { MessageDigest.getInstance("MD5") } catch (ignore: Exception) { null }),
     SHA256("SHA-256", try { MessageDigest.getInstance("SHA-256") } catch (ignore: Exception) { null })
   }
 
+  /**
+   * Session variant of the Digest Authentication, as defined in the draft RFC7616.
+   *
+   * @param domainUris the list of root uris that fall under the protected space.
+   * @param delegate the delegate handler that should handle accepted requests with valid authentication.
+   * @param ACCEPTANCE the delegate acceptance object type.
+   * @param PARAMS the delegate acceptance object params type.
+   * @param DELEGATE_CONTEXT the delegate context object type.
+   * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
+   * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+   */
   abstract class Session<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     DELEGATE_CONTEXT: AbstractHttpHandler.Context,
     AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
@@ -167,12 +273,20 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                       algorithm: Algorithm, realm: String, nonce: String, cnonce: String) =
       h(h("${username}:${realm}:${password}", algorithm) + ":" + nonce + ":" + cnonce, algorithm)
 
-    override fun algorithm() = Algorithm.SHA256
+    /**
+     * Hashing algorithm. Since the session variant of the Digest Authentication is only defined in the
+     * draft RFC7616, then the client should also support the use of the more secure SHA-256 algorithm.
+     * Therefore, this is the algorithm that we use for the session variant.
+     */
+    final override fun algorithm() = Algorithm.SHA256
 
-    override fun algorithmKey() = "${algorithm().key}-sess"
+    final override fun algorithmKey() = "${algorithm().key}-sess"
 
   }
 
+  /**
+   * Validation errors (generic or stale nonce).
+   */
   enum class InvalidAuthorizationErrors: ValidationError {
     GENERIC,
     STALE_NONCE
@@ -207,6 +321,15 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
       }
       return map
     }
+
+    /**
+     * Adds digest authentication to an existing [HttpHandler].
+     * @param realm the authentication realm.
+     * @param delegate the delegate handler.
+     * @param userPassword a function that given a username, returns its password, or returns null if there
+     * is no authorized user with that username.
+     * @return the auth handler.
+     */
     @Suppress("UNCHECKED_CAST")
     fun of(realm: String,
            delegate: HttpHandler<*, *, *>,
@@ -226,6 +349,12 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
           AuthHandler.Context(others, delegate.context(others))
         override fun realm(host: String, uri: String) = realm
       }
+
+    /**
+     * Extracts the username from an Authorization header value.
+     * @param authorizationHeaderValue the Authorization header value.
+     * @return the username.
+     */
     fun user(authorizationHeaderValue: String) = map(authorizationHeaderValue)[USERNAME]
   }
 
