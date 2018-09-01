@@ -41,7 +41,15 @@ abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptan
     }
   }
 
+  /**
+   * Acceptance object that stores request method and uri.
+   * @param bodyAllowed specifies whether the request is allowed to include incoming data.
+   * @param bodyRequired specifies whether the request body when allowed is required or not.
+   * @param method the request HTTP method.
+   * @param uri the request uri.
+   */
   open class Acceptance(bodyAllowed: Boolean, bodyRequired: Boolean,
-                        val method: Method, val uri: String): info.jdavid.asynk.server.http.Acceptance(bodyAllowed, bodyRequired)
+                        val method: Method, val uri: String):
+                        info.jdavid.asynk.server.http.Acceptance(bodyAllowed, bodyRequired)
 
 }
