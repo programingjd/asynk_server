@@ -291,6 +291,13 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
 
+    /**
+     * Creates a new handler from a route and a handle function.
+     * @param route the handler route.
+     * @param handler a function that given the acceptance object, the request headers, the request body
+     *   and the context, returns a response object.
+     * @return the handler.
+     */
     fun <PARAMS: Any> of(route: Route<PARAMS>,
                          handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
                                    headers: Headers,
@@ -317,11 +324,33 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
   }
 
+  /**
+   * Builder that can be used to combine multiple handlers (a chain) into a single handler.
+   * The first handler that can accept the request will be used (first one wins).
+   */
   class Builder {
     private val list = mutableListOf<HttpHandler<out HttpHandler.Acceptance<*>,
                                                  out AbstractHttpHandler.Context, *>>()
+
+    /**
+     * Specifies the route for the next handler.
+     * @param route the next handler route.
+     * @return a route definition that can be used to keep building the chain.
+     */
     fun <PARAMS: Any> route(route: Route<PARAMS>) = RouteDefinition(route)
-    fun route(file: File) = RouteDefinition(FileRoute(file))
+
+    /**
+     * Specifies the route for the next handler as a [File] (root directory).
+     * @param directory the next handler [FileRoute] root directory.
+     * @return a route definition that can be used to keep building the chain.
+     */
+    fun route(directory: File) = RouteDefinition(FileRoute(directory))
+
+    /**
+     * Specifies the route for the next handler as a file path (for the root directory).
+     * @param path the next handler [FileRoute] root directory file path.
+     * @return a route definition that can be used to keep building the chain.
+     */
     fun route(path: String): RouteDefinition<Map<String,String>> {
       if (path.isEmpty()) throw IllegalArgumentException("Path is empty.")
       return RouteDefinition(
@@ -330,10 +359,21 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
         else FixedRoute(path)
       )
     }
+
+    /**
+     * Specifies the next handler in the chain.
+     * @param handler the next handler.
+     * @return a handler definition that can be used to keep building the chain.
+     */
     fun handler(handler: HttpHandler<out HttpHandler.Acceptance<*>, out AbstractHttpHandler.Context, *>) =
       HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
+      /**
+       * Specifies the next handler in the chain.
+       * @param handler the next handler.
+       * @return a handler definition that can be used to keep building the chain.
+       */
       fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
                        headers: Headers,
                        body: ByteBuffer,
@@ -343,23 +383,51 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
 
     inner class HandlerDefinition internal constructor(
       private val handler: HttpHandler<*,*,*>) {
+
+      /**
+       * Specifies the route for the next handler.
+       * @param route the next handler route.
+       * @return a route definition that can be used to keep building the chain.
+       */
       fun <PARAMS: Any> route(route: Route<PARAMS>): RouteDefinition<PARAMS> {
         list.add(handler)
         return this@Builder.route(route)
       }
+
+      /**
+       * Specifies the route for the next handler as a [File] (root directory).
+       * @param directory the next handler [FileRoute] root directory.
+       * @return a route definition that can be used to keep building the chain.
+       */
       fun route(file: File): RouteDefinition<File> {
         list.add(handler)
         return this@Builder.route(file)
       }
+
+      /**
+       * Specifies the route for the next handler as a file path (for the root directory).
+       * @param path the next handler [FileRoute] root directory file path.
+       * @return a route definition that can be used to keep building the chain.
+       */
       fun route(path: String): RouteDefinition<Map<String,String>> {
         list.add(handler)
         return this@Builder.route(path)
       }
+
+      /**
+       * Specifies the next handler in the chain.
+       * @param handler the next handler.
+       * @return a handler definition that can be used to keep building the chain.
+       */
       fun handler(handler: HttpHandler<*,*,*>): HandlerDefinition {
         list.add(this.handler)
         return this@Builder.handler(handler)
       }
 
+      /**
+       * Closes the chain and returns the handler.
+       * @return the handler.
+       */
       fun build(): HttpHandler<*,*,*> {
         list.add(handler)
         return if (list.size == 1) list.first() else HttpHandlerChain(list)
