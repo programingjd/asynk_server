@@ -45,7 +45,7 @@ dependencies {
   + [Logging](#logging)
   + [Handlers](#handlers)
     + [Context](#context)
-    + [Generic Handlers](#generic_handlers)
+    + [TCP Handlers](#tcp_handlers)
 
 [__Starting and stopping the server__](#starting_and_stopping)
 
@@ -118,6 +118,6 @@ Handlers can define a `Context` object. This object will be shared between all i
 running on the same thread, but only on the same thread. This context object enables the sharing of resources
 without having to worry about thread safety.
 
-[_Generic Handlers_](#generic_handlers)
+[_TCP Handlers_](#tcp_handlers)
 
-The server handlers don't have to be http handlers.
+
