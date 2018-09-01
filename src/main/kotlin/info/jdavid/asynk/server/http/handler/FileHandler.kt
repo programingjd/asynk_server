@@ -92,7 +92,9 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
   protected open fun mediaTypes() = MediaType.defaultCacheControls
 
   /**
-   *
+   * Returns an (ordered) sequence of file names that can be used as directory "index" pages. The first match
+   * is used. By defaults, this only includes "index.html".
+   * @return the sequence of file names for index pages.
    */
   protected open fun indexFilenames(): Sequence<String> = sequenceOf("index.html")
 
@@ -110,23 +112,16 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
   }.header(Headers.LOCATION, uri)
 
-  protected fun forbidden(context: Context) = object: Response<Nothing>(
+  /**
+   * Creates a 403 Forbidden response. By default, this sends a response with no body.
+   */
+  private fun forbidden(context: Context) = object: Response<Nothing>(
     Status.FORBIDDEN) {
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
     override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       socket.aWrite(context.FORBIDDEN.flip() as ByteBuffer)
-    }
-  }.header(Headers.CONNECTION, "close")
-
-  protected fun notFound(context: Context) = object: Response<Nothing>(
-    Status.NOT_FOUND) {
-    override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
-    override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
-    override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
-    override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
-      socket.aWrite(context.NOT_FOUND.flip() as ByteBuffer)
     }
   }.header(Headers.CONNECTION, "close")
 

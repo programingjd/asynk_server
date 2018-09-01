@@ -55,8 +55,17 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                     socket: AsynchronousSocketChannel,
                                     context: CONTEXT) {
     val response = handle(acceptance, headers, body, context)
-    response.header(Headers.CONNECTION, "close")
+    decorateResponse(response)
     response.write(socket, body, acceptance.method)
+  }
+
+  /**
+   * Updates the response before writing it to the socket.<br>
+   * This is a good place to set a body on error pages for instance.
+   * @param response the response object.
+   */
+  protected open fun decorateResponse(response: Response<*>) {
+    response.header(Headers.CONNECTION, "close")
   }
 
   /**
