@@ -30,18 +30,20 @@ import kotlin.collections.HashMap
  * authentication.
  * @param delegate the delegate handler that should handle accepted requests with valid authentication.
  * @param ACCEPTANCE the delegate acceptance object type.
- * @param PARAMS the delegate acceptance object params type.
+ * @param ACCEPTANCE_PARAMS the delegate acceptance object params type.
  * @param DELEGATE_CONTEXT the delegate context object type.
  * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
  * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+ * @param ROUTE_PARAMS the parameter type captured by the route when matching the request.
  */
-abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+                                 ACCEPTANCE_PARAMS: Any,
                                  DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                                  AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                                 PARAMS: Any>(
-  delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
+                                 ROUTE_PARAMS: Any>(
+  delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, ROUTE_PARAMS>,
   domainUris: List<String> = listOf("/")
-): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS,
+): AuthHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, AUTH_CONTEXT, ROUTE_PARAMS,
                DigestAuthHandler.InvalidAuthorizationErrors>(delegate) {
 
   private val domain = domainUris.joinToString(" ") {it.replace("\"", "\\\"") }
@@ -233,7 +235,7 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     return h("${username}:${realm}:${password}", algorithm)
   }
 
-  internal open fun throwIfSession() = null
+  internal open fun throwIfSession() {}
 
   /**
    * Hashing algorithms.
@@ -249,18 +251,24 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
    * @param domainUris the list of root uris that fall under the protected space.
    * @param delegate the delegate handler that should handle accepted requests with valid authentication.
    * @param ACCEPTANCE the delegate acceptance object type.
-   * @param PARAMS the delegate acceptance object params type.
+   * @param ACCEPTANCE_PARAMS the delegate acceptance object params type.
    * @param DELEGATE_CONTEXT the delegate context object type.
    * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
    * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+   * @param ROUTE_PARAMS the parameter type captured by the route when matching the request.
    */
-  abstract class Session<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
-    DELEGATE_CONTEXT: AbstractHttpHandler.Context,
-    AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-    PARAMS: Any>(
-    delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
+  abstract class Session<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+                         ACCEPTANCE_PARAMS: Any,
+                         DELEGATE_CONTEXT: AbstractHttpHandler.Context,
+                         AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
+                         ROUTE_PARAMS: Any>(
+    delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, ROUTE_PARAMS>,
     domainUris: List<String> = listOf("/")
-  ): DigestAuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS>(delegate, domainUris) {
+  ): DigestAuthHandler<ACCEPTANCE,
+                       ACCEPTANCE_PARAMS,
+                       DELEGATE_CONTEXT,
+                       AUTH_CONTEXT,
+                       ROUTE_PARAMS>(delegate, domainUris) {
     final override fun ha1(username: String, context: AUTH_CONTEXT, algorithm: Algorithm, realm: String) =
       throw UnsupportedOperationException("nonce and cnonce are required in the session variant.")
     final override fun throwIfSession() =
@@ -332,14 +340,13 @@ abstract class DigestAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
      */
     @Suppress("UNCHECKED_CAST")
     fun of(realm: String,
-           delegate: HttpHandler<*, *, *>,
+           delegate: HttpHandler<*,*,*,*>,
            userPassword: (user: String) -> String?) =
-      object: DigestAuthHandler<HttpHandler.Acceptance<Any>,
+      object: DigestAuthHandler<HttpHandler.Acceptance<Any>, Any,
                                 AbstractHttpHandler.Context,
-                                AuthHandler.Context<AbstractHttpHandler.Context>,
-                                Any>(delegate as HttpHandler<HttpHandler.Acceptance<Any>,
-                                AbstractHttpHandler.Context,
-                                Any>) {
+                                AuthHandler.Context<AbstractHttpHandler.Context>, Any>(
+        delegate as HttpHandler<HttpHandler.Acceptance<Any>,Any,AbstractHttpHandler.Context,Any>
+      ) {
         override fun ha1(username: String, context: Context<AbstractHttpHandler.Context>,
                          algorithm: Algorithm, realm: String): String? {
           val password = userPassword(username) ?: return null

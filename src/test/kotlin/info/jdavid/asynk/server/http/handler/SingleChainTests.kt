@@ -24,7 +24,9 @@ class SingleChainTests {
   )
 
   @Test fun testNoParams() {
-    val handler = object: HttpHandler<TestAcceptance, AbstractHttpHandler.Context, NoParams>(NoParams) {
+    val handler = object: HttpHandler<TestAcceptance, NoParams, AbstractHttpHandler.Context, NoParams>(
+      NoParams
+    ) {
       override suspend fun context(others: Collection<*>?) = Context(others)
       override suspend fun acceptUri(method: Method, uri: String, params: NoParams): TestAcceptance? {
         if (method == Method.GET || method == Method.HEAD) {
@@ -123,7 +125,9 @@ class SingleChainTests {
         return if (matcher.find()) matcher.group(1).toInt() else null
       }
     }
-    val handler = object: HttpHandler<HttpHandler.Acceptance<Int>, AbstractHttpHandler.Context, Int>(route) {
+    val handler = object: HttpHandler<HttpHandler.Acceptance<Int>, Int, AbstractHttpHandler.Context, Int>(
+      route
+    ) {
       override suspend fun acceptUri(method: Method, uri: String, params: Int) =
         Acceptance(false, false, method, uri, params)
       override suspend fun context(others: Collection<*>?) = Context(others)

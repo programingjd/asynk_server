@@ -22,15 +22,17 @@ import java.util.concurrent.TimeUnit
  *
  * @param ACCEPTANCE the Acceptance object returned when accepting the connection. It carries information
  * about the request, such as its method and uri.
+ * @param ACCEPTANCE_PARAMS the delegate acceptance object params type.
  * @param CONTEXT the thread-level context object that is shared by all instances of this handler
  * running on the same thread.
- * @param PARAMS the parameter type captured by the route when matching the request.
+ * @param ROUTE_PARAMS the parameter type captured by the route when matching the request.
  * @param route the route that the handler serves.
  */
-abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+                           ACCEPTANCE_PARAMS: Any,
                            CONTEXT: AbstractHttpHandler.Context,
-                           PARAMS: Any>(
-  internal val route: Route<PARAMS>
+                           ROUTE_PARAMS: Any>(
+  internal val route: Route<ROUTE_PARAMS>
 ): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
   final override suspend fun acceptUri(method: Method, uri: String) = acceptUriInternal(method, uri)
 
@@ -47,7 +49,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
    * @param uri the http request uri.
    * @return the acceptance object, or null if the request is not accepted.
    */
-  abstract suspend fun acceptUri(method: Method, uri: String, params: PARAMS): ACCEPTANCE?
+  abstract suspend fun acceptUri(method: Method, uri: String, params: ROUTE_PARAMS): ACCEPTANCE?
 
   final override suspend fun handle(acceptance: ACCEPTANCE,
                                     headers: Headers,
@@ -245,7 +247,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
    * @param mediaType the file media type.
    * @param headers the response headers.
    */
-  class ByteResponse(body: ByteArray?,
+  class ByteResponse(body: ByteArray,
                      private val mediaType: String,
                      headers: Headers = Headers()): Response<ByteArray>(
     Status.OK,
@@ -257,6 +259,18 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       socket.aWrite(ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
     }
+  }
+
+  /**
+   * [Response] implementation with no body.
+   * @param headers the response headers.
+   */
+  class EmptyResponse(headers: Headers = Headers()): Response<Nothing>(
+    Status.OK, null, headers
+  ) {
+    override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
+    override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
+    override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
   }
 
   /**
@@ -312,8 +326,11 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
                                    headers: Headers,
                                    body: ByteBuffer,
                                    context: AbstractHttpHandler.Context) -> Response<*>
-    ): HttpHandler<HttpHandler.Acceptance<PARAMS>, AbstractHttpHandler.Context, PARAMS> {
-      return object: HttpHandler<HttpHandler.Acceptance<PARAMS>, AbstractHttpHandler.Context, PARAMS>(route) {
+    ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
+      return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
+                                 PARAMS,
+                                 AbstractHttpHandler.Context,
+                                 PARAMS>(route) {
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = handler.invoke(acceptance, headers, body, context)
         override suspend fun context(others: Collection<*>?) = Context(others)
@@ -338,7 +355,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
    * The first handler that can accept the request will be used (first one wins).
    */
   class Builder {
-    private val list = mutableListOf<HttpHandler<out HttpHandler.Acceptance<*>,
+    private val list = mutableListOf<HttpHandler<out HttpHandler.Acceptance<*>, *,
                                                  out AbstractHttpHandler.Context, *>>()
 
     /**
@@ -374,7 +391,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
      * @param handler the next handler.
      * @return a handler definition that can be used to keep building the chain.
      */
-    fun handler(handler: HttpHandler<out HttpHandler.Acceptance<*>, out AbstractHttpHandler.Context, *>) =
+    fun handler(handler: HttpHandler<out HttpHandler.Acceptance<*>, *, out AbstractHttpHandler.Context, *>) =
       HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
@@ -391,7 +408,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
     }
 
     inner class HandlerDefinition internal constructor(
-      private val handler: HttpHandler<*,*,*>) {
+      private val handler: HttpHandler<*,*,*,*>) {
 
       /**
        * Specifies the route for the next handler.
@@ -408,9 +425,9 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
        * @param directory the next handler [FileRoute] root directory.
        * @return a route definition that can be used to keep building the chain.
        */
-      fun route(file: File): RouteDefinition<File> {
+      fun route(directory: File): RouteDefinition<File> {
         list.add(handler)
-        return this@Builder.route(file)
+        return this@Builder.route(directory)
       }
 
       /**
@@ -428,7 +445,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
        * @param handler the next handler.
        * @return a handler definition that can be used to keep building the chain.
        */
-      fun handler(handler: HttpHandler<*,*,*>): HandlerDefinition {
+      fun handler(handler: HttpHandler<*,*,*,*>): HandlerDefinition {
         list.add(this.handler)
         return this@Builder.handler(handler)
       }
@@ -437,7 +454,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
        * Closes the chain and returns the handler.
        * @return the handler.
        */
-      fun build(): HttpHandler<*,*,*> {
+      fun build(): HttpHandler<*,*,*,*> {
         list.add(handler)
         return if (list.size == 1) list.first() else HttpHandlerChain(list)
       }

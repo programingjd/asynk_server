@@ -17,18 +17,20 @@ import java.util.Base64
  * @param realm the realm name.
  * @param delegate the delegate handler that should handle accepted requests with valid authentication.
  * @param ACCEPTANCE the delegate acceptance object type.
- * @param PARAMS the delegate acceptance object params type.
+ * @param ACCEPTANCE_PARAMS the delegate acceptance object params type.
  * @param DELEGATE_CONTEXT the delegate context object type.
  * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
  * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+ * @param ROUTE_PARAMS the parameter type captured by the route when matching the request.
  */
-abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+                                ACCEPTANCE_PARAMS: Any,
                                 DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                                 AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                                PARAMS: Any>(
-  delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>,
+                                ROUTE_PARAMS: Any>(
+  delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, ROUTE_PARAMS>,
   private val realm: String
-): AuthHandler<ACCEPTANCE, DELEGATE_CONTEXT, AUTH_CONTEXT, PARAMS,
+): AuthHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, AUTH_CONTEXT, ROUTE_PARAMS,
                BasicAuthHandler.InvalidCredentialsError>(delegate) {
 
   final override suspend fun validateCredentials(acceptance: ACCEPTANCE,
@@ -93,14 +95,13 @@ abstract class BasicAuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
      */
     @Suppress("UNCHECKED_CAST")
     fun of(realm: String,
-           delegate: HttpHandler<*, *, *>,
+           delegate: HttpHandler<*,*,*,*>,
            userPassword: (user: String) -> String?) =
-      object: BasicAuthHandler<HttpHandler.Acceptance<Any>,
+      object: BasicAuthHandler<HttpHandler.Acceptance<Any>, Any,
                                AbstractHttpHandler.Context,
                                AuthHandler.Context<AbstractHttpHandler.Context>,
-                               Any>(delegate as HttpHandler<HttpHandler.Acceptance<Any>,
-                                                            AbstractHttpHandler.Context,
-                                                            Any>, realm) {
+                               Any>(delegate as HttpHandler<HttpHandler.Acceptance<Any>, Any,
+                                                            AbstractHttpHandler.Context, Any>, realm) {
         override fun credentialsAreValid(auth: String,
                                          context: AuthHandler.Context<AbstractHttpHandler.Context>): Boolean {
           val (user, password) = BasicAuthHandler.userPassword(auth)

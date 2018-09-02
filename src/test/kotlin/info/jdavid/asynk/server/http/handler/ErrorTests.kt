@@ -14,9 +14,8 @@ import java.nio.ByteBuffer
 
 class ErrorTests {
 
-  class FailingHandler: HttpHandler<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    NoParams>(NoParams) {
+  class FailingHandler: HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams, AbstractHttpHandler.Context,
+                                    NoParams>(NoParams) {
 
     override suspend fun handle(acceptance: Acceptance<NoParams>,
                                 headers: Headers,

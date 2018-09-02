@@ -14,30 +14,32 @@ import java.nio.channels.AsynchronousSocketChannel
  * the handling to another handler.
  * @param delegate the delegate handler that should handle accepted requests with valid authentication.
  * @param ACCEPTANCE the delegate acceptance object type.
- * @param PARAMS the delegate acceptance object params type.
+ * @param ACCEPTANCE_PARAMS the delegate acceptance object params type.
  * @param DELEGATE_CONTEXT the delegate context object type.
  * @param AUTH_CONTEXT the authentication context object type that wraps the delegate context. It can be used
  * to carry extra information used to validate credentials (a list of revoked tokens for instance).
+ * @param ROUTE_PARAMS the parameter type captured by the route when matching the request.
  * @param VALIDATION_ERROR an error type that should include any information necessary to generate the
  * appropriate WWW-Authenticate header.
  */
-abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
+abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+                           ACCEPTANCE_PARAMS: Any,
                            DELEGATE_CONTEXT: AbstractHttpHandler.Context,
                            AUTH_CONTEXT: AuthHandler.Context<DELEGATE_CONTEXT>,
-                           PARAMS: Any, VALIDATION_ERROR: AuthHandler.ValidationError>(
+                           ROUTE_PARAMS: Any, VALIDATION_ERROR: AuthHandler.ValidationError>(
   @Suppress("MemberVisibilityCanBePrivate")
-  protected val delegate: HttpHandler<ACCEPTANCE, DELEGATE_CONTEXT, PARAMS>
-): HttpHandler<AuthHandler.Acceptance<ACCEPTANCE, PARAMS>, AUTH_CONTEXT, NoParams>(NoParams) {
+  protected val delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, ROUTE_PARAMS>
+): HttpHandler<AuthHandler.Acceptance<ACCEPTANCE>, NoParams, AUTH_CONTEXT, NoParams>(NoParams) {
 
   override suspend fun acceptUriInternal(method: Method,
-                                         uri: String): AuthHandler.Acceptance<ACCEPTANCE, PARAMS>? {
+                                         uri: String): AuthHandler.Acceptance<ACCEPTANCE>? {
     val acceptance = delegate.route.match(method, uri)?.let { delegate.acceptUri(method, uri, it) }
     return if (acceptance == null) null else Acceptance(acceptance)
   }
 
   final override suspend fun acceptUri(method: Method, uri: String, params: NoParams) = throw UnsupportedOperationException()
 
-  final override suspend fun handle(acceptance: Acceptance<ACCEPTANCE, PARAMS>,
+  final override suspend fun handle(acceptance: Acceptance<ACCEPTANCE>,
                                     headers: Headers,
                                     body: ByteBuffer,
                                     context: AUTH_CONTEXT): Response<*> {
@@ -135,7 +137,7 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>,
   /**
    * Base Acceptance object type for Authentication handlers.
    */
-  class Acceptance<ACCEPTANCE: HttpHandler.Acceptance<PARAMS>, PARAMS: Any>(
+  class Acceptance<ACCEPTANCE: HttpHandler.Acceptance<*>>(
     internal val delegate: ACCEPTANCE
   ): HttpHandler.Acceptance<NoParams>(delegate.bodyAllowed, delegate.bodyRequired,
                                       delegate.method, delegate.uri, NoParams)

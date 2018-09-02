@@ -1,13 +1,18 @@
 package info.jdavid.asynk.server
 
+import info.jdavid.asynk.mysql.MysqlAuthentication
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.MediaType
 import info.jdavid.asynk.server.http.Method
+import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
+import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.route.NoParams
+import info.jdavid.asynk.sql.use
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
+import kotlinx.coroutines.experimental.runBlocking
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -66,7 +71,8 @@ object Usage {
 
   fun http() {
     Server(
-      object: HttpHandler<HttpHandler.Acceptance<NoParams>, AbstractHttpHandler.Context, NoParams>(NoParams) {
+      object: HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams,
+                          AbstractHttpHandler.Context, NoParams>(NoParams) {
         override suspend fun context(others: Collection<*>?) = Context(others)
         override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams>? {
           return when (method) {
@@ -89,6 +95,53 @@ object Usage {
         )
       }
     ).use {}
+  }
+
+  fun context() {
+    val databaseName = "dbname"
+    val username = "api"
+    val password = "q6vQU?WXWu^gnDS#"
+    val readKeys = suspend {
+      MysqlAuthentication.Credentials.PasswordCredentials(username, password).connectTo(databaseName).use {
+        it.rows("SELECT key FROM keys").toList().map { it["key"] as String }
+      }.toSet()
+    }
+    val keys = runBlocking { readKeys() }
+
+    class KeysContext(others: Collection<*>?): AbstractHttpHandler.Context(others) {
+      var keys: Set<String> = (others?.find { it is KeysContext } as? KeysContext)?.keys ?: keys
+      private set
+
+      private var lastUpdate: Long =
+        (others?.find { it is KeysContext } as? KeysContext)?.lastUpdate ?: System.currentTimeMillis()
+
+      suspend fun updateIfNecessary() {
+        val now = System.currentTimeMillis()
+        if (now - lastUpdate > 1000*60*60) {
+          this.keys = readKeys()
+          lastUpdate = now
+        }
+      }
+    }
+
+    class KeyAcceptance(method: Method, uri: String, val key: String):
+          HttpHandler.Acceptance<String>(true, false, method, uri, key)
+
+    abstract class KeysHttpHandler<ROUTE_PARAMS: Any>(route: Route<ROUTE_PARAMS>):
+                   HttpHandler<KeyAcceptance, String, KeysContext, ROUTE_PARAMS>(route) {
+      override suspend fun context(others: Collection<*>?) = KeysContext(others)
+      override suspend fun acceptUri(method: Method, uri: String, params: ROUTE_PARAMS) =
+        Uri.query(uri)?.get("key")?.let { KeyAcceptance(method, uri, it) }
+      final override suspend fun handle(acceptance: KeyAcceptance, headers: Headers, body: ByteBuffer,
+                                        context: KeysContext): Response<*> {
+        context.updateIfNecessary()
+        return if (context.keys.contains(acceptance.key)) {
+          handle(acceptance.method, acceptance.uri, headers, body)
+        } else AuthHandler.UnauthorizedResponse()
+      }
+      abstract fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer): Response<*>
+    }
+
   }
 
 }

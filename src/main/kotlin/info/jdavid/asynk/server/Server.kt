@@ -141,7 +141,7 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(address: InetSocketAddress, maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>):
+    fun http(address: InetSocketAddress, maxRequestSize: Int, vararg chain: HttpHandler<*,*,*,*>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
     /**
      * Starts an http server on the specified address using the default port (8080).
@@ -150,7 +150,7 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(address: InetSocketAddress, maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>):
+    fun http(address: InetSocketAddress, maxRequestSize: Int, chain: List<HttpHandler<*,*,*,*>>):
       Server<*> = Server(HttpHandlerChain(chain.toList()), address, maxRequestSize)
     /**
      * Starts an http server on the specified address using using the default port and with the
@@ -159,7 +159,7 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(address: InetSocketAddress, vararg chain: HttpHandler<*,*,*>) =
+    fun http(address: InetSocketAddress, vararg chain: HttpHandler<*,*,*,*>) =
       http(address, 4096, *chain)
     /**
      * Starts an http server on the specified address using using the default port and with the
@@ -168,7 +168,7 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(address: InetSocketAddress, chain: List<HttpHandler<*,*,*>>) =
+    fun http(address: InetSocketAddress, chain: List<HttpHandler<*,*,*,*>>) =
       http(address, 4096, chain)
     /**
      * Starts an http server on  localhost:8080.
@@ -176,7 +176,7 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(maxRequestSize: Int, vararg chain: HttpHandler<*,*,*>) =
+    fun http(maxRequestSize: Int, vararg chain: HttpHandler<*,*,*,*>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, *chain)
     /**
      * Starts an http server on  localhost:8080.
@@ -184,21 +184,21 @@ open class Server<CONTEXT>(
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(maxRequestSize: Int, chain: List<HttpHandler<*,*,*>>) =
+    fun http(maxRequestSize: Int, chain: List<HttpHandler<*,*,*,*>>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), maxRequestSize, chain)
     /**
      * Starts an http server on  localhost:8080 with the default max request size of 4kb.
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(vararg chain: HttpHandler<*,*,*>) =
+    fun http(vararg chain: HttpHandler<*,*,*,*>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, *chain)
     /**
      * Starts an http server on  localhost:8080 with the default max request size of 4kb.
      * @param chain an ordered list of http handlers (the first one that accepts the request wins).
      * @return the server instance.
      */
-    fun http(chain: List<HttpHandler<*,*,*>>) =
+    fun http(chain: List<HttpHandler<*,*,*,*>>) =
       http(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080), 4096, chain)
   }
 

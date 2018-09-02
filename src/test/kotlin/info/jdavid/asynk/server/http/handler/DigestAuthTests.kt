@@ -24,9 +24,8 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class DigestAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    NoParams>(NoParams) {
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams,
+                                     AbstractHttpHandler.Context, NoParams>(NoParams) {
 
     override suspend fun handle(acceptance: Acceptance<NoParams>,
                                 headers: Headers,
@@ -55,10 +54,10 @@ class DigestAuthTests {
     val users = mapOf("user1" to "password1", "user2" to "password2")
   }
 
-  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    AuthContext,
-    NoParams>(HttpTestHandler()) {
+  class DigestAuthTestHandler: DigestAuthHandler<HttpHandler.Acceptance<NoParams>, NoParams,
+                                                 AbstractHttpHandler.Context, AuthContext, NoParams>(
+    HttpTestHandler()
+  ) {
 
     override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String): String? {
       return context.users[username]?.let { ha1(username, it, algorithm, realm) }
@@ -70,10 +69,9 @@ class DigestAuthTests {
 
   }
 
-  class DigestAuthTestSessionHandler: DigestAuthHandler.Session<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    AuthContext,
-    NoParams>(HttpTestHandler()) {
+  class DigestAuthTestSessionHandler: DigestAuthHandler.Session<HttpHandler.Acceptance<NoParams>, NoParams,
+                                                                AbstractHttpHandler.Context, AuthContext,
+                                                                NoParams>(HttpTestHandler()) {
 
     override fun ha1(username: String, context: AuthContext, algorithm: Algorithm, realm: String,
                      nonce: String, cnonce: String): String? =
@@ -106,7 +104,7 @@ class DigestAuthTests {
     testExtended(DigestAuthTestSessionHandler())
   }
 
-  private fun testBasic(handler: DigestAuthHandler<*,*,*,*>) {
+  private fun testBasic(handler: DigestAuthHandler<*,*,*,*,*>) {
     Server(handler).use { _ ->
       val request1 = HttpGet().apply {
         uri = URI("http://localhost:8080/uri1")
@@ -147,7 +145,7 @@ class DigestAuthTests {
     }
   }
 
-  private fun testExtended(handler: DigestAuthHandler<*,*,*,*>) {
+  private fun testExtended(handler: DigestAuthHandler<*,*,*,*,*>) {
     Server(handler).use { _ ->
       val request1 = HttpGet().apply {
         uri = URI("http://localhost:8080/uri1")

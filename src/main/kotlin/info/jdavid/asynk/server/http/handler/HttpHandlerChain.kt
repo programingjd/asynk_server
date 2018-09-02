@@ -9,11 +9,11 @@ import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer
 
 internal class HttpHandlerChain(
-  private val chain: List<HttpHandler<*,*,*>>
-): HttpHandler<HttpHandler.Acceptance<Any>, HttpHandlerChain.ChainContext, Any>(NoParams) {
+  private val chain: List<HttpHandler<*,*,*,*>>
+): HttpHandler<HttpHandler.Acceptance<Any>, Any, HttpHandlerChain.ChainContext, Any>(NoParams) {
 
   override suspend fun context(others: Collection<*>?): ChainContext {
-    val map = HashMap<HttpHandler<*,*,*>, AbstractHttpHandler.Context>(chain.size)
+    val map = HashMap<HttpHandler<*,*,*,*>, AbstractHttpHandler.Context>(chain.size)
     chain.forEach {
       map[it] = it.context(map.values)
     }
@@ -44,7 +44,7 @@ internal class HttpHandlerChain(
 
   internal class HandlerAcceptance<ACCEPTANCE: HttpHandler.Acceptance<*>,
                                    CONTEXT: AbstractHttpHandler.Context>(
-    private val handler: HttpHandler<ACCEPTANCE, CONTEXT, *>,
+    private val handler: HttpHandler<ACCEPTANCE, *, CONTEXT, *>,
     private val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.bodyAllowed,
                                                                         acceptance.bodyRequired,
                                                                         acceptance.method,
@@ -58,7 +58,7 @@ internal class HttpHandlerChain(
 
   internal class ChainContext(
     others: Collection<*>?,
-    val contexts: Map<HttpHandler<*,*,*>, AbstractHttpHandler.Context>
+    val contexts: Map<HttpHandler<*,*,*,*>, AbstractHttpHandler.Context>
   ): AbstractHttpHandler.Context(others)
 
 }

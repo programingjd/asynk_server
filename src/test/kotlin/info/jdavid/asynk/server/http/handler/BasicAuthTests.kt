@@ -24,9 +24,8 @@ import java.nio.channels.AsynchronousSocketChannel
 
 class BasicAuthTests {
 
-  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<NoParams>,
-    AbstractHttpHandler.Context,
-    NoParams>(NoParams) {
+  class HttpTestHandler: HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams,
+                                     AbstractHttpHandler.Context, NoParams>(NoParams) {
 
     override suspend fun handle(acceptance: Acceptance<NoParams>,
                                 headers: Headers,
@@ -56,10 +55,8 @@ class BasicAuthTests {
   }
 
   class BasicAuthTestHandler:
-    BasicAuthHandler<HttpHandler.Acceptance<NoParams>,
-                     AbstractHttpHandler.Context,
-                     AuthContext,
-                     NoParams>(HttpTestHandler(), "Test Realm") {
+    BasicAuthHandler<HttpHandler.Acceptance<NoParams>, NoParams, AbstractHttpHandler.Context,
+                     AuthContext, NoParams>(HttpTestHandler(), "Test Realm") {
     override fun credentialsAreValid(auth: String, context: AuthContext): Boolean {
       return context.users.toList().find { authorizationHeaderValue(
         it.first, it.second) == auth } != null

@@ -161,7 +161,8 @@ handler. The special `NoParams` route accepts all requests.
 
 ```kotlin
 Server(
-  object: HttpHandler<HttpHandler.Acceptance<NoParams>, AbstractHttpHandler.Context, NoParams>(NoParams) {
+  object: HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams,
+                      AbstractHttpHandler.Context, NoParams>(NoParams) {
     override suspend fun context(others: Collection<*>?) = Context(others)
     override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams>? {
       return when (method) {

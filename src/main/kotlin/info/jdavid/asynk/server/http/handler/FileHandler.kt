@@ -25,6 +25,7 @@ import java.util.Base64
  * to implement a caching mechanism.
  */
 open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<File>,
+                                                      File,
                                                       AbstractHttpHandler.Context,
                                                       File>(route) {
 
