@@ -7,6 +7,8 @@ import info.jdavid.asynk.server.http.Method
 import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
+import info.jdavid.asynk.server.http.handler.BasicAuthHandler
+import info.jdavid.asynk.server.http.handler.DigestAuthHandler
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
@@ -184,7 +186,34 @@ object Usage {
         HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
       )
     )
+  }
 
+  fun basicAuth() {
+    val credentials = mapOf(
+      "user1" to "password1",
+      "user2" to "password2",
+      "user3" to "password3"
+    )
+    Server(
+      BasicAuthHandler.of(
+        "Test Realm",
+        HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+      ) { user -> credentials[user] }
+    )
+  }
+
+  fun digestAuth() {
+    val credentials = mapOf(
+      "user1" to "password1",
+      "user2" to "password2",
+      "user3" to "password3"
+    )
+    Server(
+      DigestAuthHandler.of(
+        "Test Realm",
+        HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+      ) { user -> credentials[user] }
+    )
   }
 
 }

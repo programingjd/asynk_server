@@ -309,3 +309,40 @@ Server(
   )
 )
 ```
+
+The most common type of HTTP authentication is the Basic Authentication scheme. However it sends the password
+in clear-text which makes it very insecure for unencrypted traffic. The Digest Authentication scheme is also
+a password-base authentication, but it doesn't send the password in clear-text.   
+There are ready to use implementation for both of those authentication schemes.
+
+Basic Authentication:
+
+```kotlin
+val credentials = mapOf(
+  "user1" to "password1",
+  "user2" to "password2",
+  "user3" to "password3"
+)
+Server(
+  BasicAuthHandler.of(
+    "Test Realm",
+    HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+  ) { user -> credentials[user] }
+)
+```
+
+Digest Authentication:
+
+```kotlin
+val credentials = mapOf(
+  "user1" to "password1",
+  "user2" to "password2",
+  "user3" to "password3"
+)
+Server(
+  DigestAuthHandler.of(
+    "Test Realm",
+    HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+  ) { user -> credentials[user] }
+)
+```
