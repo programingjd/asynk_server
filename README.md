@@ -7,7 +7,7 @@ HTTPS and HTTP2 are not implemented. It is meant to run behind a reverse proxy o
  [H2O](https://h2o.examp1e.net/configure/proxy_directives.html) for instance).
 
 
-## Download ##
+## Download
 
 The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.asynk.server/view)
 and [jcenter](https://bintray.com/search?query=info.jdavid.asynk.server).
@@ -39,21 +39,21 @@ dependencies {
 }
 ```
 
-## Usage ##
+## Usage
 
-  + [Starting and stopping the server](#starting_and_stopping)
+  + [Starting and stopping the server](#starting-and-stopping-the-server)
   + [Logging](#logging)
   + [Handlers](#handlers)
     + [Context](#context)
-    + [TCP Handlers](#tcp_handlers)
-    + [HTTP Handlers](#http_handlers)
-    + [HTTP Authentication Handlers](#auth_handlers)
-    + [File Handlers](#file_handlers)
-  + [Routing and combining handlers]()
+    + [TCP Handlers](#tcp-handlers)
+    + [HTTP Handlers](#http-handlers)
+    + [HTTP Authentication Handlers](#http-authentication-handlers)
+    + [File Handlers](#file-handlers)
+  + [Routing and combining handlers](#routing-and-combining-handlers)
 
 ---
 
-[__Starting and stopping the server__](#starting_and_stopping)
+### Starting and stopping the server
 
 You can create and start the server by calling the `Server` constructor.
 
@@ -103,7 +103,7 @@ Server.http(
 
 ---
 
-[__Logging__](#logging)
+### Logging
 
 This library uses [SLF4J](https://www.slf4j.org/) 1.7.25 for logging.
 If you don't want any logs, you can add the [slf4j-nop](https://mvnrepository.com/artifact/org.slf4j/slf4j-nop)
@@ -115,13 +115,13 @@ The default implementations of HTTP handlers log both the remote address and uri
 
 ---
 
-[__Handlers__](#handlers)
+#### Handlers
 
 Handlers are responsible for reading the incoming requests and sending back a response.
 
 <br>
    
-[_Context_](#context)
+#### Context
 
 The server uses both threads and coroutines to maximize performance.
 Handlers can define a `Context` object. This object will be shared between all instances of the handler
@@ -130,7 +130,7 @@ without having to worry about thread safety.
 
 <br>
 
-[_TCP Handlers_](#tcp_handlers)
+#### TCP Handlers
 
 A generic TCP `Handler` has to implement 3 methods.  
 The first is the method that returns a new context object.   
@@ -157,7 +157,7 @@ Server(
 
 <br>
 
-[_HTTP Handlers_](#http_handlers)
+#### HTTP Handlers
 
 An `HttpHandler` needs to implement 3 methods.  
 The first is the method that returns a new context object.   
@@ -271,7 +271,7 @@ Server.http(
 
 <br>
 
-[_HTTP Authentication Handlers_](#auth_handlers)
+#### HTTP Authentication Handlers
 
 For uris within protected spaces requiring authentication, the following flow is used:
 
@@ -361,5 +361,28 @@ Server(
 
 <br>
 
-[_File Handlers_](#file_handlers)
+#### File Handlers
 
+A `FileHandler` is used to serve files under a directory root.   
+You can customize many things, including the directory index file names, the accepted media types and 
+their cache policies as well as the ETag generation used for client caching.
+
+```kotlin
+Server.http(
+  object: FileHandler(
+    FileRoute(File("/home/admin/challenges"), "/.well_known/acme-challenge")
+  ) {
+    override fun etag(file: File) = null
+    override fun indexFilenames() = emptySequence<String>()
+    override fun mediaType(file: File) = MediaType.TEXT
+    override fun mediaTypes() = mapOf(MediaType.TEXT to MediaType.CacheControl(false, 0))
+    override suspend fun acceptUri(method: Method, uri: String, params: File) =
+      if (method == Method.GET) super.acceptUri(method, uri, params) else null
+  },
+  FileHandler(FileRoute(File("/home/admin/www")))
+)
+```
+
+---
+
+### Routing and combining handlers

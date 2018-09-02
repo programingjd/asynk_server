@@ -221,7 +221,6 @@ object Usage {
 
   fun files() {
     Server.http(
-      FileHandler(FileRoute(File("/home/admin/www"))),
       object: FileHandler(
         FileRoute(File("/home/admin/challenges"), "/.well_known/acme-challenge")
       ) {
@@ -232,7 +231,8 @@ object Usage {
         override suspend fun acceptUri(method: Method, uri: String, params: File) =
           if (method == Method.GET) super.acceptUri(method, uri, params) else null
       }
-    )
+    ),
+    FileHandler(FileRoute(File("/home/admin/www")))
   }
 
 }
