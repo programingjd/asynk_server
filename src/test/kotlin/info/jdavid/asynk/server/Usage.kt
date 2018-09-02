@@ -8,6 +8,7 @@ import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.handler.HttpHandler
+import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
 import info.jdavid.asynk.sql.use
 import kotlinx.coroutines.experimental.nio.aRead
@@ -97,7 +98,7 @@ object Usage {
     ).use {}
   }
 
-  fun context() {
+  fun custmCntextAndAcceptance() {
     val databaseName = "dbname"
     val username = "api"
     val password = "q6vQU?WXWu^gnDS#"
@@ -125,12 +126,12 @@ object Usage {
     }
 
     class KeyAcceptance(method: Method, uri: String, val key: String):
-          HttpHandler.Acceptance<String>(true, false, method, uri, key)
+      HttpHandler.Acceptance<String>(true, false, method, uri, key)
 
-    abstract class KeysHttpHandler<ROUTE_PARAMS: Any>(route: Route<ROUTE_PARAMS>):
-                   HttpHandler<KeyAcceptance, String, KeysContext, ROUTE_PARAMS>(route) {
+    abstract class KeysHttpHandler<PARAMS: Any>(route: Route<PARAMS>):
+      HttpHandler<KeyAcceptance, String, KeysContext, PARAMS>(route) {
       override suspend fun context(others: Collection<*>?) = KeysContext(others)
-      override suspend fun acceptUri(method: Method, uri: String, params: ROUTE_PARAMS) =
+      override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) =
         Uri.query(uri)?.get("key")?.let { KeyAcceptance(method, uri, it) }
       final override suspend fun handle(acceptance: KeyAcceptance, headers: Headers, body: ByteBuffer,
                                         context: KeysContext): Response<*> {
@@ -141,6 +142,19 @@ object Usage {
       }
       abstract fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer): Response<*>
     }
+
+    fun <PARAMS: Any> handler(
+      route: HttpHandler.Route<PARAMS>,
+      handler: (method: Method, uri: String, headers: Headers, body: ByteBuffer) -> HttpHandler.Response<*>
+    ) = object: KeysHttpHandler<PARAMS>(route) {
+      override fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer) =
+        handler(method, uri, headers, body)
+    }
+
+    Server.http(
+      handler(FixedRoute("/test1", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() },
+      handler(FixedRoute("/test2", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+    )
 
   }
 
