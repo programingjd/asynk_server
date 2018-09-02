@@ -39,7 +39,7 @@ dependencies {
 }
 ```
 
-### Usage ###
+## Usage ##
 
   + [Starting and stopping the server](#starting_and_stopping)
   + [Logging](#logging)
