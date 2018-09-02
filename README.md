@@ -1,4 +1,4 @@
-![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.8.0-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-41/41-green.png?style=flat)
+![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.8.1-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-41/41-green.png?style=flat)
 # Asynk Server
 A TCP server implementation in kotlin that uses both threads and coroutines for maximum performance.  
 It supports generic TCP handlers, but also HTTP with routing, authentication, etc...  
@@ -12,7 +12,7 @@ HTTPS and HTTP2 are not implemented. It is meant to run behind a reverse proxy o
 The maven artifacts are on [Bintray](https://bintray.com/programingjd/maven/info.jdavid.asynk.server/view)
 and [jcenter](https://bintray.com/search?query=info.jdavid.asynk.server).
 
-[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/0.0.0.8.0/server-0.0.0.8.0.jar) the latest jar.
+[Download](https://bintray.com/artifact/download/programingjd/maven/info/jdavid/asynk/server/0.0.0.8.1/server-0.0.0.8.1.jar) the latest jar.
 
 __Maven__
 
@@ -22,7 +22,7 @@ Include [those settings](https://bintray.com/repo/downloadMavenRepoSettingsFile/
 <dependency>
   <groupId>info.jdavid.asynk.server</groupId>
   <artifactId>server</artifactId>
-  <version>0.0.0.8.0</version>
+  <version>0.0.0.8.1</version>
 </dependency>
 ```
 __Gradle__
@@ -35,7 +35,7 @@ repositories {
 ```
 ```gradle
 dependencies {
-  compile 'info.jdavid.asynk:server:0.0.0.8.0'
+  compile 'info.jdavid.asynk:server:0.0.0.8.1'
 }
 ```
 
@@ -432,3 +432,25 @@ in the example, if the last handler with the `NoParams` had been defined first, 
 never be used since `NoParams` matches every request.
 
 There are also helper `Server.http` methods that can be used to combine multiple http handlers together.
+
+
+# Other libraries
+
+One of the main benefits of the Asynk Server implementation is that the handler is a suspendable function.
+To take full advantage of this, IO operations should also be using suspendable functions.   
+Unfortunatly, [JDBC](https://en.wikipedia.org/wiki/Java_Database_Connectivity) is a blocking API and this
+makes using suspendable calls to a database difficult.   
+That's why the Asynk family of libraries includes suspending implementations of some of the most used
+databases.
+
+ + [asynk_mysql](https://github.com/programingjd/asynk_mysql) can be used to work with both MySQL and MariaDB.
+ + [asynk_postgres](https://github.com/programingjd/asynk_posgres) can be used to work with PostgreSQL.
+
+Both of those use common interfaces defined in [asynk_sql](https://github.com/programingjd/asynk_sql) that
+make it easy to migrate from one database to another with minimum code change.
+
+For [NoSQL](https://en.wikipedia.org/wiki/NoSQL) databases, they usually come with better a API that supports
+asynchronous calls that can be wrapped easily into suspendable functions. This is the case for 
+[MongoDB](https://github.com/mongodb/mongo-java-driver/tree/master/driver-async) for instance.
+
+<br>

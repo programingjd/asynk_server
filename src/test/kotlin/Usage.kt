@@ -231,9 +231,9 @@ object Usage {
         override fun mediaTypes() = mapOf(MediaType.TEXT to MediaType.CacheControl(false, 0))
         override suspend fun acceptUri(method: Method, uri: String, params: File) =
           if (method == Method.GET) super.acceptUri(method, uri, params) else null
-      }
-    ),
-    FileHandler(FileRoute(File("/home/admin/www")))
+      },
+      FileHandler(FileRoute(File("/home/admin/www")))
+    )
   }
 
   fun routes() {
