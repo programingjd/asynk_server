@@ -51,6 +51,8 @@ dependencies {
     + [File Handlers](#file_handlers)
   + [Routing and combining handlers]()
 
+---
+
 [__Starting and stopping the server__](#starting_and_stopping)
 
 You can create and start the server by calling the `Server` constructor.
@@ -99,6 +101,7 @@ Server.http(
 }
 ```
 
+---
 
 [__Logging__](#logging)
 
@@ -110,17 +113,22 @@ If you do want logs, you can add a dependency on any lsf4j implementation
 The server itself only logs errors. It's the responsibility of handlers to log requests if they want to.
 The default implementations of HTTP handlers log both the remote address and uri of every incoming request.
 
+---
 
 [__Handlers__](#handlers)
 
 Handlers are responsible for reading the incoming requests and sending back a response.
 
+<br>
+   
 [_Context_](#context)
 
 The server uses both threads and coroutines to maximize performance.
 Handlers can define a `Context` object. This object will be shared between all instances of the handler
 running on the same thread, but only on the same thread. This context object enables the sharing of resources
 without having to worry about thread safety.
+
+<br>
 
 [_TCP Handlers_](#tcp_handlers)
 
@@ -146,6 +154,8 @@ Server(
   InetSocketAddress(InetAddress.getLoopbackAddress(), 7)
 )
 ```
+
+<br>
 
 [_HTTP Handlers_](#http_handlers)
 
@@ -259,6 +269,8 @@ Server.http(
 )
 ```
 
+<br>
+
 [_HTTP Authentication Handlers_](#auth_handlers)
 
 For uris within protected spaces requiring authentication, the following flow is used:
@@ -346,3 +358,8 @@ Server(
   ) { user -> credentials[user] }
 )
 ```
+
+<br>
+
+[_File Handlers_](#file_handlers)
+
