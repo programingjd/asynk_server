@@ -258,3 +258,54 @@ Server.http(
   handler(FixedRoute("/test2", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() }
 )
 ```
+
+[_HTTP Authentication Handlers_](#auth_handlers)
+
+For uris within protected spaces requiring authentication, the following flow is used:
+
+ 1) The client requests the uri.
+ 2) The server responds with a 401 status code and with a **WWW-Authenticate** header describing what
+  kind of credentials are allowed.
+ 3) The client requests the uri again, but this time it also sends the credentials in the **Authorization**
+  header.
+ 4) The server validates the credentials and either completes the requests if they are correct, and sends
+  another 401 response. 
+
+An `AuthHandler` is given a delegate handler in its constructor. That delegate is responsible for handling
+requests when the credentials are valid.   
+`AuthHandler` implementations also need to implement 3 methods.   
+The first is the method that checks the value of the **Authorization** header field and returns an error 
+or null if the credentials are valid.     
+The second is the method that returns the **WWW-Authenticate** header value based on the error.   
+The third is the method that returns the context. It usually only returns a context that wraps the context of
+the delegate.
+
+Here's an example that uses a simple (and very unsafe) key string. It sends `Test realm="Test"` for the
+**WWW-Authenticate** header field value, and only accepts `Test k67t8MNak_Krq7_D` for the 
+**Authorization** header field value.
+
+```kotlin
+fun <ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+     ACCEPTANCE_PARAMS: Any,
+     CONTEXT: AbstractHttpHandler.Context,
+     ROUTE_PARAMS: Any> authHandler(
+  delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, CONTEXT, ROUTE_PARAMS>) =
+  object: AuthHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, CONTEXT,
+                      AuthHandler.Context<CONTEXT>,ROUTE_PARAMS,CustomAuthValidationError>(delegate) {
+    val key = "k67t8MNak_Krq7_D"
+    override suspend fun validateCredentials(acceptance: ACCEPTANCE, headers: Headers,
+                                             context: Context<CONTEXT>): CustomAuthValidationError? {
+      val auth = headers.value(Headers.AUTHORIZATION) ?: return CustomAuthValidationError
+      return if (auth == "Test $key") null else CustomAuthValidationError
+    }
+    override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers,
+                                 error: CustomAuthValidationError) = "Test realm=\"Test\""
+    override suspend fun context(others: Collection<*>?) = Context(others, delegate.context(others))
+  }
+
+Server(
+  authHandler(
+    HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+  )
+)
+```

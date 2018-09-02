@@ -98,7 +98,7 @@ object Usage {
     ).use {}
   }
 
-  fun custmCntextAndAcceptance() {
+  fun custmContextAndAcceptance() {
     val databaseName = "dbname"
     val username = "api"
     val password = "q6vQU?WXWu^gnDS#"
@@ -154,6 +154,35 @@ object Usage {
     Server.http(
       handler(FixedRoute("/test1", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() },
       handler(FixedRoute("/test2", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+    )
+
+  }
+
+  object CustomAuthValidationError: AuthHandler.ValidationError
+
+  fun customAuth() {
+    fun <ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>,
+         ACCEPTANCE_PARAMS: Any,
+         CONTEXT: AbstractHttpHandler.Context,
+         ROUTE_PARAMS: Any> authHandler(
+      delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, CONTEXT, ROUTE_PARAMS>) =
+      object: AuthHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, CONTEXT,
+                          AuthHandler.Context<CONTEXT>,ROUTE_PARAMS,CustomAuthValidationError>(delegate) {
+        val key = "k67t8MNak_Krq7_D"
+        override suspend fun validateCredentials(acceptance: ACCEPTANCE, headers: Headers,
+                                                 context: Context<CONTEXT>): CustomAuthValidationError? {
+          val auth = headers.value(Headers.AUTHORIZATION) ?: return CustomAuthValidationError
+          return if (auth == "Test $key") null else CustomAuthValidationError
+        }
+        override fun wwwAuthenticate(acceptance: ACCEPTANCE, headers: Headers,
+                                     error: CustomAuthValidationError) = "Test realm=\"Test\""
+        override suspend fun context(others: Collection<*>?) = Context(others, delegate.context(others))
+      }
+
+    Server(
+      authHandler(
+        HttpHandler.of(NoParams) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+      )
     )
 
   }
