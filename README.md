@@ -115,7 +115,7 @@ The default implementations of HTTP handlers log both the remote address and uri
 
 ---
 
-#### Handlers
+### Handlers
 
 Handlers are responsible for reading the incoming requests and sending back a response.
 
