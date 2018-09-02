@@ -192,4 +192,69 @@ Server(
 )
 ```
 
-The first syntax is useful when you need a custom `Context` object, or `Acceptance` object.
+The first syntax is useful when you need a custom `Context` object, or `Acceptance` object.   
+Here's an example of such usage:  
+The context stores a list of api keys. If its been too long since it last updated the list, then
+it goes and reads it from the database.
+Note that all instances of `KeysContext` that reside on the same thread are sharing the list of keys.  
+The `Acceptance` class captures the api key from the uri, and the `handle` method can use the context to
+make sure the key is in the list of authorized keys.
+
+```kotlin
+val databaseName = "dbname"
+val username = "api"
+val password = "q6vQU?WXWu^gnDS#"
+val getKeysFromDatabase = suspend {
+  MysqlAuthentication.Credentials.PasswordCredentials(username, password).connectTo(databaseName).use {
+    it.rows("SELECT key FROM keys").toList().map { it["key"] as String }
+  }.toSet()
+}
+val keys = runBlocking { getKeysFromDatabase() }
+
+class KeysContext(others: Collection<*>?): AbstractHttpHandler.Context(others) {
+  var keys: Set<String> = (others?.find { it is KeysContext } as? KeysContext)?.keys ?: keys
+  private set
+
+  private var lastUpdate: Long =
+    (others?.find { it is KeysContext } as? KeysContext)?.lastUpdate ?: System.currentTimeMillis()
+
+  suspend fun updateIfNecessary() {
+    val now = System.currentTimeMillis()
+    if (now - lastUpdate > 1000*60*60) {
+      this.keys = getKeysFromDatabase()
+      lastUpdate = now
+    }
+  }
+}
+
+class KeyAcceptance(method: Method, uri: String, val key: String):
+  HttpHandler.Acceptance<String>(true, false, method, uri, key)
+
+abstract class KeysHttpHandler<PARAMS: Any>(route: Route<PARAMS>):
+  HttpHandler<KeyAcceptance, String, KeysContext, PARAMS>(route) {
+  override suspend fun context(others: Collection<*>?) = KeysContext(others)
+  override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) =
+    Uri.query(uri)?.get("key")?.let { KeyAcceptance(method, uri, it) }
+  final override suspend fun handle(acceptance: KeyAcceptance, headers: Headers, body: ByteBuffer,
+                                    context: KeysContext): Response<*> {
+    context.updateIfNecessary()
+    return if (context.keys.contains(acceptance.key)) {
+      handle(acceptance.method, acceptance.uri, headers, body)
+    } else AuthHandler.UnauthorizedResponse()
+  }
+  abstract fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer): Response<*>
+}
+
+fun <PARAMS: Any> handler(
+  route: HttpHandler.Route<PARAMS>,
+  handler: (method: Method, uri: String, headers: Headers, body: ByteBuffer) -> HttpHandler.Response<*>
+) = object: KeysHttpHandler<PARAMS>(route) {
+  override fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer) =
+    handler(method, uri, headers, body)
+}
+
+Server.http(
+  handler(FixedRoute("/test1", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() },
+  handler(FixedRoute("/test2", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() }
+)
+```

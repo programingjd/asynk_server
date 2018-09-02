@@ -102,12 +102,12 @@ object Usage {
     val databaseName = "dbname"
     val username = "api"
     val password = "q6vQU?WXWu^gnDS#"
-    val readKeys = suspend {
+    val getKeysFromDatabase = suspend {
       MysqlAuthentication.Credentials.PasswordCredentials(username, password).connectTo(databaseName).use {
         it.rows("SELECT key FROM keys").toList().map { it["key"] as String }
       }.toSet()
     }
-    val keys = runBlocking { readKeys() }
+    val keys = runBlocking { getKeysFromDatabase() }
 
     class KeysContext(others: Collection<*>?): AbstractHttpHandler.Context(others) {
       var keys: Set<String> = (others?.find { it is KeysContext } as? KeysContext)?.keys ?: keys
@@ -119,7 +119,7 @@ object Usage {
       suspend fun updateIfNecessary() {
         val now = System.currentTimeMillis()
         if (now - lastUpdate > 1000*60*60) {
-          this.keys = readKeys()
+          this.keys = getKeysFromDatabase()
           lastUpdate = now
         }
       }
