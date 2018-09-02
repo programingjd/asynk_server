@@ -57,7 +57,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
       if (path.last() != '/') return redirect("${path}/${acceptance.uri.substring(path.length)}")
       indexFilenames().map { File(uriParams, it) }.firstOrNull { it.exists() } ?: return forbidden(context)
     } else uriParams
-    val mediaType = MediaType.fromFile(file) ?: return forbidden(context)
+    val mediaType = mediaType(file) ?: return forbidden(context)
     val cacheControl = mediaTypes()[mediaType] ?: return forbidden(context)
     val responseHeaders = Headers()
     responseHeaders.set(Headers.CACHE_CONTROL, cacheControl.value())
@@ -86,6 +86,16 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
   }
 
   /**
+   * Returns the media type of the file or null if it is not known.
+   * @param file the file.
+   * @return the file media type or null if it is not known.
+   */
+  protected open fun mediaType(file: File): String? {
+    return MediaType.fromFile(file)
+  }
+
+
+    /**
    * Returns the media types that are allowed with their cache control policies.
    * @return the map of key/value entries with the key being the allowed media type and the value being the
    * associated cache control policy.
