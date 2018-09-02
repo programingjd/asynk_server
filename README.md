@@ -1,5 +1,5 @@
 ![jcenter](https://img.shields.io/badge/_jcenter_-0.0.0.8.0-6688ff.png?style=flat) &#x2003; ![jcenter](https://img.shields.io/badge/_Tests_-41/41-green.png?style=flat)
-# server
+# Asynk Server
 A TCP server implementation in kotlin that uses both threads and coroutines for maximum performance.  
 It supports generic TCP handlers, but also HTTP with routing, authentication, etc...  
 HTTPS and HTTP2 are not implemented. It is meant to run behind a reverse proxy or load balancer that can take care of those two aspects
