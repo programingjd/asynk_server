@@ -14,6 +14,7 @@ import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
+import info.jdavid.asynk.server.http.route.ParameterizedRoute
 import info.jdavid.asynk.sql.use
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -233,6 +234,28 @@ object Usage {
       }
     ),
     FileHandler(FileRoute(File("/home/admin/www")))
+  }
+
+  fun routes() {
+    Server(
+      HttpHandler.Builder().
+        handler(FileHandler(FileRoute(File("doc"), "/doc"))).
+        route(FixedRoute("/healthcheck")).to { _, _, _, _ ->
+          HttpHandler.StringResponse("Route 1", MediaType.TEXT)
+        }.
+        route(ParameterizedRoute("/{p1}/{p2}")).to { acceptance, _, _, _ ->
+          val params = acceptance.routeParams
+          HttpHandler.StringResponse(
+            "Route 2 [p1: ${params["p1"]}, p2: ${params["p2"]}]",
+            MediaType.TEXT
+          )
+        }.
+        route(NoParams).to { _, _, _, _ ->
+          HttpHandler.StringResponse("Route 3", MediaType.TEXT)
+        }.
+        build()
+    )
+
   }
 
 }

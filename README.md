@@ -386,3 +386,49 @@ Server.http(
 ---
 
 ### Routing and combining handlers
+
+An `HttpHandler` is attached to a `Route` (it is passed to the constructor).   
+The `Route` interface has only one method `match` that given a request method and uri, returns whether the
+request can be handled by the route or not. If it does, then it returns a parameter object. If it doesn't,
+it simply returns null.
+There are different implementations of `Route` with different parameter types.
+If you want to create a custom but don't need to return any parameter, you should return `NoParam`.
+
+`NoParam` is a route that accepts all requests and returns itself as a parameter.
+
+`FixedRoute` is a route that only accepts uris matching a given path.
+
+`ParameterizedRoute` is a like a FixedRoute, but instead of only having fixed path segments, variables can
+be used and the values will be captured in a map that will be returned as the route parameter.
+
+`FileRoute` matches all the paths representing existing files under the specified root directory.
+
+Here are a few examples.
+
+```kotlin
+Server(
+  HttpHandler.Builder().
+    handler(FileHandler(FileRoute(File("doc"), "/doc"))).
+    route(FixedRoute("/healthcheck")).to { _, _, _, _ ->
+      HttpHandler.StringResponse("Route 1", MediaType.TEXT)
+    }.
+    route(ParameterizedRoute("/{p1}/{p2}")).to { acceptance, _, _, _ ->
+      val params = acceptance.routeParams
+      HttpHandler.StringResponse(
+        "Route 2 [p1: ${params["p1"]}, p2: ${params["p2"]}]",
+        MediaType.TEXT
+      )
+    }.
+    route(NoParams).to { _, _, _, _ ->
+      HttpHandler.StringResponse("Route 3", MediaType.TEXT)
+    }.
+    build()
+)
+```
+
+As the example shows, `HttpHandler.Builder` can be used to combine different handlers on different routes
+together into one single handler. The order is important because the first match will be used. For example,
+in the example, if the last handler with the `NoParams` had been defined first, then the other ones would
+never be used since `NoParams` matches every request.
+
+There are also helper `Server.http` methods that can be used to combine multiple http handlers together.
