@@ -1,6 +1,7 @@
 import info.jdavid.asynk.mysql.MysqlAuthentication
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.Server
+import info.jdavid.asynk.server.http.CacheControl
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.MediaType
 import info.jdavid.asynk.server.http.Method
@@ -228,7 +229,8 @@ object Usage {
         override fun etag(file: File) = null
         override fun indexFilenames() = emptySequence<String>()
         override fun mediaType(file: File) = MediaType.TEXT
-        override fun mediaTypes() = mapOf(MediaType.TEXT to MediaType.CacheControl(false, 0))
+        override fun mediaTypes() = mapOf(MediaType.TEXT to CacheControl(false,
+                                                                                                       0))
         override suspend fun acceptUri(method: Method, uri: String, params: File) =
           if (method == Method.GET) super.acceptUri(method, uri, params) else null
       },

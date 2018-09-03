@@ -2,7 +2,6 @@
 package info.jdavid.asynk.server.http
 
 import java.io.File
-import java.util.Collections
 
 /**
  * MediaTypes (Content-Types with no charset information).
@@ -151,67 +150,5 @@ object MediaType {
     val ext = filename.substring(i+1).toLowerCase()
     return map[ext]
   }
-
-  /**
-   * Cache-Control policy information used to store desired cache control options for a particular media type.
-   * @param immutable the immutable Cache-Control flag.
-   * @param maxAge the Cache-Control maxAge value (-1 represents no-store, 0 represents no-cache).
-   */
-  class CacheControl(val immutable: Boolean, val maxAge: Int) {
-    fun value() = when (maxAge) {
-      -1 -> "no-store"
-      0 -> "no-cache"
-      else -> "max-age=${maxAge} ${if (immutable) "immutable" else "must-revalidate"}"
-    }
-  }
-
-  private const val imageMaxAge = 31536000     // one year
-  private const val largeFileMaxAge = 0        // always re-validate
-  private const val smallFileMaxAge = -1       // don't cache
-  private const val cssMaxAge = 0              // always re-validate
-  private const val fontMaxAge = 31536000      // one year
-  private const val jsMaxAge = 0               // always re-validate
-  private const val htmlMaxAge = 0             // always re-validate
-
-  /**
-   * The default Cache-Control policies for the various media types.
-   */
-  val defaultCacheControls: Map<String, CacheControl> =
-    Collections.unmodifiableMap(
-      mapOf(
-        HTML to CacheControl(false, htmlMaxAge),
-        XHTML to CacheControl(false, htmlMaxAge),
-        XML to CacheControl(false, smallFileMaxAge),
-        JSON to CacheControl(false, smallFileMaxAge),
-        ATOM to CacheControl(false, largeFileMaxAge),
-        WEB_MANIFEST to CacheControl(false, htmlMaxAge),
-        CSS to CacheControl(false, cssMaxAge),
-        JAVASCRIPT to CacheControl(false, jsMaxAge),
-        TEXT to CacheControl(false, htmlMaxAge),
-        CSV to CacheControl(false, largeFileMaxAge),
-        PNG to CacheControl(true, imageMaxAge),
-        JPG to CacheControl(true, imageMaxAge),
-        GIF to CacheControl(true, imageMaxAge),
-        ICO to CacheControl(true, imageMaxAge),
-        WEBP to CacheControl(true, imageMaxAge),
-        SVG to CacheControl(true, imageMaxAge),
-        WOFF to CacheControl(true, fontMaxAge),
-        WOFF2 to CacheControl(true, fontMaxAge),
-        TTF to CacheControl(true, fontMaxAge),
-        OTF to CacheControl(true, fontMaxAge),
-        EOT to CacheControl(true, fontMaxAge),
-        PDF to CacheControl(false, largeFileMaxAge),
-        OCTET_STREAM to CacheControl(false, largeFileMaxAge),
-        ZIP to CacheControl(false, largeFileMaxAge),
-        SEVENZ to CacheControl(false, largeFileMaxAge),
-        TAR to CacheControl(false, largeFileMaxAge),
-        XZ to CacheControl(false, largeFileMaxAge),
-        MP4 to CacheControl(false, largeFileMaxAge),
-        OGV to CacheControl(false, largeFileMaxAge),
-        WEBM to CacheControl(false, largeFileMaxAge),
-        MP3 to CacheControl(false, largeFileMaxAge),
-        OGG to CacheControl(false, largeFileMaxAge)
-      )
-    )
 
 }

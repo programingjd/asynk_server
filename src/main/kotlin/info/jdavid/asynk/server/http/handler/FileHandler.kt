@@ -1,6 +1,7 @@
 package info.jdavid.asynk.server.http.handler
 
 import info.jdavid.asynk.server.Server
+import info.jdavid.asynk.server.http.CacheControl
 import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.MediaType
 import info.jdavid.asynk.server.http.Method
@@ -100,7 +101,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
    * @return the map of key/value entries with the key being the allowed media type and the value being the
    * associated cache control policy.
    */
-  protected open fun mediaTypes() = MediaType.defaultCacheControls
+  protected open fun mediaTypes() = CacheControl.defaultCacheControls
 
   /**
    * Returns an (ordered) sequence of file names that can be used as directory "index" pages. The first match
