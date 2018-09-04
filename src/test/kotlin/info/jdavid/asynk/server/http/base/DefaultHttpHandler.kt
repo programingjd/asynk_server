@@ -1,8 +1,8 @@
 package info.jdavid.asynk.server.http.base
 
-import info.jdavid.asynk.server.Crypto
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
+import info.jdavid.asynk.http.Crypto
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
 import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel

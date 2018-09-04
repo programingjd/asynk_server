@@ -1,12 +1,12 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Status
+import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.CacheControl
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Status
-import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -65,8 +65,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     if (cacheControl.maxAge > -1) {
       val etag = etag(file) ?: return FileResponse(file, mediaType, responseHeaders)
       responseHeaders.set(Headers.ETAG, etag)
-      if (etag == headers.value(
-          Headers.IF_NONE_MATCH)) return notModified(responseHeaders)
+      if (etag == headers.value(Headers.IF_NONE_MATCH)) return notModified(responseHeaders)
       return FileResponse(file, mediaType, responseHeaders)
     }
     else {

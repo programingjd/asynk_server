@@ -2,12 +2,12 @@
 
 package info.jdavid.asynk.server.http.base
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
-import info.jdavid.asynk.server.http.Headers
 import info.jdavid.asynk.server.http.Http
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Status
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
 import org.slf4j.LoggerFactory

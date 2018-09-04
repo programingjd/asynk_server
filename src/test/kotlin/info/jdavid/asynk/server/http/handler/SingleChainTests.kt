@@ -1,11 +1,11 @@
 package info.jdavid.asynk.server.http.handler
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.Server
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Uri
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
@@ -65,8 +65,7 @@ class SingleChainTests {
           val bytes = it.entity.content.readBytes()
           assertEquals(it.getLastHeader(
             Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
-          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(
-            MediaType.JSON))
+          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.JSON))
           assertEquals(
             "{\"method\":\"GET\",\"path\":\"/\",\"headers\":{\"User-Agent\":\"Test user agent\",\"Cache-Control\":\"no-cache\",\"Pragma\":\"no-cache\",\"Test\":\"123\",\"Connection\":\"close\",\"Accept-Encoding\":\"gzip\",\"Host\":\"localhost:8080\"}}",
             String(bytes)

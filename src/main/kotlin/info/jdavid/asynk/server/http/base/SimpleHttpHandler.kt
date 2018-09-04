@@ -2,7 +2,7 @@
 
 package info.jdavid.asynk.server.http.base
 
-import info.jdavid.asynk.server.http.Method
+import info.jdavid.asynk.http.Method
 
 abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
                                                       AbstractHttpHandler.Context>() {
@@ -14,29 +14,29 @@ abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptan
       Method.OPTIONS -> Acceptance(
         false, false, method, uri)
       Method.HEAD -> Acceptance(false,
+                                 false,
+                                 method,
+                                 uri)
+      Method.GET -> Acceptance(false,
                                 false,
                                 method,
                                 uri)
-      Method.GET -> Acceptance(false,
-                               false,
-                               method,
-                               uri)
       Method.POST -> Acceptance(true,
-                                true,
-                                method,
-                                uri)
-      Method.PUT -> Acceptance(true,
-                               true,
-                               method,
-                               uri)
-      Method.DELETE -> Acceptance(true,
-                                  false,
-                                  method,
-                                  uri)
-      Method.PATCH -> Acceptance(true,
                                  true,
                                  method,
                                  uri)
+      Method.PUT -> Acceptance(true,
+                                true,
+                                method,
+                                uri)
+      Method.DELETE -> Acceptance(true,
+                                   false,
+                                   method,
+                                   uri)
+      Method.PATCH -> Acceptance(true,
+                                  true,
+                                  method,
+                                  uri)
       else -> Acceptance(true, false, method, uri)
     }
   }

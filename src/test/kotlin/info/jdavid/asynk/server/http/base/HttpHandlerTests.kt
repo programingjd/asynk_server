@@ -1,8 +1,8 @@
 package info.jdavid.asynk.server.http.base
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.server.Server
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
 import org.apache.http.client.methods.*
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder

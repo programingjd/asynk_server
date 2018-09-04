@@ -1,6 +1,6 @@
 package info.jdavid.asynk.server.http.route
 
-import info.jdavid.asynk.server.http.Method
+import info.jdavid.asynk.http.Method
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import java.text.ParseException

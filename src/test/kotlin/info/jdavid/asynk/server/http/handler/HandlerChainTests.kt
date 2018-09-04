@@ -1,10 +1,10 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.Server
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Uri
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
@@ -38,8 +38,7 @@ class HandlerChainTests {
             val bytes = it.entity.content.readBytes()
             assertEquals(it.getLastHeader(
               Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
-            assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(
-              MediaType.TEXT))
+            assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
             assertEquals(n.toString(), String(bytes))
           }
         }
@@ -82,10 +81,8 @@ class HandlerChainTests {
           client.execute(request).use {
             assertEquals(200, it.statusLine.statusCode)
             val bytes = it.entity.content.readBytes()
-            assertEquals(it.getLastHeader(
-              Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
-            assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(
-              MediaType.TEXT))
+            assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
+            assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
             assertEquals(n.toString(), String(bytes))
           }
         }

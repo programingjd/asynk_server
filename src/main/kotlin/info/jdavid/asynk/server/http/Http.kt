@@ -2,6 +2,9 @@
 
 package info.jdavid.asynk.server.http
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite

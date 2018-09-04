@@ -37,7 +37,7 @@ dependencies {
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.25.0")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.25.0")
   implementation("org.slf4j:slf4j-api:1.7.25")
-  implementation("com.codahale:aes-gcm-siv:0.4.2")
+  implementation("info.jdavid.asynk:http:0.0.0.8.1")
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.2.0")
   testImplementation("org.junit.jupiter:junit-jupiter-params:5.2.0")
   testRuntime("org.junit.jupiter:junit-jupiter-engine:5.2.0")

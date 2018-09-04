@@ -1,10 +1,10 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.Server
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.route.NoParams

@@ -1,5 +1,7 @@
 package info.jdavid.asynk.server
 
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.http.*
 import info.jdavid.asynk.server.http.base.DefaultHttpHandler
 import info.jdavid.asynk.server.http.base.SimpleHttpHandler
@@ -33,7 +35,7 @@ fun connectFor(millis: Long) {
       when (Uri.path(acceptance.uri)) {
         "/headers", "/headers/" -> {
           val bytes =
-            headers.lines.joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
+            headers.lines().joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
           val size = bytes.size
           val type = "text/plain"
           val setup =

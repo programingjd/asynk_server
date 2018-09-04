@@ -1,6 +1,6 @@
 package info.jdavid.asynk.server
 
-import info.jdavid.asynk.server.http.Headers
+import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.SimpleHttpHandler
 import kotlinx.coroutines.experimental.async

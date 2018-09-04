@@ -1,9 +1,9 @@
 package info.jdavid.asynk.server.http.handler
 
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.MediaType
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Status
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.MediaType
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
@@ -337,7 +337,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
             Method.OPTIONS -> Acceptance(false, false, method, uri, params)
-            Method.HEAD -> Acceptance(false,false, method, uri, params)
+            Method.HEAD -> Acceptance(false, false, method, uri, params)
             Method.GET -> Acceptance(false, false, method, uri, params)
             Method.POST -> Acceptance(true, true, method, uri, params)
             Method.PUT -> Acceptance(true, true, method, uri, params)

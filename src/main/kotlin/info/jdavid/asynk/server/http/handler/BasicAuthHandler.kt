@@ -1,6 +1,6 @@
 package info.jdavid.asynk.server.http.handler
 
-import info.jdavid.asynk.server.http.Headers
+import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import java.util.Base64

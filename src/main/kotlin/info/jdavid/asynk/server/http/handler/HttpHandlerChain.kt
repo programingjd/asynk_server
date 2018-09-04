@@ -2,8 +2,8 @@
 
 package info.jdavid.asynk.server.http.handler
 
-import info.jdavid.asynk.server.http.Headers
-import info.jdavid.asynk.server.http.Method
+import info.jdavid.asynk.http.Headers
+import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.NoParams
 import java.nio.ByteBuffer

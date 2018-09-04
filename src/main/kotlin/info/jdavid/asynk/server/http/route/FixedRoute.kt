@@ -1,7 +1,7 @@
 package info.jdavid.asynk.server.http.route
 
-import info.jdavid.asynk.server.http.Method
-import info.jdavid.asynk.server.http.Uri
+import info.jdavid.asynk.http.Method
+import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.http.handler.HttpHandler
 
 /**

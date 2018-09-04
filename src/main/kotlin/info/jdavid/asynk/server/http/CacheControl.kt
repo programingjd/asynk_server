@@ -1,5 +1,6 @@
 package info.jdavid.asynk.server.http
 
+import info.jdavid.asynk.http.MediaType
 import java.util.Collections
 
 /**
