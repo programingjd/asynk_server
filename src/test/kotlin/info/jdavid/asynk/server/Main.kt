@@ -35,7 +35,7 @@ fun connectFor(millis: Long) {
       when (Uri.path(acceptance.uri)) {
         "/headers", "/headers/" -> {
           val bytes =
-            headers.lines().joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
+            headers.lines.joinToString("\n", "", "\n").toByteArray(Charsets.US_ASCII)
           val size = bytes.size
           val type = "text/plain"
           val setup =
