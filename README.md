@@ -20,7 +20,7 @@ Include [those settings](https://bintray.com/repo/downloadMavenRepoSettingsFile/
  to be able to resolve jcenter artifacts.
 ```maven
 <dependency>
-  <groupId>info.jdavid.asynk.server</groupId>
+  <groupId>info.jdavid.asynk</groupId>
   <artifactId>server</artifactId>
   <version>0.0.0.8.2</version>
 </dependency>
