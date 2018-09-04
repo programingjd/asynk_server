@@ -26,7 +26,7 @@ plugins {
 }
 
 group = "info.jdavid.asynk"
-version = "0.0.0.8.2"
+version = "0.0.0.9.0"
 
 repositories {
   jcenter()
@@ -34,16 +34,16 @@ repositories {
 
 dependencies {
   compile(kotlin("stdlib-jdk8"))
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.25.0")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.25.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.25.3")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.25.3")
   implementation("org.slf4j:slf4j-api:1.7.25")
-  implementation("info.jdavid.asynk:http:0.0.0.8.1")
+  implementation("info.jdavid.asynk:http:0.0.0.9")
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.2.0")
   testImplementation("org.junit.jupiter:junit-jupiter-params:5.2.0")
   testRuntime("org.junit.jupiter:junit-jupiter-engine:5.2.0")
   testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.6")
   testImplementation("org.apache.httpcomponents:httpclient:4.5.6")
-  testImplementation("info.jdavid.asynk:mysql:0.0.0.8")
+  testImplementation("info.jdavid.asynk:mysql:0.0.0.9")
   testRuntime("org.slf4j:slf4j-jdk14:1.7.25")
 //  testRuntime("org.slf4j:slf4j-nop:1.7.25")
 }
@@ -122,7 +122,7 @@ publishing {
     }
   }
   publications {
-    register("mavenJava", MavenPublication::class) {
+    register("mavenJava", MavenPublication::class.java) {
       from(components["java"])
       artifact(sourcesJar)
       artifact(javadocJar)
