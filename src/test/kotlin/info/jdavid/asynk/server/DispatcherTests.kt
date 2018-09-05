@@ -35,7 +35,9 @@ class DispatcherTests {
       override suspend fun connect(remoteAddress: InetSocketAddress) = true
       override suspend fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
                                   socket: AsynchronousSocketChannel, context: Context) {
-        socket.aWrite((context as ExtendedContext).test.rewind() as ByteBuffer)
+        ((context as ExtendedContext).test.rewind() as ByteBuffer).apply {
+          while (remaining() > 0) socket.aWrite(this)
+        }
       }
     }).use { _ ->
       runBlocking {

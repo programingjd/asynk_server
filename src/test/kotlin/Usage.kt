@@ -67,7 +67,7 @@ object Usage {
         override suspend fun connect(remoteAddress: InetSocketAddress) = true
         override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
           while (socket.aRead(buffer) != -1) {
-            socket.aWrite(buffer.flip() as ByteBuffer)
+            (buffer.flip() as ByteBuffer).apply { while (remaining() > 0) socket.aWrite(this) }
             buffer.flip()
           }
         }

@@ -27,7 +27,9 @@ class EchoTests {
       override suspend fun connect(remoteAddress: InetSocketAddress) = true
       override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
         while (socket.aRead(buffer, 5, TimeUnit.SECONDS) > -1) {
-          socket.aWrite(buffer.flip() as ByteBuffer, 5, TimeUnit.SECONDS)
+          (buffer.flip() as ByteBuffer).apply {
+            while (remaining() > 0) socket.aWrite(this, 5, TimeUnit.SECONDS)
+          }
           buffer.flip()
         }
       }
@@ -40,9 +42,13 @@ class EchoTests {
               it.setOption(StandardSocketOptions.TCP_NODELAY, true)
               it.setOption(StandardSocketOptions.SO_REUSEADDR, true)
               it.aConnect(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080))
-              it.aWrite(ByteBuffer.wrap("abc\r\ndef\r\n".toByteArray()))
+              ByteBuffer.wrap("abc\r\ndef\r\n".toByteArray()).apply {
+                while (remaining() > 0) it.aWrite(this)
+              }
               delay(100)
-              it.aWrite(ByteBuffer.wrap("ghi\r\njkl\r\nmno".toByteArray()))
+              ByteBuffer.wrap("ghi\r\njkl\r\nmno".toByteArray()).apply {
+                while (remaining() > 0) it.aWrite(this)
+              }
               it.shutdownOutput()
               val buffer = ByteBuffer.allocate(128)
               assertEquals(23, aRead(it, buffer))
@@ -55,9 +61,13 @@ class EchoTests {
               it.setOption(StandardSocketOptions.TCP_NODELAY, true)
               it.setOption(StandardSocketOptions.SO_REUSEADDR, true)
               it.aConnect(InetSocketAddress(InetAddress.getLoopbackAddress(), 8080))
-              it.aWrite(ByteBuffer.wrap("123\r\n".toByteArray()))
+              ByteBuffer.wrap("123\r\n".toByteArray()).apply {
+                while (remaining() > 0) it.aWrite(this)
+              }
               delay(50)
-              it.aWrite(ByteBuffer.wrap("456\r\n789".toByteArray()))
+              ByteBuffer.wrap("456\r\n789".toByteArray()).apply {
+                while (remaining() > 0) it.aWrite(this)
+              }
               it.shutdownOutput()
               val buffer = ByteBuffer.allocate(128)
               assertEquals(13, aRead(it, buffer))

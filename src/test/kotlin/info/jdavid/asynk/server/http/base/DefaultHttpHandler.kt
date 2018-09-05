@@ -27,11 +27,11 @@ open class DefaultHttpHandler: SimpleHttpHandler() {
 
     val extra = if (isText) body.remaining() else Math.min(2048, body.remaining() * 2)
     val bytes = str.toString().toByteArray(Charsets.ISO_8859_1)
-    socket.aWrite(ByteBuffer.wrap(
+    ByteBuffer.wrap(
       "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${bytes.size + extra}\r\nConnection: close\r\n\r\n".
         toByteArray(Charsets.US_ASCII)
-    ))
-    socket.aWrite(ByteBuffer.wrap(bytes))
+    ).apply { while (remaining() > 0) socket.aWrite(this) }
+    ByteBuffer.wrap(bytes).apply { while (remaining() > 0) socket.aWrite(this) }
     if (extra > 0) {
       if (contentType.startsWith("text/") ||
           contentType.startsWith("application/") &&
@@ -45,14 +45,22 @@ open class DefaultHttpHandler: SimpleHttpHandler() {
         if (body.remaining() > 1024) {
           val limit = body.limit()
           body.limit(body.position() + 511)
-          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
-          socket.aWrite(ByteBuffer.wrap("....".toByteArray(Charsets.US_ASCII)))
+          ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
+            while (remaining() > 0) socket.aWrite(this)
+          }
+          ByteBuffer.wrap("....".toByteArray(Charsets.US_ASCII)).apply {
+            while (remaining() > 0) socket.aWrite(this)
+          }
           body.limit(limit)
           body.position(limit - 511)
-          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
+          ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
+            while (remaining() > 0) socket.aWrite(this)
+          }
         }
         else {
-          socket.aWrite(ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)))
+          ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
+            while (remaining() > 0) socket.aWrite(this)
+          }
         }
       }
     }

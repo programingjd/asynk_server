@@ -5,11 +5,11 @@ package info.jdavid.asynk.server.http.base
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
+import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
 import info.jdavid.asynk.server.http.Http
 import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -113,7 +113,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
   }
 
   private suspend fun response(socket: AsynchronousSocketChannel, payload: ByteBuffer) {
-    socket.aWrite(payload.rewind() as ByteBuffer)
+    AWrite.all(socket, payload.rewind() as ByteBuffer)
   }
 
   /**

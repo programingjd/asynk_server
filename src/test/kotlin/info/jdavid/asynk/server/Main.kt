@@ -19,8 +19,8 @@ fun main(args: Array<String>) {
     path = path.parentFile
     if (path.isDirectory && File(path, ".git").exists()) break
   }
-  serveDirectory(path.resolve("src/test/resources"))
-//  connectFor(60000L)
+//  serveDirectory(path.resolve("src/test/resources"))
+  connectFor(60000L)
 }
 
 fun serveDirectory(directory: File) {
@@ -41,11 +41,12 @@ fun connectFor(millis: Long) {
           val setup =
             "HTTP/1.1 200 OK\r\nContent-Type: ${type}\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n".
               toByteArray(Charsets.US_ASCII)
-          socket.aWrite(ByteBuffer.allocate(bytes.size + setup.size).apply {
+          ByteBuffer.allocate(bytes.size + setup.size).apply {
             put(setup)
             put(bytes)
             rewind()
-          })
+            while (remaining() > 0) socket.aWrite(this)
+          }
         }
         "/body", "/body/" -> {
           val size = body.remaining()
@@ -53,11 +54,12 @@ fun connectFor(millis: Long) {
           val setup =
             "HTTP/1.1 200 OK\r\nContent-Type: ${type}\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n".
               toByteArray(Charsets.US_ASCII)
-          socket.aWrite(ByteBuffer.allocate((body.remaining()) + setup.size).apply {
+          ByteBuffer.allocate((body.remaining()) + setup.size).apply {
             put(setup)
             if (body.remaining() > 0) put(body)
             rewind()
-          })
+            while (remaining() > 0) socket.aWrite(this)
+          }
         }
         else -> {
           val bytes = "NOT FOUND\n\nAvailable endpoints:\n/body\n/headers\n\n".toByteArray(Charsets.US_ASCII)
@@ -66,11 +68,12 @@ fun connectFor(millis: Long) {
           val setup =
             "HTTP/1.1 404 NOT FOUND\r\nContent-Type: ${type}\r\nContent-Length: ${size}\r\nConnection: close\r\n\r\n".
               toByteArray(Charsets.US_ASCII)
-          socket.aWrite(ByteBuffer.allocate(bytes.size + setup.size).apply {
+          ByteBuffer.allocate(bytes.size + setup.size).apply {
             put(setup)
             put(bytes)
             rewind()
-          })
+            while (remaining() > 0) socket.aWrite(this)
+          }
         }
       }
 

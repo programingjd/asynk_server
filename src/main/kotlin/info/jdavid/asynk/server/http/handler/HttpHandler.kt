@@ -4,6 +4,7 @@ import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
+import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
@@ -156,7 +157,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
 
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(ERROR_RESPONSE)
-      socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+      AWrite.all(socket,  buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
     private suspend fun writeHeaders(socket: AsynchronousSocketChannel,
                                      buffer: ByteBuffer,
@@ -173,7 +174,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         buffer.put(CRLF)
       }
       buffer.put(CRLF)
-      socket.aWrite(buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+      AWrite.all(socket, buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
     }
     internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear() as ByteBuffer)
@@ -204,7 +205,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
           val read = channel.aRead(buffer, position)
           if (read == -1) break
           position += read
-          socket.aWrite(buffer.flip() as ByteBuffer, 5000, TimeUnit.MILLISECONDS)
+          AWrite.all(socket, buffer.flip() as ByteBuffer, 5000, TimeUnit.MILLISECONDS)
         }
       }
     }
@@ -237,7 +238,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-      socket.aWrite(ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
+      AWrite.all(socket,  ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
     }
   }
 
@@ -257,7 +258,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-      socket.aWrite(ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
+      AWrite.all(socket, ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
     }
   }
 

@@ -5,6 +5,7 @@ package info.jdavid.asynk.server.http
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
+import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aRead
 import kotlinx.coroutines.experimental.nio.aWrite
@@ -147,18 +148,18 @@ internal object Http {
                    context: AbstractHttpHandler.Context): Int? {
     var exhausted = alreadyExhausted
     buffer.compact().flip()
-    val encoding = headers.value(TRANSFER_ENCODING)
+    val encoding = headers.value(Headers.TRANSFER_ENCODING)
     if (encoding == null || encoding == IDENTITY) {
-      val contentLength = headers.value(CONTENT_LENGTH)?.toInt() ?: 0
+      val contentLength = headers.value(Headers.CONTENT_LENGTH)?.toInt() ?: 0
       if (buffer.limit() > contentLength) return Status.BAD_REQUEST
       if (contentLength > 0) {
         if (!acceptance.bodyAllowed) return Status.BAD_REQUEST
-        val compression = headers.value(CONTENT_ENCODING)
+        val compression = headers.value(Headers.CONTENT_ENCODING)
         if (compression != null && compression != IDENTITY) return Status.UNSUPPORTED_MEDIA_TYPE
         if (contentLength > buffer.capacity()) return Status.PAYLOAD_TOO_LARGE
-        if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
+        if (headers.value(Headers.EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
           if (buffer.remaining() > 0) return Status.UNSUPPORTED_MEDIA_TYPE
-          socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
+          AWrite.all(socket, context.CONTINUE.rewind() as ByteBuffer)
           exhausted = false
         }
         if (!exhausted && contentLength > buffer.limit()) {
@@ -172,9 +173,9 @@ internal object Http {
     }
     else if (encoding == CHUNKED) {
       if (!acceptance.bodyAllowed) return Status.BAD_REQUEST
-      if (headers.value(EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
+      if (headers.value(Headers.EXPECT)?.toLowerCase() == ONE_HUNDRED_CONTINUE) {
         if (buffer.remaining() > 0) return Status.UNSUPPORTED_MEDIA_TYPE
-        socket.aWrite(context.CONTINUE.rewind() as ByteBuffer)
+        AWrite.all(socket, context.CONTINUE.rewind() as ByteBuffer)
         exhausted = false
       }
       // Body with chunked encoding
@@ -282,11 +283,7 @@ internal object Http {
   private const val LEFT_CURLY_BRACE: Byte = 0x7b
   private const val TILDA: Byte = 0x7e
 
-  private const val EXPECT = "Expect"
   private const val ONE_HUNDRED_CONTINUE = "100-continue"
-  private const val CONTENT_LENGTH = "Content-Length"
-  private const val CONTENT_ENCODING = "Content-Encoding"
-  private const val TRANSFER_ENCODING = "Transfer-Encoding"
   private const val IDENTITY = "identity"
   private const val CHUNKED = "chunked"
 

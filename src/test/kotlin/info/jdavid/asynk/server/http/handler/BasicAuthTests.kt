@@ -35,7 +35,11 @@ class BasicAuthTests {
         override fun bodyMediaType(body: ByteArray) = MediaType.TEXT
         override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
         override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-          this.body?.let { socket.aWrite((buffer.clear() as ByteBuffer).put(it).flip() as ByteBuffer) }
+          this.body?.let {
+            ((buffer.clear() as ByteBuffer).put(it).flip() as ByteBuffer).apply {
+              while (remaining() > 0) socket.aWrite(this)
+            }
+          }
         }
       }.body("Test".toByteArray(Charsets.US_ASCII))
     }
