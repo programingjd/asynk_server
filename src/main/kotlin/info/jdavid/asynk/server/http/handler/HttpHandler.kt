@@ -10,7 +10,6 @@ import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
 import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel

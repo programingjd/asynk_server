@@ -8,7 +8,6 @@ import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
