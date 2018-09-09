@@ -9,7 +9,7 @@ internal object AWrite {
 
   suspend inline fun all(channel: AsynchronousSocketChannel, buffer: ByteBuffer,
                          timeout: Long = 0L, timeUnit: TimeUnit = TimeUnit.MILLISECONDS) {
-    while(buffer.remaining() > 0) channel.aWrite(buffer, timeout, timeUnit)
+    while (buffer.remaining() > 0) channel.aWrite(buffer, timeout, timeUnit)
   }
 
 }

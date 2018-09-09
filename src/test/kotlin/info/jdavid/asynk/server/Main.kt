@@ -19,7 +19,7 @@ fun main(args: Array<String>) {
     if (path.isDirectory && File(path, ".git").exists()) break
   }
 //  serveDirectory(path.resolve("src/test/resources"))
-  connectFor(60000L)
+  connectFor(600000L)
 }
 
 fun serveDirectory(directory: File) {

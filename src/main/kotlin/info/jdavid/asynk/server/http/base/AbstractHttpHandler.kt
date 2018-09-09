@@ -5,13 +5,14 @@ package info.jdavid.asynk.server.http.base
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
+import info.jdavid.asynk.http.internal.Http
 import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
-import info.jdavid.asynk.server.http.Http
 import kotlinx.coroutines.experimental.nio.aRead
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
+import java.net.SocketTimeoutException
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
@@ -31,20 +32,26 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
     buffer.clear()
-    var exhausted = buffer.remaining() > socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS)
+    if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 16) throw SocketTimeoutException()
     buffer.flip()
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
     logger.info(uri)
     val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
+    if (buffer.remaining() < 4) {
+      buffer.compact()
+      if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 4) return reject(socket, buffer, context)
+      buffer.flip()
+    }
     val headers = Headers()
-    exhausted = try {
-      Http.headers(socket, exhausted, buffer, headers) ?: return reject(socket, buffer, context)
+    try {
+      if (!Http.headers(socket, buffer, headers)) return reject(socket, buffer, context)
     }
     catch (ignore: Http.HeadersTooLarge) {
       return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
-    val code = Http.body(socket, exhausted, buffer, acceptance, headers, context)
+    val code =
+      Http.body(socket, buffer, acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
     if (code != null) return response(socket, context.response(code))
     try {
       handle(acceptance, headers, buffer, socket, context)
