@@ -12,7 +12,6 @@ import info.jdavid.asynk.server.http.Acceptance
 import kotlinx.coroutines.experimental.nio.aRead
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
-import java.net.SocketTimeoutException
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
@@ -32,7 +31,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
     buffer.clear()
-    if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 16) throw SocketTimeoutException()
+    if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 16) return reject(socket, buffer, context)
     buffer.flip()
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
@@ -51,7 +50,8 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
       return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
     val code =
-      Http.body(socket, buffer, acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
+      Http.body(socket, Http.Version.HTTP_1_1, buffer,
+                acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
     if (code != null) return response(socket, context.response(code))
     try {
       handle(acceptance, headers, buffer, socket, context)
