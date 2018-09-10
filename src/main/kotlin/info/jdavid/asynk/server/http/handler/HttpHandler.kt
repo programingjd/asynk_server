@@ -314,6 +314,41 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
 
+//    /**
+//     * Creates a new handler from a route and a handle function.
+//     * @param route the handler route.
+//     * @param handler a function that given the acceptance object, the request headers, the request body
+//     *   and the context, returns a response object.
+//     * @return the handler.
+//     */
+//    fun <PARAMS: Any> of(route: Route<PARAMS>,
+//                         handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
+//                                   headers: Headers,
+//                                   body: ByteBuffer,
+//                                   context: AbstractHttpHandler.Context) -> Response<*>
+//    ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
+//      return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
+//        PARAMS,
+//        AbstractHttpHandler.Context,
+//        PARAMS>(route) {
+//        override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
+//                                    context: Context) = handler.invoke(acceptance, headers, body, context)
+//        override suspend fun context(others: Collection<*>?) = Context(others)
+//        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
+//          return when (method) {
+//            Method.OPTIONS -> Acceptance(false, false, method, uri, params)
+//            Method.HEAD -> Acceptance(false, false, method, uri, params)
+//            Method.GET -> Acceptance(false, false, method, uri, params)
+//            Method.POST -> Acceptance(true, true, method, uri, params)
+//            Method.PUT -> Acceptance(true, true, method, uri, params)
+//            Method.DELETE -> Acceptance(true, false, method, uri, params)
+//            Method.PATCH -> Acceptance(true, true, method, uri, params)
+//            else -> Acceptance(true, false, method, uri, params)
+//          }
+//        }
+//      }
+//    }
+
     /**
      * Creates a new handler from a route and a handle function.
      * @param route the handler route.
@@ -322,10 +357,10 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
      * @return the handler.
      */
     fun <PARAMS: Any> of(route: Route<PARAMS>,
-                         handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
-                                   headers: Headers,
-                                   body: ByteBuffer,
-                                   context: AbstractHttpHandler.Context) -> Response<*>
+                         handler: suspend (acceptance: HttpHandler.Acceptance<PARAMS>,
+                                           headers: Headers,
+                                           body: ByteBuffer,
+                                           context: AbstractHttpHandler.Context) -> Response<*>
     ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
       return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
                                  PARAMS,
@@ -395,15 +430,25 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
       HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
+//      /**
+//       * Specifies the next handler in the chain.
+//       * @param handler the next handler.
+//       * @return a handler definition that can be used to keep building the chain.
+//       */
+//      fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
+//                       headers: Headers,
+//                       body: ByteBuffer,
+//                       context: AbstractHttpHandler.Context) -> Response<*>) =
+//        HandlerDefinition(of(route, handler))
       /**
        * Specifies the next handler in the chain.
        * @param handler the next handler.
        * @return a handler definition that can be used to keep building the chain.
        */
-      fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
-                       headers: Headers,
-                       body: ByteBuffer,
-                       context: AbstractHttpHandler.Context) -> Response<*>) =
+      fun to(handler: suspend (acceptance: HttpHandler.Acceptance<PARAMS>,
+                               headers: Headers,
+                               body: ByteBuffer,
+                               context: AbstractHttpHandler.Context) -> Response<*>) =
         HandlerDefinition(of(route, handler))
     }
 
