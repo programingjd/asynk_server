@@ -4,6 +4,7 @@ import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
 import kotlinx.coroutines.experimental.channels.produce
 import kotlinx.coroutines.experimental.channels.toList
+import kotlinx.coroutines.experimental.currentScope
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.nio.aConnect
 import kotlinx.coroutines.experimental.nio.aRead
@@ -81,12 +82,14 @@ class EchoTests {
   }
 
   private suspend fun aRead(socket: AsynchronousSocketChannel, buffer: ByteBuffer) =
-    produce {
-      while (true) {
-        val n = socket.aRead(buffer)
-        if (n > 0) send(n) else break
-      }
-      close()
-    }.toList().sum()
+    currentScope {
+      produce {
+        while (true) {
+          val n = socket.aRead(buffer)
+          if (n > 0) send(n) else break
+        }
+        close()
+      }.toList().sum()
+    }
 
 }

@@ -4,9 +4,12 @@ package info.jdavid.asynk.server
 
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.handler.HttpHandlerChain
+import kotlinx.coroutines.experimental.CoroutineScope
+import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
+import kotlinx.coroutines.experimental.isActive
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.nio.aAccept
 import org.slf4j.LoggerFactory
@@ -22,7 +25,8 @@ import java.util.LinkedList
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.experimental.coroutineContext
+import kotlin.coroutines.experimental.CoroutineContext
+import kotlin.coroutines.experimental.coroutineContext as currentContext
 
 /**
  * Generic TCP server implementation.
@@ -41,9 +45,10 @@ open class Server<CONTEXT>(
   private val handler: Handler<CONTEXT>,
   private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val maxRequestSize: Int = 4096
-): Closeable {
+): Closeable, CoroutineScope {
   private val logger = LoggerFactory.getLogger(Server::class.java)
-
+  private val job = Job()
+  override val coroutineContext: CoroutineContext = job
   private val connections = Channel<AsynchronousSocketChannel>(Channel.UNLIMITED)
 
   private val serverSocket: AsynchronousServerSocketChannel = AsynchronousServerSocketChannel.open().apply {
@@ -79,7 +84,7 @@ open class Server<CONTEXT>(
         while (isActive) {
           val clientSocket = connections.receiveOrNull() ?: break
           val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
-          launch(coroutineContext) {
+          launch(currentContext) {
             if (handler.connect(remoteAddress)) {
               val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(maxRequestSize)
               try {
@@ -115,6 +120,7 @@ open class Server<CONTEXT>(
       it.awaitTermination(Math.max(250L, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
     }
     serverSocket.close()
+    job.cancel()
   }
 
   private inner class ConnectionAcceptorThreadFactory: ThreadFactory {
