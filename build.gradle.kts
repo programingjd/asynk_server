@@ -19,14 +19,14 @@ buildscript {
 }
 
 plugins {
-  kotlin("jvm") version "1.2.70"
+  kotlin("jvm") version "1.2.71"
   `maven-publish`
   id("org.jetbrains.dokka") version "0.9.17"
   id("com.jfrog.bintray") version "1.8.4"
 }
 
 group = "info.jdavid.asynk"
-version = "0.0.0.13.0"
+version = "0.0.0.15.0"
 
 repositories {
   jcenter()
@@ -34,16 +34,16 @@ repositories {
 
 dependencies {
   compile(kotlin("stdlib-jdk8"))
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.26.0")
-  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.26.0")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:0.26.1")
+  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-nio:0.26.1")
   implementation("org.slf4j:slf4j-api:1.7.25")
-  implementation("info.jdavid.asynk:http:0.0.0.13")
+  implementation("info.jdavid.asynk:http:0.0.0.15")
   testImplementation("org.junit.jupiter:junit-jupiter-api:5.3.0")
   testImplementation("org.junit.jupiter:junit-jupiter-params:5.3.0")
   testRuntime("org.junit.jupiter:junit-jupiter-engine:5.3.0")
   testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.6")
   testImplementation("org.apache.httpcomponents:httpclient:4.5.6")
-  testImplementation("info.jdavid.asynk:mysql:0.0.0.13")
+  testImplementation("info.jdavid.asynk:mysql:0.0.0.15")
   testRuntime("org.slf4j:slf4j-jdk14:1.7.25")
 //  testRuntime("org.slf4j:slf4j-nop:1.7.25")
 }
