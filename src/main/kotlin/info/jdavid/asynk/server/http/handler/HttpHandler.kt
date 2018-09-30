@@ -1,21 +1,21 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.core.asyncRead
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
-import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
-import kotlinx.coroutines.experimental.nio.aRead
+import kotlinx.coroutines.experimental.withTimeout
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.StandardOpenOption
-import java.util.concurrent.TimeUnit
 
 /**
  * Route-based HTTP Handler.
@@ -156,7 +156,8 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
 
     private suspend fun error(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
       buffer.put(ERROR_RESPONSE)
-      AWrite.all(socket,  buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+      buffer.flip()
+      withTimeout(5000L) { socket.asyncWrite(buffer, true) }
     }
     private suspend fun writeHeaders(socket: AsynchronousSocketChannel,
                                      buffer: ByteBuffer,
@@ -173,7 +174,8 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         buffer.put(CRLF)
       }
       buffer.put(CRLF)
-      AWrite.all(socket, buffer.flip() as ByteBuffer, 5000L, TimeUnit.MILLISECONDS)
+      buffer.flip()
+      withTimeout(5000L) { socket.asyncWrite(buffer, true) }
     }
     internal open suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
       val statusMessage = Status.HTTP_STATUSES[statusCode] ?: return error(socket, buffer.clear() as ByteBuffer)
@@ -201,10 +203,11 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         var position = 0L
         while (true) {
           buffer.clear()
-          val read = channel.aRead(buffer, position)
-          if (read == -1) break
+          val read = channel.asyncRead(buffer, position)
+          if (read == -1L) break
           position += read
-          AWrite.all(socket, buffer.flip() as ByteBuffer, 5000, TimeUnit.MILLISECONDS)
+          buffer.flip()
+          withTimeout(5000L) { socket.asyncWrite(buffer, true) }
         }
       }
     }
@@ -237,7 +240,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-      AWrite.all(socket,  ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
+      withTimeout(5000L) { socket.asyncWrite(ByteBuffer.wrap(body), true) }
     }
   }
 
@@ -257,7 +260,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
-      AWrite.all(socket, ByteBuffer.wrap(body), 5000, TimeUnit.MILLISECONDS)
+      withTimeout(5000L) { socket.asyncWrite(ByteBuffer.wrap(body), true) }
     }
   }
 

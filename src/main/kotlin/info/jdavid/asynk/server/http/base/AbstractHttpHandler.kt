@@ -2,19 +2,19 @@
 
 package info.jdavid.asynk.server.http.base
 
+import info.jdavid.asynk.core.asyncRead
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.http.internal.Http
-import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
-import kotlinx.coroutines.experimental.nio.aRead
+import kotlinx.coroutines.experimental.withTimeout
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
-import java.util.concurrent.TimeUnit
 
 /**
  * Abstract handler for http requests.
@@ -31,7 +31,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
     buffer.clear()
-    if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 16) return reject(socket, buffer, context)
+    if (withTimeout(20000L) { socket.asyncRead(buffer) } < 16) return reject(socket, buffer, context)
     buffer.flip()
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
@@ -39,7 +39,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
     if (buffer.remaining() < 4) {
       buffer.compact()
-      if (socket.aRead(buffer, 20000L, TimeUnit.MILLISECONDS) < 4) return reject(socket, buffer, context)
+      if (withTimeout(20000L) { socket.asyncRead(buffer) } < 4) return reject(socket, buffer, context)
       buffer.flip()
     }
     val headers = Headers()
@@ -120,7 +120,8 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
   }
 
   private suspend fun response(socket: AsynchronousSocketChannel, payload: ByteBuffer) {
-    AWrite.all(socket, payload.rewind() as ByteBuffer)
+    payload.rewind()
+    socket.asyncWrite(payload, true)
   }
 
   /**

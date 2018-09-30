@@ -2,16 +2,16 @@
 
 package info.jdavid.asynk.server
 
+import info.jdavid.asynk.core.asyncAccept
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.handler.HttpHandlerChain
+import kotlinx.coroutines.experimental.CancellationException
 import kotlinx.coroutines.experimental.CoroutineScope
 import kotlinx.coroutines.experimental.Job
-import kotlinx.coroutines.experimental.JobCancellationException
 import kotlinx.coroutines.experimental.asCoroutineDispatcher
 import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.isActive
 import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.nio.aAccept
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.IOException
@@ -65,12 +65,12 @@ open class Server<CONTEXT>(
   private val acceptJob = launch(connectionAcceptor.asCoroutineDispatcher()) {
     try {
       while (isActive) {
-        val clientSocket = serverSocket.aAccept()
+        val clientSocket = serverSocket.asyncAccept()
         clientSocket.setOption(StandardSocketOptions.TCP_NODELAY, true)
         connections.send(clientSocket)
       }
     }
-    catch (e: JobCancellationException) {}
+    catch (e: CancellationException) {}
     catch (e: IOException) {
       logger.warn("Acceptor error", e)
     }
@@ -102,7 +102,7 @@ open class Server<CONTEXT>(
           }
         }
       }
-      catch (e: JobCancellationException) {}
+      catch (e: CancellationException) {}
       catch (e: IOException) {
         logger.warn("Dispatcher error", e)
       }

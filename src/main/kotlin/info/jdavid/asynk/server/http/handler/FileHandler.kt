@@ -1,11 +1,11 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.http.Uri
-import info.jdavid.asynk.server.AWrite
 import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.CacheControl
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
@@ -132,7 +132,8 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}
     override suspend fun write(socket: AsynchronousSocketChannel, buffer: ByteBuffer, method: Method) {
-      AWrite.all(socket, context.FORBIDDEN.flip() as ByteBuffer)
+      context.FORBIDDEN.flip()
+      socket.asyncWrite(context.FORBIDDEN, true)
     }
   }.header(Headers.CONNECTION, "close")
 

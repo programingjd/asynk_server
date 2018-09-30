@@ -1,5 +1,6 @@
 package info.jdavid.asynk.server
 
+import kotlinx.coroutines.experimental.CoroutineScope
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
 import kotlinx.coroutines.experimental.channels.produce
@@ -18,6 +19,7 @@ import java.net.StandardSocketOptions
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.experimental.coroutineContext
 
 class EchoTests {
 
@@ -34,7 +36,7 @@ class EchoTests {
           buffer.flip()
         }
       }
-    }).use { _ ->
+    }).use {
       //Thread.sleep(20000L)
       runBlocking {
         awaitAll(
@@ -82,14 +84,12 @@ class EchoTests {
   }
 
   private suspend fun aRead(socket: AsynchronousSocketChannel, buffer: ByteBuffer) =
-    currentScope {
-      produce {
+    CoroutineScope(coroutineContext).produce {
         while (true) {
           val n = socket.aRead(buffer)
           if (n > 0) send(n) else break
         }
         close()
       }.toList().sum()
-    }
 
 }
