@@ -189,11 +189,13 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    * @param file the file that the response represents.
    * @param mediaType the file media type. [MediaType.fromFile] can be used if the media type is not known.
    * @param headers the response headers.
+   * @param status the response status code.
    */
   class FileResponse(file: File,
                      private val mediaType: String,
-                     headers: Headers = Headers()): Response<File>(
-    Status.OK, file, headers
+                     headers: Headers = Headers(),
+                     status: Int = Status.OK): Response<File>(
+    status, file, headers
   ) {
     override fun bodyMediaType(body: File) = mediaType
     override suspend fun bodyByteLength(body: File) = body.length()
@@ -218,24 +220,33 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    */
   class StringResponse private constructor(body: ByteArray?,
                                            private val mediaType: String,
-                                           headers: Headers = Headers()): Response<ByteArray>(
-    Status.OK, body, headers
+                                           headers: Headers = Headers(),
+                                           status: Int): Response<ByteArray>(
+    status, body, headers
   ) {
     /**
      * @param body the response body.
      * @param mediaType the file media type.
      * @param headers the response headers.
+     * @param status the response status code.
      */
-    constructor(body: String, mediaType: String, headers: Headers = Headers()): this(
-      body.toByteArray(), mediaType, headers
+    constructor(body: String,
+                mediaType: String = MediaType.TEXT,
+                headers: Headers = Headers(),
+                status: Int = Status.OK): this(
+      body.toByteArray(), mediaType, headers, status
     )
     /**
      * @param body the response body.
      * @param mediaType the file media type.
      * @param headers the response headers.
+     * @param status the response status code.
      */
-    constructor(body: CharSequence?, mediaType: String, headers: Headers = Headers()): this(
-      body?.toString()?.toByteArray(), mediaType, headers
+    constructor(body: CharSequence?,
+                mediaType: String = MediaType.TEXT,
+                headers: Headers = Headers(),
+                status: Int = Status.OK): this(
+      body?.toString()?.toByteArray(), mediaType, headers, status
     )
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
@@ -249,11 +260,13 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    * @param body the response body.
    * @param mediaType the file media type.
    * @param headers the response headers.
+   * @param status the response status code.
    */
   class ByteResponse(body: ByteArray,
                      private val mediaType: String,
-                     headers: Headers = Headers()): Response<ByteArray>(
-    Status.OK,
+                     headers: Headers = Headers(),
+                     status: Int = Status.OK): Response<ByteArray>(
+    status,
     body,
     headers
   ) {
@@ -267,9 +280,11 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
   /**
    * [Response] implementation with no body.
    * @param headers the response headers.
+   * @param status the response status code.
    */
-  class EmptyResponse(headers: Headers = Headers()): Response<Nothing>(
-    Status.OK, null, headers
+  class EmptyResponse(headers: Headers = Headers(),
+                      status: Int = Status.OK): Response<Nothing>(
+    status, null, headers
   ) {
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
