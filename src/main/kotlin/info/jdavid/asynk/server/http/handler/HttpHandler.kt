@@ -10,7 +10,7 @@ import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
-import kotlinx.coroutines.experimental.withTimeout
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
@@ -197,6 +197,12 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                      status: Int = Status.OK): Response<File>(
     status, file, headers
   ) {
+    /**
+     * @param file the file that the response represents.
+     * @param mediaType the file media type. [MediaType.fromFile] can be used if the media type is not known.
+     * @param status the response status code.
+     */
+    constructor(file: File, mediaType: String, status: Int): this(file, mediaType, Headers(), status)
     override fun bodyMediaType(body: File) = mediaType
     override suspend fun bodyByteLength(body: File) = body.length()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
@@ -239,6 +245,16 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     /**
      * @param body the response body.
      * @param mediaType the file media type.
+     * @param status the response status code.
+     */
+    constructor(body: String,
+                mediaType: String = MediaType.TEXT,
+                status: Int = Status.OK): this(
+      body.toByteArray(), mediaType, Headers(), status
+    )
+    /**
+     * @param body the response body.
+     * @param mediaType the file media type.
      * @param headers the response headers.
      * @param status the response status code.
      */
@@ -247,6 +263,24 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                 headers: Headers = Headers(),
                 status: Int = Status.OK): this(
       body?.toString()?.toByteArray(), mediaType, headers, status
+    )
+    /**
+     * @param body the response body.
+     * @param mediaType the file media type.
+     * @param status the response status code.
+     */
+    constructor(body: CharSequence?,
+                mediaType: String = MediaType.TEXT,
+                status: Int = Status.OK): this(
+      body?.toString()?.toByteArray(), mediaType, Headers(), status
+    )
+    /**
+     * @param body the response body.
+     * @param status the response status code.
+     */
+    constructor(body: CharSequence?,
+                status: Int = Status.OK): this(
+      body?.toString()?.toByteArray(), MediaType.TEXT, Headers(), status
     )
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
@@ -270,6 +304,15 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     body,
     headers
   ) {
+
+    /**
+     * @param body the response body.
+     * @param mediaType the file media type.
+     * @param status the response status code.
+     */
+    constructor(body: ByteArray, mediaType: String, status: Int): this(
+      body, mediaType, Headers(), status
+    )
     override fun bodyMediaType(body: ByteArray) = mediaType
     override suspend fun bodyByteLength(body: ByteArray) = body.size.toLong()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
@@ -286,6 +329,10 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                       status: Int = Status.OK): Response<Nothing>(
     status, null, headers
   ) {
+    /**
+     * @param status the response status code.
+     */
+    constructor(status: Int): this(Headers(), status)
     override fun bodyMediaType(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun bodyByteLength(body: Nothing) = throw UnsupportedOperationException()
     override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {}

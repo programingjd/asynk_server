@@ -1,8 +1,8 @@
+import info.jdavid.asynk.core.asyncRead
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
-import info.jdavid.asynk.http.Uri
-import info.jdavid.asynk.mysql.MysqlAuthentication
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.CacheControl
@@ -16,10 +16,6 @@ import info.jdavid.asynk.server.http.route.FileRoute
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
-import info.jdavid.asynk.sql.use
-import kotlinx.coroutines.experimental.nio.aRead
-import kotlinx.coroutines.experimental.nio.aWrite
-import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -66,8 +62,8 @@ object Usage {
         override suspend fun context(others: Collection<*>?) {}
         override suspend fun connect(remoteAddress: InetSocketAddress) = true
         override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
-          while (socket.aRead(buffer) != -1) {
-            (buffer.flip() as ByteBuffer).apply { while (remaining() > 0) socket.aWrite(this) }
+          while (socket.asyncRead(buffer) != -1L) {
+            (buffer.flip() as ByteBuffer).apply { while (remaining() > 0) socket.asyncWrite(this) }
             buffer.flip()
           }
         }
@@ -103,66 +99,6 @@ object Usage {
         )
       }
     ).use {}
-  }
-
-  fun custmContextAndAcceptance() {
-    val databaseName = "dbname"
-    val username = "api"
-    val password = "q6vQU?WXWu^gnDS#"
-    val getKeysFromDatabase = suspend {
-      MysqlAuthentication.Credentials.PasswordCredentials(username, password).connectTo(databaseName).use {
-        it.rows("SELECT key FROM keys").toList().map { it["key"] as String }
-      }.toSet()
-    }
-    val keys = runBlocking { getKeysFromDatabase() }
-
-    class KeysContext(others: Collection<*>?): AbstractHttpHandler.Context(others) {
-      var keys: Set<String> = (others?.find { it is KeysContext } as? KeysContext)?.keys ?: keys
-      private set
-
-      private var lastUpdate: Long =
-        (others?.find { it is KeysContext } as? KeysContext)?.lastUpdate ?: System.currentTimeMillis()
-
-      suspend fun updateIfNecessary() {
-        val now = System.currentTimeMillis()
-        if (now - lastUpdate > 1000*60*60) {
-          this.keys = getKeysFromDatabase()
-          lastUpdate = now
-        }
-      }
-    }
-
-    class KeyAcceptance(method: Method, uri: String, val key: String):
-      HttpHandler.Acceptance<String>(true, false, method, uri, key)
-
-    abstract class KeysHttpHandler<PARAMS: Any>(route: Route<PARAMS>):
-      HttpHandler<KeyAcceptance, String, KeysContext, PARAMS>(route) {
-      override suspend fun context(others: Collection<*>?) = KeysContext(others)
-      override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) =
-        Uri.query(uri)?.get("key")?.let { KeyAcceptance(method, uri, it) }
-      final override suspend fun handle(acceptance: KeyAcceptance, headers: Headers, body: ByteBuffer,
-                                        context: KeysContext): Response<*> {
-        context.updateIfNecessary()
-        return if (context.keys.contains(acceptance.key)) {
-          handle(acceptance.method, acceptance.uri, headers, body)
-        } else AuthHandler.UnauthorizedResponse()
-      }
-      abstract fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer): Response<*>
-    }
-
-    fun <PARAMS: Any> handler(
-      route: HttpHandler.Route<PARAMS>,
-      handler: (method: Method, uri: String, headers: Headers, body: ByteBuffer) -> HttpHandler.Response<*>
-    ) = object: KeysHttpHandler<PARAMS>(route) {
-      override fun handle(method: Method, uri: String, headers: Headers, body: ByteBuffer) =
-        handler(method, uri, headers, body)
-    }
-
-    Server.http(
-      handler(FixedRoute("/test1", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() },
-      handler(FixedRoute("/test2", listOf(Method.GET))) { _, _, _, _ -> HttpHandler.EmptyResponse() }
-    )
-
   }
 
   object CustomAuthValidationError: AuthHandler.ValidationError

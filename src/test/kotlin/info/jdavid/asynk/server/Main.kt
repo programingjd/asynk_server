@@ -1,11 +1,11 @@
 package info.jdavid.asynk.server
 
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.http.base.DefaultHttpHandler
 import info.jdavid.asynk.server.http.base.SimpleHttpHandler
 import info.jdavid.asynk.server.http.handler.FileHandler
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -44,7 +44,7 @@ fun connectFor(millis: Long) {
             put(setup)
             put(bytes)
             rewind()
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
         }
         "/body", "/body/" -> {
@@ -57,7 +57,7 @@ fun connectFor(millis: Long) {
             put(setup)
             if (body.remaining() > 0) put(body)
             rewind()
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
         }
         else -> {
@@ -71,7 +71,7 @@ fun connectFor(millis: Long) {
             put(setup)
             put(bytes)
             rewind()
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
         }
       }

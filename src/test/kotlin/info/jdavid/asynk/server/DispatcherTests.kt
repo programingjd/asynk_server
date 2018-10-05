@@ -1,11 +1,11 @@
 package info.jdavid.asynk.server
 
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.SimpleHttpHandler
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.nio.aWrite
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import java.io.IOException
@@ -36,7 +36,7 @@ class DispatcherTests {
       override suspend fun handle(acceptance: SimpleHttpHandler.Acceptance, headers: Headers, body: ByteBuffer,
                                   socket: AsynchronousSocketChannel, context: Context) {
         ((context as ExtendedContext).test.rewind() as ByteBuffer).apply {
-          while (remaining() > 0) socket.aWrite(this)
+          while (remaining() > 0) socket.asyncWrite(this)
         }
       }
     }).use { _ ->
@@ -47,7 +47,7 @@ class DispatcherTests {
             val conn = URL("http://localhost:8080").openConnection() as HttpURLConnection
             conn.useCaches = false
             try {
-              val bytes = conn.inputStream.readBytes(512)
+              val bytes = conn.inputStream.readBytes()
               if (String(bytes) == "Test") {
                 order.add(i)
                 println(i)

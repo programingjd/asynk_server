@@ -1,9 +1,9 @@
 package info.jdavid.asynk.server.http.base
 
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Crypto
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
-import kotlinx.coroutines.experimental.nio.aWrite
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
@@ -30,8 +30,8 @@ open class DefaultHttpHandler: SimpleHttpHandler() {
     ByteBuffer.wrap(
       "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${bytes.size + extra}\r\nConnection: close\r\n\r\n".
         toByteArray(Charsets.US_ASCII)
-    ).apply { while (remaining() > 0) socket.aWrite(this) }
-    ByteBuffer.wrap(bytes).apply { while (remaining() > 0) socket.aWrite(this) }
+    ).apply { while (remaining() > 0) socket.asyncWrite(this) }
+    ByteBuffer.wrap(bytes).apply { while (remaining() > 0) socket.asyncWrite(this) }
     if (extra > 0) {
       if (contentType.startsWith("text/") ||
           contentType.startsWith("application/") &&
@@ -39,27 +39,27 @@ open class DefaultHttpHandler: SimpleHttpHandler() {
            contentType.startsWith(MediaType.JSON) ||
            contentType.startsWith(MediaType.XHTML) ||
            contentType.startsWith(MediaType.WEB_MANIFEST))) {
-        socket.aWrite(body)
+        socket.asyncWrite(body)
       }
       else {
         if (body.remaining() > 1024) {
           val limit = body.limit()
           body.limit(body.position() + 511)
           ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
           ByteBuffer.wrap("....".toByteArray(Charsets.US_ASCII)).apply {
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
           body.limit(limit)
           body.position(limit - 511)
           ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
         }
         else {
           ByteBuffer.wrap(Crypto.hex(body).toByteArray(Charsets.US_ASCII)).apply {
-            while (remaining() > 0) socket.aWrite(this)
+            while (remaining() > 0) socket.asyncWrite(this)
           }
         }
       }

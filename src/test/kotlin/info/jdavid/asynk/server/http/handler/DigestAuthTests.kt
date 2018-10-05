@@ -1,5 +1,6 @@
 package info.jdavid.asynk.server.http.handler
 
+import info.jdavid.asynk.core.asyncWrite
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
@@ -8,7 +9,6 @@ import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.base.AuthHandler
 import info.jdavid.asynk.server.http.route.NoParams
-import kotlinx.coroutines.experimental.nio.aWrite
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.client.methods.HttpGet
@@ -38,7 +38,7 @@ class DigestAuthTests {
         override suspend fun writeBody(socket: AsynchronousSocketChannel, buffer: ByteBuffer) {
           this.body?.let {
             ((buffer.clear() as ByteBuffer).put(it).flip() as ByteBuffer).apply {
-              while (remaining() > 0) socket.aWrite(this)
+              while (remaining() > 0) socket.asyncWrite(this)
             }
           }
         }

@@ -5,13 +5,13 @@ package info.jdavid.asynk.server
 import info.jdavid.asynk.core.asyncAccept
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.handler.HttpHandlerChain
-import kotlinx.coroutines.experimental.CancellationException
-import kotlinx.coroutines.experimental.CoroutineScope
-import kotlinx.coroutines.experimental.Job
-import kotlinx.coroutines.experimental.asCoroutineDispatcher
-import kotlinx.coroutines.experimental.channels.Channel
-import kotlinx.coroutines.experimental.isActive
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import java.io.IOException
@@ -25,8 +25,8 @@ import java.util.LinkedList
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.experimental.CoroutineContext
-import kotlin.coroutines.experimental.coroutineContext as currentContext
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext as currentContext
 
 /**
  * Generic TCP server implementation.

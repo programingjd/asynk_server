@@ -10,7 +10,7 @@ import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.http.internal.Http
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
-import kotlinx.coroutines.experimental.withTimeout
+import kotlinx.coroutines.withTimeout
 import org.slf4j.LoggerFactory
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
