@@ -43,7 +43,7 @@ import kotlin.coroutines.coroutineContext as currentContext
  */
 open class Server<CONTEXT>(
   private val handler: Handler<CONTEXT>,
-  private val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
+  val address: InetSocketAddress = InetSocketAddress(InetAddress.getLoopbackAddress(), 8080),
   private val maxRequestSize: Int = 4096
 ): Closeable, CoroutineScope {
   private val logger = LoggerFactory.getLogger(Server::class.java)
@@ -65,15 +65,17 @@ open class Server<CONTEXT>(
   private val acceptJob = launch(connectionAcceptor.asCoroutineDispatcher()) {
     try {
       while (isActive) {
-        val clientSocket = serverSocket.asyncAccept()
-        clientSocket.setOption(StandardSocketOptions.TCP_NODELAY, true)
-        connections.send(clientSocket)
+        try {
+          val clientSocket = serverSocket.asyncAccept()
+          clientSocket.setOption(StandardSocketOptions.TCP_NODELAY, true)
+          connections.send(clientSocket)
+        }
+        catch (e: IOException) {
+          logger.warn("Acceptor error", e)
+        }
       }
     }
     catch (e: CancellationException) {}
-    catch (e: IOException) {
-      logger.warn("Acceptor error", e)
-    }
   }
 
   private val handleJobs = connectionHandlers.map {
@@ -82,30 +84,32 @@ open class Server<CONTEXT>(
       val buffers = LinkedList<ByteBuffer>()
       try {
         while (isActive) {
-          val clientSocket = connections.receiveOrNull() ?: break
-          val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
-          launch(currentContext) {
-            if (handler.connect(remoteAddress)) {
-              val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(maxRequestSize)
-              try {
-                handler.handle(clientSocket, buffer, handlerContext)
+          try {
+            val clientSocket = connections.receiveOrNull() ?: break
+            val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
+            launch(currentContext) {
+              if (handler.connect(remoteAddress)) {
+                val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(maxRequestSize)
+                try {
+                  handler.handle(clientSocket, buffer, handlerContext)
+                }
+                catch (e: Throwable) {
+                  logger.warn("Handler error", e)
+                }
+                finally {
+                  buffers.offer(buffer)
+                }
               }
-              catch (e: Exception) {
-                logger.warn("Handler error", e)
-              }
-              finally {
-                buffers.offer(buffer)
-              }
+              //delay(3000L)
+              clientSocket.close()
             }
-            //delay(3000L)
-            clientSocket.close()
+          }
+          catch (e: IOException) {
+            logger.warn("Dispatcher error", e)
           }
         }
       }
       catch (e: CancellationException) {}
-      catch (e: IOException) {
-        logger.warn("Dispatcher error", e)
-      }
     }
   }
 
