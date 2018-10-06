@@ -186,7 +186,7 @@ class DigestAuthTests {
         "Test Realm",
         HttpHandler.Builder().route("/test1").to { _, _, _, _ ->
           HttpHandler.StringResponse("1", MediaType.TEXT)
-        }.route("/test2").to { _, _, _, _ -> HttpHandler.StringResponse("2", MediaType.TEXT) }.route(
+        }.route("/test2").to { -> HttpHandler.StringResponse("2", MediaType.TEXT) }.route(
           "/test3").to { _, _, _, _ -> HttpHandler.StringResponse("3", MediaType.TEXT) }.build()
       ) { user -> credentials[user] }
     ).use { _ ->

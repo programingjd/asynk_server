@@ -5,6 +5,8 @@ import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Uri
 import info.jdavid.asynk.server.Server
+import info.jdavid.asynk.server.http.route.FixedRoute
+import info.jdavid.asynk.server.http.route.NoParams
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
@@ -61,14 +63,9 @@ class HandlerChainTests {
         build(),
       HttpHandler.of(
         NumberedRoute(5)
-      ) { acceptance , _, _, _ ->
+      ) { ->
           HttpHandler.StringResponse(acceptance.routeParams.toString(), MediaType.TEXT)
-        },
-      HttpHandler.of(
-        NumberedRoute(2)
-      ) { _ , _, _, _ ->
-        HttpHandler.StringResponse("#", MediaType.TEXT)
-      }
+        }
     ).use {
       listOf(0, 2, 3, 5).forEach { n ->
         val request = HttpGet().apply {

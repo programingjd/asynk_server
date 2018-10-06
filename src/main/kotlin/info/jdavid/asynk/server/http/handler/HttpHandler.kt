@@ -379,40 +379,38 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
        "Content-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").
         toByteArray(Charsets.US_ASCII)
 
-//    /**
-//     * Creates a new handler from a route and a handle function.
-//     * @param route the handler route.
-//     * @param handler a function that given the acceptance object, the request headers, the request body
-//     *   and the context, returns a response object.
-//     * @return the handler.
-//     */
-//    fun <PARAMS: Any> of(route: Route<PARAMS>,
-//                         handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
-//                                   headers: Headers,
-//                                   body: ByteBuffer,
-//                                   context: AbstractHttpHandler.Context) -> Response<*>
-//    ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
-//      return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
-//        PARAMS,
-//        AbstractHttpHandler.Context,
-//        PARAMS>(route) {
-//        override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
-//                                    context: Context) = handler.invoke(acceptance, headers, body, context)
-//        override suspend fun context(others: Collection<*>?) = Context(others)
-//        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
-//          return when (method) {
-//            Method.OPTIONS -> Acceptance(false, false, method, uri, params)
-//            Method.HEAD -> Acceptance(false, false, method, uri, params)
-//            Method.GET -> Acceptance(false, false, method, uri, params)
-//            Method.POST -> Acceptance(true, true, method, uri, params)
-//            Method.PUT -> Acceptance(true, true, method, uri, params)
-//            Method.DELETE -> Acceptance(true, false, method, uri, params)
-//            Method.PATCH -> Acceptance(true, true, method, uri, params)
-//            else -> Acceptance(true, false, method, uri, params)
-//          }
-//        }
-//      }
-//    }
+    /**
+     * Creates a new handler from a route and a handle function.
+     * @param route the handler route.
+     * @param handler a function that given a request with the acceptance object, the request headers,
+     * the request body and the context, returns a response object.
+     * @return the handler.
+     */
+    fun <PARAMS: Any> of(
+      route: Route<PARAMS>,
+      handler: suspend Request<PARAMS>.() -> Response<*>
+    ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
+      return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
+        PARAMS,
+        AbstractHttpHandler.Context,
+        PARAMS>(route) {
+        override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
+                                    context: Context) = Request(acceptance, headers, body, context).handler()
+        override suspend fun context(others: Collection<*>?) = Context(others)
+        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
+          return when (method) {
+            Method.OPTIONS -> Acceptance(false, false, method, uri, params)
+            Method.HEAD -> Acceptance(false, false, method, uri, params)
+            Method.GET -> Acceptance(false, false, method, uri, params)
+            Method.POST -> Acceptance(true, true, method, uri, params)
+            Method.PUT -> Acceptance(true, true, method, uri, params)
+            Method.DELETE -> Acceptance(true, false, method, uri, params)
+            Method.PATCH -> Acceptance(true, true, method, uri, params)
+            else -> Acceptance(true, false, method, uri, params)
+          }
+        }
+      }
+    }
 
     /**
      * Creates a new handler from a route and a handle function.
@@ -421,11 +419,12 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
      *   and the context, returns a response object.
      * @return the handler.
      */
-    fun <PARAMS: Any> of(route: Route<PARAMS>,
-                         handler: suspend (acceptance: HttpHandler.Acceptance<PARAMS>,
-                                           headers: Headers,
-                                           body: ByteBuffer,
-                                           context: AbstractHttpHandler.Context) -> Response<*>
+    fun <PARAMS: Any> of(
+      route: Route<PARAMS>,
+      handler: suspend (acceptance: HttpHandler.Acceptance<PARAMS>,
+                        headers: Headers,
+                        body: ByteBuffer,
+                        context: AbstractHttpHandler.Context) -> Response<*>
     ): HttpHandler<HttpHandler.Acceptance<PARAMS>, PARAMS, AbstractHttpHandler.Context, PARAMS> {
       return object: HttpHandler<HttpHandler.Acceptance<PARAMS>,
                                  PARAMS,
@@ -450,6 +449,13 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
     }
   }
 
+  class Request<T>(
+    val acceptance: HttpHandler.Acceptance<T>,
+    val headers: Headers,
+    val body: ByteBuffer,
+    val context: AbstractHttpHandler.Context
+  )
+
   /**
    * Builder that can be used to combine multiple handlers (a chain) into a single handler.
    * The first handler that can accept the request will be used (first one wins).
@@ -470,11 +476,11 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
      * @param directory the next handler [FileRoute] root directory.
      * @return a route definition that can be used to keep building the chain.
      */
-    fun route(directory: File) = RouteDefinition(FileRoute(directory))
+    fun route(directory: File, prefix: String = "/") = RouteDefinition(FileRoute(directory, prefix))
 
     /**
      * Specifies the route for the next handler as a file path (for the root directory).
-     * @param path the next handler [FileRoute] root directory file path.
+     * @param path the next handler route path expression.
      * @return a route definition that can be used to keep building the chain.
      */
     fun route(path: String): RouteDefinition<Map<String,String>> {
@@ -495,16 +501,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
       HandlerDefinition(handler)
 
     inner class RouteDefinition<PARAMS: Any> internal constructor(private val route: Route<PARAMS>) {
-//      /**
-//       * Specifies the next handler in the chain.
-//       * @param handler the next handler.
-//       * @return a handler definition that can be used to keep building the chain.
-//       */
-//      fun to(handler: (acceptance: HttpHandler.Acceptance<PARAMS>,
-//                       headers: Headers,
-//                       body: ByteBuffer,
-//                       context: AbstractHttpHandler.Context) -> Response<*>) =
-//        HandlerDefinition(of(route, handler))
+
       /**
        * Specifies the next handler in the chain.
        * @param handler the next handler.
@@ -515,6 +512,15 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                                body: ByteBuffer,
                                context: AbstractHttpHandler.Context) -> Response<*>) =
         HandlerDefinition(of(route, handler))
+
+      /**
+       * Specifies the next handler in the chain.
+       * @param handler the next handler.
+       * @return a handler definition that can be used to keep building the chain.
+       */
+      fun to(handler: suspend Request<PARAMS>.() -> Response<*>) =
+        HandlerDefinition(of(route, handler))
+
     }
 
     inner class HandlerDefinition internal constructor(
