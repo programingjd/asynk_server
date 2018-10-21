@@ -370,6 +370,11 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
      * @return the captured parameters or null if the route doesn't match.
      */
     fun match(method: Method, uri: String): PARAMS?
+
+    /**
+     * The maximum allowed request body size.
+     */
+    val maxRequestSize: Int
   }
 
   companion object {
@@ -396,7 +401,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         PARAMS>(route) {
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = Request(acceptance, headers, body, context).handler()
-        override suspend fun context(others: Collection<*>?) = Context(others)
+        override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
         override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
             Method.OPTIONS -> Acceptance(false, false, method, uri, params)
@@ -432,7 +437,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                                  PARAMS>(route) {
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = handler.invoke(acceptance, headers, body, context)
-        override suspend fun context(others: Collection<*>?) = Context(others)
+        override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
         override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
             Method.OPTIONS -> Acceptance(false, false, method, uri, params)

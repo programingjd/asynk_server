@@ -101,6 +101,7 @@ class HandlerChainTests {
   }
 
   private class NumberedRoute(val number: Int): HttpHandler.Route<Int> {
+    override val maxRequestSize = 4096
     override fun match(method: Method, uri: String): Int? {
       return if (Uri.path(uri) == "/${number}") number else null
     }

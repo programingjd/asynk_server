@@ -4,10 +4,10 @@ package info.jdavid.asynk.server.http.base
 
 import info.jdavid.asynk.http.Method
 
-abstract class SimpleHttpHandler: AbstractHttpHandler<SimpleHttpHandler.Acceptance,
-                                                      AbstractHttpHandler.Context>() {
+abstract class SimpleHttpHandler(private val maxRequestSize: Int = 4096):
+  AbstractHttpHandler<SimpleHttpHandler.Acceptance, AbstractHttpHandler.Context>() {
 
-  override suspend fun context(others: Collection<*>?) = Context(others)
+  override suspend fun context(others: Collection<*>?) = Context(others, maxRequestSize)
 
   override suspend fun acceptUri(method: Method, uri: String): Acceptance? {
     return when (method) {

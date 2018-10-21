@@ -18,11 +18,13 @@ import java.util.regex.Pattern
  */
 class ParameterizedRoute private constructor(
   private val methods: List<Method>,
+  override val maxRequestSize: Int = 4096,
   private val compiled: Pair<Pattern,List<String>>): HttpHandler.Route<Map<String, String>> {
   constructor(
     path: String,
+    maxRequestSize: Int = 4096,
     methods: List<Method> = listOf(Method.GET, Method.HEAD)
-  ): this(methods, compile(path))
+  ): this(methods, maxRequestSize, compile(path))
 
   override fun match(method: Method, uri: String): Map<String, String>? {
     if (methods.contains(method)) {

@@ -1,9 +1,11 @@
 package info.jdavid.asynk.server.http.base
 
+import info.jdavid.asynk.http.Crypto
 import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.MediaType
 import info.jdavid.asynk.server.Server
 import org.apache.http.client.methods.*
+import org.apache.http.entity.ByteArrayEntity
 import org.apache.http.entity.StringEntity
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.Assertions.*
 import java.net.InetSocketAddress
 import java.net.InetAddress
 import java.net.URI
+import java.security.SecureRandom
 
 class HttpHandlerTests {
 
@@ -146,6 +149,51 @@ class HttpHandlerTests {
             Host: localhost:8080
 
             Test
+          """.trimIndent().normalize()
+            , String(bytes).normalize())
+        }
+      }
+    }
+  }
+
+  @Test fun testDefaultHandlerWithLargeBody() {
+    val data = SecureRandom.getSeed(7500)
+    Server(
+      DefaultHttpHandler(16384),
+      InetSocketAddress(InetAddress.getLoopbackAddress(), 8080)
+    ).use { _ ->
+      val request = HttpPut().apply {
+        uri = URI("http://localhost:8080")
+        setHeader(Headers.USER_AGENT, "Test user agent")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.ACCEPT, "text/plain")
+        setHeader(Headers.ACCEPT_ENCODING, "identity")
+        setHeader(Headers.CONNECTION, "close")
+        setHeader(Headers.CONTENT_TYPE, "application/octet-stream")
+        entity = ByteArrayEntity(data)
+      }
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request).use {
+          assertEquals(200, it.statusLine.statusCode)
+          val bytes = it.entity.content.readBytes()
+          assertEquals(it.getLastHeader(Headers.CONTENT_LENGTH).value.toInt(), bytes.size)
+          assertTrue(it.getLastHeader(Headers.CONTENT_TYPE).value.startsWith(MediaType.TEXT))
+          assertEquals(
+            """
+            PUT /
+
+            User-Agent: Test user agent
+            Cache-Control: no-cache
+            Pragma: no-cache
+            Accept: text/plain
+            Accept-Encoding: identity
+            Connection: close
+            Content-Type: application/octet-stream
+            Content-Length: ${data.size}
+            Host: localhost:8080
+
+            ${Crypto.hex(data)}
           """.trimIndent().normalize()
             , String(bytes).normalize())
         }

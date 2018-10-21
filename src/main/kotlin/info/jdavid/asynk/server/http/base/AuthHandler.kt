@@ -145,8 +145,10 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
   /**
    * Base Context object type for Authentication handlers.
    */
-  open class Context<out CONTEXT>(others: Collection<*>?,
-                                  val delegate: CONTEXT): AbstractHttpHandler.Context(others)
+  open class Context<out CONTEXT: AbstractHttpHandler.Context>(
+    others: Collection<*>?,
+    val delegate: CONTEXT
+  ): AbstractHttpHandler.Context(others, delegate.maxRequestSize)
 
   /**
    * Default response for unauthorized requests (401 Unauthorized with no body).

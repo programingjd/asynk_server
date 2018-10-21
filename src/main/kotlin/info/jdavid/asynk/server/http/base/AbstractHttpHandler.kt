@@ -50,15 +50,30 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
       return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
     val code =
-      Http.body(socket, Http.Version.HTTP_1_1, buffer,
+      Http.body(socket, Http.Version.HTTP_1_1, buffer, context,
                 acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
-    if (code != null) return response(socket, context.response(code))
-    try {
-      handle(acceptance, headers, buffer, socket, context)
-    }
-    catch (e: Exception) {
-      logger.warn("Handling ${method} ${uri} failed", e)
-      serverError(socket, buffer, context)
+    when (code) {
+      0 -> {
+        try {
+          handle(acceptance, headers, buffer, socket, context)
+        }
+        catch (e: Exception) {
+          logger.warn("Handling ${method} ${uri} failed", e)
+          serverError(socket, buffer, context)
+        }
+      }
+      1 -> {
+        val buf = context.buffer ?: return serverError(socket, buffer, context)
+        context.buffer = null
+        try {
+          handle(acceptance, headers, buf, socket, context)
+        }
+        catch (e: Exception) {
+          logger.warn("Handling ${method} ${uri} failed", e)
+          serverError(socket, buffer, context)
+        }
+      }
+      else -> response(socket, context.response(code))
     }
   }
 
@@ -128,8 +143,16 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
    * Abstract Context class for http handlers (contains some prebuilt responses).
    */
   @Suppress("PropertyName", "unused", "MemberVisibilityCanBePrivate")
-  open class Context private constructor(other: Context? = null) {
-    constructor(others: Collection<*>?): this(others?.find { it is Context } as? Context)
+  open class Context private constructor(
+    override val maxRequestSize: Int,
+    other: Context? = null
+  ): info.jdavid.asynk.http.internal.Context {
+    constructor(
+      others: Collection<*>?,
+      maxRequestSize: Int = 4096
+    ): this(maxRequestSize, others?.find { it is Context } as? Context)
+
+    override var buffer: ByteBuffer? = null
     val OK: ByteBuffer =
       other?.OK ?: emptyResponse(Status.OK)
     val REQUEST_HEADER_FIELDS_TOO_LARGE: ByteBuffer =
@@ -161,6 +184,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
         else -> throw IllegalArgumentException()
       }
     }
+    fun buffer(size: Int) = if (size > maxRequestSize) null else ByteBuffer.allocateDirect(size)
   }
 
   companion object {

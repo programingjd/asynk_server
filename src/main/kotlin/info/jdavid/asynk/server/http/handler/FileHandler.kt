@@ -34,8 +34,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     internal fun serveDirectory(directory: File, port: Int) {
       Server(
         FileHandler(FileRoute(directory)),
-        InetSocketAddress(InetAddress.getLoopbackAddress(), port),
-        4096
+        InetSocketAddress(InetAddress.getLoopbackAddress(), port)
       ).use {
         Thread.sleep(Long.MAX_VALUE)
       }
@@ -137,7 +136,7 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
     }
   }.header(Headers.CONNECTION, "close")
 
-  override suspend fun context(others: Collection<*>?) = Context(others)
+  override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
 
   override suspend fun acceptUri(method: Method, uri: String, params: File): Acceptance<File>? {
     return Acceptance(false, false, method, uri, params)

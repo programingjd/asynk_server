@@ -22,6 +22,8 @@ open class FileRoute(private val root: File, private val prefix: String = "/"): 
     if (root.isFile) throw IllegalArgumentException()
     if (prefix.isEmpty() || prefix[0] != '/') throw IllegalArgumentException()
   }
+  override val maxRequestSize = 4096
+
   final override fun match(method: Method, uri: String): File? {
     if (method == Method.GET || method == Method.HEAD && uri.startsWith(prefix)) {
       val segments = Uri.path(uri).substring(prefix.length).split('/')

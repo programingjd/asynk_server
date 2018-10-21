@@ -123,6 +123,7 @@ class SingleChainTests {
         val matcher = pattern.matcher(Uri.path(uri))
         return if (matcher.find()) matcher.group(1).toInt() else null
       }
+      override val maxRequestSize = 4096
     }
     val handler = object: HttpHandler<HttpHandler.Acceptance<Int>, Int, AbstractHttpHandler.Context, Int>(
       route

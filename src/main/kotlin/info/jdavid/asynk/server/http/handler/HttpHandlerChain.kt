@@ -59,6 +59,6 @@ internal class HttpHandlerChain(
   internal class ChainContext(
     others: Collection<*>?,
     val contexts: Map<HttpHandler<*,*,*,*>, AbstractHttpHandler.Context>
-  ): AbstractHttpHandler.Context(others)
+  ): AbstractHttpHandler.Context(others, 4096)
 
 }

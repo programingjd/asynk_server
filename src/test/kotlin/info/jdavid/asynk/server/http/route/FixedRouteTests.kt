@@ -12,7 +12,7 @@ class FixedRouteTests {
     assertNotNull(route1.match(Method.GET, "/test"))
     assertNotNull(route1.match(Method.HEAD, "/test"))
     assertNull(route1.match(Method.DELETE, "/test"))
-    val route2 = FixedRoute("/test", listOf(Method.DELETE))
+    val route2 = FixedRoute("/test", 4096, listOf(Method.DELETE))
     assertNotNull(route2.match(Method.DELETE, "/test"))
     assertNull(route2.match(Method.HEAD, "/test"))
     assertNull(route2.match(Method.GET, "/test"))

@@ -12,6 +12,7 @@ import info.jdavid.asynk.server.http.handler.HttpHandler
  */
 class FixedRoute(
   path: String,
+  override val maxRequestSize: Int = 4096,
   private val methods: List<Method> = listOf(Method.GET, Method.HEAD)): HttpHandler.Route<NoParams> {
   private val path = validate(path)
   private val relative = path[0] != '/'

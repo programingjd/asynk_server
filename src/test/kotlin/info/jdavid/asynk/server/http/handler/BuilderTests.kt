@@ -25,6 +25,7 @@ class BuilderTests {
       }.
       route(object: HttpHandler.Route<Boolean> {
         override fun match(method: Method, uri: String) = if (Uri.path(uri) == "/route") true else null
+        override val maxRequestSize: Int = 4096
       }).to { acceptance, _, _, _ ->
         HttpHandler.StringResponse(acceptance.routeParams.toString(), MediaType.TEXT)
       }.
