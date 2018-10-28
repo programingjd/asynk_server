@@ -82,6 +82,7 @@ class EchoTests {
     }
   }
 
+  @Suppress("EXPERIMENTAL_API_USAGE")
   private suspend fun aRead(socket: AsynchronousSocketChannel, buffer: ByteBuffer) =
     CoroutineScope(coroutineContext).produce {
         while (true) {

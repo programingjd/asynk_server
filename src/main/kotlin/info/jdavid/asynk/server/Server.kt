@@ -86,6 +86,7 @@ open class Server<CONTEXT>(
       try {
         while (isActive) {
           try {
+            @Suppress("EXPERIMENTAL_API_USAGE")
             val clientSocket = connections.receiveOrNull() ?: break
             val remoteAddress = clientSocket.remoteAddress as InetSocketAddress
             launch(currentContext) {
