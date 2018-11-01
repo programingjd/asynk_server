@@ -29,6 +29,7 @@ dependencies {
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${KOTLINX.version}")
   implementation("info.jdavid.asynk:core:${ASYNK.version}")
   implementation("info.jdavid.asynk:http:${ASYNK.version}")
+  implementation("com.codahale:aes-gcm-siv:0.4.2")
   implementation("org.slf4j:slf4j-api:1.7.25")
   testImplementation("org.apache.httpcomponents:httpclient:4.5.6")
   testImplementation("com.fasterxml.jackson.core:jackson-databind:2.9.7")
