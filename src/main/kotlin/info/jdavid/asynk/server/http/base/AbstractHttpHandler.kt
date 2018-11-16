@@ -49,9 +49,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     catch (ignore: Http.HeadersTooLarge) {
       return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
     }
-    val code =
-      Http.body(socket, Http.Version.HTTP_1_1, buffer, context,
-                acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
+    val code = body(socket, buffer, headers, context, acceptance)
     when (code) {
       0 -> {
         try {
@@ -63,7 +61,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
         }
       }
       1 -> {
-        val buf = context.buffer ?: return serverError(socket, buffer, context)
+        val buf = buffer(context, acceptance) ?: return serverError(socket, buffer, context)
         context.buffer = null
         try {
           handle(acceptance, headers, buf, socket, context)
@@ -76,6 +74,17 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
       else -> response(socket, context.response(code))
     }
   }
+
+  internal open fun buffer(context: AbstractHttpHandler.Context, acceptance: Acceptance): ByteBuffer? {
+    val buffer = context.buffer
+    context.buffer = null
+    return buffer
+  }
+
+  internal open suspend fun body(socket: AsynchronousSocketChannel, buffer: ByteBuffer, headers: Headers,
+                                 context: AbstractHttpHandler.Context, acceptance: Acceptance) =
+    Http.body(socket, Http.Version.HTTP_1_1, buffer, context,
+              acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
     logger.info(remoteAddress.hostString)
@@ -184,7 +193,6 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
         else -> throw IllegalArgumentException()
       }
     }
-    fun buffer(size: Int) = if (size > maxRequestSize) null else ByteBuffer.allocateDirect(size)
   }
 
   companion object {

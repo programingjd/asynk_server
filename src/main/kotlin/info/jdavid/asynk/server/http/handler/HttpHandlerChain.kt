@@ -6,7 +6,9 @@ import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.NoParams
+import java.lang.RuntimeException
 import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousSocketChannel
 
 internal class HttpHandlerChain(
   private val chain: List<HttpHandler<*,*,*,*>>
@@ -18,6 +20,22 @@ internal class HttpHandlerChain(
       map[it] = it.context(map.values)
     }
    return ChainContext(others, map)
+  }
+
+  override suspend fun body(socket: AsynchronousSocketChannel, buffer: ByteBuffer, headers: Headers,
+                            context: Context, acceptance: info.jdavid.asynk.server.http.Acceptance): Int {
+    @Suppress("NAME_SHADOWING") val acceptance = acceptance as HandlerAcceptance<*,*>
+    @Suppress("NAME_SHADOWING") val context = context as ChainContext
+    return acceptance.handler.body(socket, buffer, headers,
+                           context.contexts[acceptance.handler] ?: throw RuntimeException(),
+                                   acceptance.acceptance)
+  }
+
+  override fun buffer(context: Context, acceptance: info.jdavid.asynk.server.http.Acceptance): ByteBuffer? {
+    @Suppress("NAME_SHADOWING") val acceptance = acceptance as HandlerAcceptance<*,*>
+    @Suppress("NAME_SHADOWING") val context = context as ChainContext
+    return acceptance.handler.buffer(context.contexts[acceptance.handler] ?: throw RuntimeException(),
+                                     acceptance.acceptance)
   }
 
   override suspend fun acceptUri(method: Method, uri: String,
@@ -44,12 +62,12 @@ internal class HttpHandlerChain(
 
   internal class HandlerAcceptance<ACCEPTANCE: HttpHandler.Acceptance<*>,
                                    CONTEXT: AbstractHttpHandler.Context>(
-    private val handler: HttpHandler<ACCEPTANCE, *, CONTEXT, *>,
-    private val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.bodyAllowed,
-                                                                        acceptance.bodyRequired,
-                                                                        acceptance.method,
-                                                                        acceptance.uri,
-                                                                        acceptance.routeParams) {
+    internal val handler: HttpHandler<ACCEPTANCE, *, CONTEXT, *>,
+    internal val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.bodyAllowed,
+                                                                           acceptance.bodyRequired,
+                                                                           acceptance.method,
+                                                                           acceptance.uri,
+                                                                           acceptance.routeParams) {
     suspend fun handle(headers: Headers, body: ByteBuffer, context: ChainContext): Response<*> {
       @Suppress("UNCHECKED_CAST")
       return handler.handle(acceptance as ACCEPTANCE, headers, body, context.contexts[handler] as CONTEXT)

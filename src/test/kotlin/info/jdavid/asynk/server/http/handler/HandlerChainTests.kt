@@ -8,6 +8,8 @@ import info.jdavid.asynk.server.Server
 import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.NoParams
 import org.apache.http.client.methods.HttpGet
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.ByteArrayEntity
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
@@ -95,6 +97,43 @@ class HandlerChainTests {
           client.execute(request).use {
             assertEquals(404, it.statusLine.statusCode, path)
           }
+        }
+      }
+    }
+  }
+
+  @Test fun testMaxRequestSize() {
+    Server.http(
+      HttpHandler.Builder().
+        route(FixedRoute("/r1", 1024, listOf(Method.POST))).to { _, _, _, _ ->
+          HttpHandler.EmptyResponse()
+        }.
+        route(FixedRoute("/r2", 8192, listOf(Method.POST))).to { _, _, _, _ ->
+          HttpHandler.EmptyResponse()
+        }.
+        build()
+    ).use {
+      val bytes = ByteArray(6000) { it.toByte() }
+      val request1 = HttpPost().apply {
+        uri = URI("http://localhost:8080/r1")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.CONNECTION, "close")
+        entity = ByteArrayEntity(bytes)
+      }
+      val request2 = HttpPost().apply {
+        uri = URI("http://localhost:8080/r2")
+        setHeader(Headers.CACHE_CONTROL, "no-cache")
+        setHeader(Headers.PRAGMA, "no-cache")
+        setHeader(Headers.CONNECTION, "close")
+        entity = ByteArrayEntity(bytes)
+      }
+      HttpClientBuilder.create().build().use { client ->
+        client.execute(request1).use {
+          assertEquals(413, it.statusLine.statusCode, "/r1")
+        }
+        client.execute(request2).use {
+          assertEquals(200, it.statusLine.statusCode, "/r2")
         }
       }
     }
