@@ -8,6 +8,7 @@ import info.jdavid.asynk.http.Headers
 import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.http.internal.Http
+import info.jdavid.asynk.http.internal.SocketAccess
 import info.jdavid.asynk.server.Handler
 import info.jdavid.asynk.server.http.Acceptance
 import kotlinx.coroutines.withTimeout
@@ -44,7 +45,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     }
     val headers = Headers()
     try {
-      if (!Http.headers(socket, buffer, headers)) return reject(socket, buffer, context)
+      if (!Http.headers(socket, SocketAccess.Raw, buffer, headers)) return reject(socket, buffer, context)
     }
     catch (ignore: Http.HeadersTooLarge) {
       return response(socket, context.REQUEST_HEADER_FIELDS_TOO_LARGE)
@@ -83,7 +84,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
 
   internal open suspend fun body(socket: AsynchronousSocketChannel, buffer: ByteBuffer, headers: Headers,
                                  context: AbstractHttpHandler.Context, acceptance: Acceptance) =
-    Http.body(socket, Http.Version.HTTP_1_1, buffer, context,
+    Http.body(socket, SocketAccess.Raw, Http.Version.HTTP_1_1, buffer, context,
               acceptance.bodyAllowed, acceptance.bodyRequired, headers, context.CONTINUE)
 
   override suspend fun connect(remoteAddress: InetSocketAddress): Boolean {
