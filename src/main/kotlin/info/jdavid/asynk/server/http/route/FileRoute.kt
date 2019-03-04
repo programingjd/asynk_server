@@ -25,16 +25,20 @@ open class FileRoute(private val root: File, private val prefix: String = "/"): 
   override val maxRequestSize = 4096
 
   final override fun match(method: Method, uri: String): File? {
-    if (method == Method.GET || method == Method.HEAD && uri.startsWith(prefix)) {
-      val segments = Uri.path(uri).substring(prefix.length).split('/')
-      var file = root
-      for (segment in segments) {
-        if (segment.isEmpty()) {
-          if (file.isFile) return null
+    if (method == Method.GET || method == Method.HEAD) {
+      val path = Uri.path(uri)
+      if (path.startsWith(prefix)) {
+        val segments = Uri.path(uri).substring(prefix.length).split('/')
+        var file = root
+        for (segment in segments) {
+          if (segment.isEmpty()) {
+            if (file.isFile) return null
+          }
+          else file = File(file, URLDecoder.decode(segment, "UTF-8"))
         }
-        else file = File(file, URLDecoder.decode(segment, "UTF-8"))
+        return if (file.exists()) file else null
       }
-      return if (file.exists()) file else null
+      else return null
     }
     else return null
   }
