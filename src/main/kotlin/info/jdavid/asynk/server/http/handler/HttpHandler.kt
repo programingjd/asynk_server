@@ -326,7 +326,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    * @param status the response status code.
    */
   class EmptyResponse(headers: Headers = Headers(),
-                      status: Int = Status.OK): Response<Nothing>(
+                      status: Int = Status.NO_CONTENT): Response<Nothing>(
     status, null, headers
   ) {
     /**
