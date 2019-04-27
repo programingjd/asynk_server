@@ -133,7 +133,7 @@ class HandlerChainTests {
           assertEquals(413, it.statusLine.statusCode, "/r1")
         }
         client.execute(request2).use {
-          assertEquals(200, it.statusLine.statusCode, "/r2")
+          assertEquals(204, it.statusLine.statusCode, "/r2")
         }
       }
     }
