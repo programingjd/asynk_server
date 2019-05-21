@@ -90,7 +90,8 @@ fun echo() {
   Server(object: Handler<Unit> {
     override suspend fun context(others: Collection<*>?) = Unit
     override suspend fun connect(remoteAddress: InetSocketAddress) = true
-    override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
+    override suspend fun handle(socket: AsynchronousSocketChannel, remoteAddress: InetSocketAddress,
+                                buffer: ByteBuffer, context: Unit) {
       while (socket.asyncRead(buffer) > -1) {
         (buffer.flip() as ByteBuffer).apply {
           while (remaining() > 0) this.also {

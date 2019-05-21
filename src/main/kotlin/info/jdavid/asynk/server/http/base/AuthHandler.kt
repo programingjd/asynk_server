@@ -5,6 +5,7 @@ import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.http.Status
 import info.jdavid.asynk.server.http.handler.HttpHandler
 import info.jdavid.asynk.server.http.route.NoParams
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
@@ -31,13 +32,17 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
   protected val delegate: HttpHandler<ACCEPTANCE, ACCEPTANCE_PARAMS, DELEGATE_CONTEXT, ROUTE_PARAMS>
 ): HttpHandler<AuthHandler.Acceptance<ACCEPTANCE>, NoParams, AUTH_CONTEXT, NoParams>(NoParams) {
 
-  override suspend fun acceptUriInternal(method: Method,
+  override suspend fun acceptUriInternal(remoteAddress: InetSocketAddress,
+                                         method: Method,
                                          uri: String): AuthHandler.Acceptance<ACCEPTANCE>? {
-    val acceptance = delegate.route.match(method, uri)?.let { delegate.acceptUri(method, uri, it) }
+    val acceptance = delegate.route.match(method, uri)?.let {
+      delegate.acceptUri(remoteAddress, method, uri, it)
+    }
     return if (acceptance == null) null else Acceptance(acceptance)
   }
 
-  final override suspend fun acceptUri(method: Method, uri: String, params: NoParams) = throw UnsupportedOperationException()
+  final override suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String,
+                                       params: NoParams) = throw UnsupportedOperationException()
 
   final override suspend fun handle(acceptance: Acceptance<ACCEPTANCE>,
                                     headers: Headers,
@@ -139,7 +144,8 @@ abstract class AuthHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    */
   class Acceptance<ACCEPTANCE: HttpHandler.Acceptance<*>>(
     internal val delegate: ACCEPTANCE
-  ): HttpHandler.Acceptance<NoParams>(delegate.bodyAllowed, delegate.bodyRequired,
+  ): HttpHandler.Acceptance<NoParams>(delegate.remoteAddress,
+                                      delegate.bodyAllowed, delegate.bodyRequired,
                                       delegate.method, delegate.uri, NoParams)
 
   /**

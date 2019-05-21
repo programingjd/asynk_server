@@ -93,7 +93,7 @@ open class Server<CONTEXT>(
               if (handler.connect(remoteAddress)) {
                 val buffer = buffers.poll() ?: ByteBuffer.allocateDirect(bufferSize)
                 try {
-                  handler.handle(clientSocket, buffer, handlerContext)
+                  handler.handle(clientSocket, remoteAddress, buffer, handlerContext)
                 }
                 catch (e: Throwable) {
                   logger.warn("Handler error", e)

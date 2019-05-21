@@ -7,6 +7,7 @@ import info.jdavid.asynk.http.Method
 import info.jdavid.asynk.server.http.base.AbstractHttpHandler
 import info.jdavid.asynk.server.http.route.NoParams
 import java.lang.RuntimeException
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
 
@@ -38,10 +39,11 @@ internal class HttpHandlerChain(
                                      acceptance.acceptance)
   }
 
-  override suspend fun acceptUri(method: Method, uri: String,
+  override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                 method: Method, uri: String,
                                  params: Any): HttpHandler.Acceptance<Any>? {
     for (handler in chain) {
-      val acceptance = handler.acceptUri(method, uri) as? Acceptance<Any>
+      val acceptance = handler.acceptUri(remoteAddress, method, uri) as? Acceptance<Any>
       if (acceptance != null) return HandlerAcceptance(
         handler, acceptance)
     }
@@ -63,7 +65,8 @@ internal class HttpHandlerChain(
   internal class HandlerAcceptance<ACCEPTANCE: HttpHandler.Acceptance<*>,
                                    CONTEXT: AbstractHttpHandler.Context>(
     internal val handler: HttpHandler<ACCEPTANCE, *, CONTEXT, *>,
-    internal val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.bodyAllowed,
+    internal val acceptance: HttpHandler.Acceptance<Any>): Acceptance<Any>(acceptance.remoteAddress,
+                                                                           acceptance.bodyAllowed,
                                                                            acceptance.bodyRequired,
                                                                            acceptance.method,
                                                                            acceptance.uri,

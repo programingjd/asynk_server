@@ -19,7 +19,7 @@ import java.util.Base64
 
 /**
  * File-based HTTP Handler.<br>
- * By default, it uses the default [MediaType.CacheControl] policies.<br>
+ * By default, it uses the default [CacheControl] policies.<br>
  * ETags are generated based on the last modification date and time.<br>
  * No cache is used by default. All new requests (unless Unmodified is returned because of the ETag) are
  * reading the file content directly from disk. It is possible (and recommended) to extend this handler
@@ -138,8 +138,9 @@ open class FileHandler(route: FileRoute): HttpHandler<HttpHandler.Acceptance<Fil
 
   override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
 
-  override suspend fun acceptUri(method: Method, uri: String, params: File): Acceptance<File>? {
-    return Acceptance(false, false, method, uri, params)
+  override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                 method: Method, uri: String, params: File): Acceptance<File>? {
+    return Acceptance(remoteAddress, false, false, method, uri, params)
   }
 
 }

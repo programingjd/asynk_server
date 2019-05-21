@@ -61,7 +61,8 @@ object Usage {
       object : Handler<Unit> {
         override suspend fun context(others: Collection<*>?) {}
         override suspend fun connect(remoteAddress: InetSocketAddress) = true
-        override suspend fun handle(socket: AsynchronousSocketChannel, buffer: ByteBuffer, context: Unit) {
+        override suspend fun handle(socket: AsynchronousSocketChannel, remoteAddress: InetSocketAddress,
+                                    buffer: ByteBuffer, context: Unit) {
           while (socket.asyncRead(buffer) != -1L) {
             (buffer.flip() as ByteBuffer).apply { while (remaining() > 0) socket.asyncWrite(this) }
             buffer.flip()
@@ -77,9 +78,10 @@ object Usage {
       object : HttpHandler<HttpHandler.Acceptance<NoParams>, NoParams,
         AbstractHttpHandler.Context, NoParams>(NoParams) {
         override suspend fun context(others: Collection<*>?) = Context(others)
-        override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams>? {
+        override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                       method: Method, uri: String, params: NoParams): Acceptance<NoParams>? {
           return when (method) {
-            Method.HEAD, Method.GET -> Acceptance(false, false, method, uri, NoParams)
+            Method.HEAD, Method.GET -> Acceptance(remoteAddress, false, false, method, uri, NoParams)
             else -> null
           }
         }
@@ -167,8 +169,9 @@ object Usage {
         override fun mediaType(file: File) = MediaType.TEXT
         override fun mediaTypes() = mapOf(MediaType.TEXT to CacheControl(false,
                                                                           0))
-        override suspend fun acceptUri(method: Method, uri: String, params: File) =
-          if (method == Method.GET) super.acceptUri(method, uri, params) else null
+        override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                       method: Method, uri: String, params: File) =
+          if (method == Method.GET) super.acceptUri(remoteAddress, method, uri, params) else null
       },
       FileHandler(FileRoute(File("/home/admin/www")))
     )

@@ -18,6 +18,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import java.net.InetSocketAddress
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousSocketChannel
@@ -46,8 +47,9 @@ class BasicAuthTests {
 
     override suspend fun context(others: Collection<*>?) = Context(others)
 
-    override suspend fun acceptUri(method: Method, uri: String, params: NoParams): Acceptance<NoParams> {
-      return Acceptance(true, false, method, uri, params)
+    override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                   method: Method, uri: String, params: NoParams): Acceptance<NoParams> {
+      return Acceptance(remoteAddress, true, false, method, uri, params)
     }
 
   }

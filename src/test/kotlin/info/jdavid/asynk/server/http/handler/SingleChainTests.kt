@@ -13,14 +13,16 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.HttpClientBuilder
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import java.net.InetSocketAddress
 import java.net.URI
 import java.nio.ByteBuffer
 import java.util.regex.Pattern
 
 class SingleChainTests {
 
-  private class TestAcceptance(method: Method, uri: String): HttpHandler.Acceptance<NoParams>(
-    false, false, method, uri, NoParams
+  private class TestAcceptance(remoteAddress: InetSocketAddress,
+                               method: Method, uri: String): HttpHandler.Acceptance<NoParams>(
+    remoteAddress, false, false, method, uri, NoParams
   )
 
   @Test fun testNoParams() {
@@ -28,9 +30,10 @@ class SingleChainTests {
       NoParams
     ) {
       override suspend fun context(others: Collection<*>?) = Context(others)
-      override suspend fun acceptUri(method: Method, uri: String, params: NoParams): TestAcceptance? {
+      override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                     method: Method, uri: String, params: NoParams): TestAcceptance? {
         if (method == Method.GET || method == Method.HEAD) {
-          return TestAcceptance(method, uri)
+          return TestAcceptance(remoteAddress, method, uri)
         }
         return null
       }
@@ -128,8 +131,9 @@ class SingleChainTests {
     val handler = object: HttpHandler<HttpHandler.Acceptance<Int>, Int, AbstractHttpHandler.Context, Int>(
       route
     ) {
-      override suspend fun acceptUri(method: Method, uri: String, params: Int) =
-        Acceptance(false, false, method, uri, params)
+      override suspend fun acceptUri(remoteAddress: InetSocketAddress,
+                                     method: Method, uri: String, params: Int) =
+        Acceptance(remoteAddress, false, false, method, uri, params)
       override suspend fun context(others: Collection<*>?) = Context(others)
       override suspend fun handle(acceptance: Acceptance<Int>, headers: Headers, body: ByteBuffer,
                                   context: Context) =

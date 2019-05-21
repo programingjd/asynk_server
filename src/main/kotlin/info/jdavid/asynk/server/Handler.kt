@@ -34,10 +34,12 @@ interface Handler<CONTEXT> {
    * Handles an incoming request on the specified socket. This method is responsible for reading the incoming
    * request data, for writing the outgoing response data, but not for closing the socket channel.
    * @param socket the socket channel to read from and write to.
+   * @param remoteAddress the address of the incoming connection.
    * @param buffer a buffer of max request size that is recycled by the dispatcher.
    * @param context the context object shared by all the [handle] calls on this thread only.
    */
   suspend fun handle(socket: AsynchronousSocketChannel,
+                     remoteAddress: InetSocketAddress,
                      buffer: ByteBuffer,
                      context: CONTEXT)
 

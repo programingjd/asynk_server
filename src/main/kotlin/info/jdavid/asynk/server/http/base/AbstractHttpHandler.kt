@@ -29,6 +29,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
   private val logger = LoggerFactory.getLogger(AbstractHttpHandler::class.java)
 
   final override suspend fun handle(socket: AsynchronousSocketChannel,
+                                    remoteAddress: InetSocketAddress,
                                     buffer: ByteBuffer,
                                     context: CONTEXT) {
     buffer.clear()
@@ -37,7 +38,7 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
     val method = Http.method(buffer) ?: return reject(socket, buffer, context)
     val uri = Http.uri(buffer) ?: return reject(socket, buffer, context)
     logger.info(uri)
-    val acceptance = acceptUri(method, uri) ?: return notFound(socket, buffer, context)
+    val acceptance = acceptUri(remoteAddress, method, uri) ?: return notFound(socket, buffer, context)
     if (buffer.remaining() < 4) {
       buffer.compact()
       if (withTimeout(20000L) { socket.asyncRead(buffer) } < 4) return reject(socket, buffer, context)
@@ -95,11 +96,12 @@ abstract class AbstractHttpHandler<ACCEPTANCE: Acceptance,
   /**
    * Returns whether this handler can handle an http request to the specified uri with the specified http
    * method by either returning null (it can't) or an acceptance object.
+   * @param remoteAddress the address of the incoming request.
    * @param method the http method used for the request.
    * @param uri the http request uri.
    * @return the acceptance object, or null if the request is not accepted.
    */
-  abstract suspend fun acceptUri(method: Method, uri: String): ACCEPTANCE?
+  abstract suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String): ACCEPTANCE?
 
   /**
    * Request handler method, responsible for writing the request response to the socket.

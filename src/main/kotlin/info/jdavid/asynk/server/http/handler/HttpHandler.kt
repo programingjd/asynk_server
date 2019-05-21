@@ -12,6 +12,7 @@ import info.jdavid.asynk.server.http.route.FixedRoute
 import info.jdavid.asynk.server.http.route.ParameterizedRoute
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousFileChannel
 import java.nio.channels.AsynchronousSocketChannel
@@ -34,10 +35,12 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
                            ROUTE_PARAMS: Any>(
   internal val route: Route<ROUTE_PARAMS>
 ): AbstractHttpHandler<ACCEPTANCE, CONTEXT>() {
-  final override suspend fun acceptUri(method: Method, uri: String) = acceptUriInternal(method, uri)
+  final override suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String) =
+    acceptUriInternal(remoteAddress, method, uri)
 
-  internal open suspend fun acceptUriInternal(method: Method, uri: String): ACCEPTANCE? {
-    return route.match(method, uri)?.let { acceptUri(method, uri, it) }
+  internal open suspend fun acceptUriInternal(remoteAddress: InetSocketAddress,
+                                              method: Method, uri: String): ACCEPTANCE? {
+    return route.match(method, uri)?.let { acceptUri(remoteAddress, method, uri, it) }
   }
 
   /**
@@ -45,11 +48,13 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    * method by either returning null (it can't) or an acceptance object.
    * This validation is done after route matching and the parameters captured by the route matching are
    * also available for deciding whether to accept the request or not.
+   * @param remoteAddress the address of the incoming request.
    * @param method the http method used for the request.
    * @param uri the http request uri.
    * @return the acceptance object, or null if the request is not accepted.
    */
-  abstract suspend fun acceptUri(method: Method, uri: String, params: ROUTE_PARAMS): ACCEPTANCE?
+  abstract suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String,
+                                 params: ROUTE_PARAMS): ACCEPTANCE?
 
   final override suspend fun handle(acceptance: ACCEPTANCE,
                                     headers: Headers,
@@ -327,7 +332,7 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
    */
   class EmptyResponse(headers: Headers = Headers(),
                       status: Int = Status.NO_CONTENT): Response<Nothing>(
-    status, null, headers
+    status, null, headers.set(Headers.CONTENT_LENGTH, "0")
   ) {
     /**
      * @param status the response status code.
@@ -341,18 +346,20 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
   /**
    * Base class for HTTP Handlers acceptance objects. It stores the request method, uri and the captured
    * route parameters.
+   * @param remoteAddress the address of the incoming request.
    * @param bodyAllowed specifies whether the request is allowed to include incoming data.
    * @param bodyRequired specifies whether the request body when allowed is required or not.
    * @param method the request method.
    * @param uri the request uri.
    * @param routeParams the captured route parameters.
    */
-  open class Acceptance<out PARAMS>(bodyAllowed: Boolean,
+  open class Acceptance<out PARAMS>(remoteAddress: InetSocketAddress,
+                                    bodyAllowed: Boolean,
                                     bodyRequired: Boolean,
                                     val method: Method,
                                     val uri: String,
                                     val routeParams: PARAMS): info.jdavid.asynk.server.http.Acceptance(
-    bodyAllowed, bodyRequired
+    remoteAddress, bodyAllowed, bodyRequired
   )
 
   /**
@@ -402,16 +409,17 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = Request(acceptance, headers, body, context).handler()
         override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
-        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
+        override suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String,
+                                       params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
-            Method.OPTIONS -> Acceptance(false, false, method, uri, params)
-            Method.HEAD -> Acceptance(false, false, method, uri, params)
-            Method.GET -> Acceptance(false, false, method, uri, params)
-            Method.POST -> Acceptance(true, true, method, uri, params)
-            Method.PUT -> Acceptance(true, true, method, uri, params)
-            Method.DELETE -> Acceptance(true, false, method, uri, params)
-            Method.PATCH -> Acceptance(true, true, method, uri, params)
-            else -> Acceptance(true, false, method, uri, params)
+            Method.OPTIONS -> Acceptance(remoteAddress,false, false, method, uri, params)
+            Method.HEAD -> Acceptance(remoteAddress, false, false, method, uri, params)
+            Method.GET -> Acceptance(remoteAddress, false, false, method, uri, params)
+            Method.POST -> Acceptance(remoteAddress, true, true, method, uri, params)
+            Method.PUT -> Acceptance(remoteAddress, true, true, method, uri, params)
+            Method.DELETE -> Acceptance(remoteAddress, true, false, method, uri, params)
+            Method.PATCH -> Acceptance(remoteAddress, true, true, method, uri, params)
+            else -> Acceptance(remoteAddress, true, false, method, uri, params)
           }
         }
       }
@@ -438,16 +446,17 @@ abstract class HttpHandler<ACCEPTANCE: HttpHandler.Acceptance<ACCEPTANCE_PARAMS>
         override suspend fun handle(acceptance: Acceptance<PARAMS>, headers: Headers, body: ByteBuffer,
                                     context: Context) = handler.invoke(acceptance, headers, body, context)
         override suspend fun context(others: Collection<*>?) = Context(others, route.maxRequestSize)
-        override suspend fun acceptUri(method: Method, uri: String, params: PARAMS) : Acceptance<PARAMS>? {
+        override suspend fun acceptUri(remoteAddress: InetSocketAddress, method: Method, uri: String,
+                                       params: PARAMS) : Acceptance<PARAMS>? {
           return when (method) {
-            Method.OPTIONS -> Acceptance(false, false, method, uri, params)
-            Method.HEAD -> Acceptance(false, false, method, uri, params)
-            Method.GET -> Acceptance(false, false, method, uri, params)
-            Method.POST -> Acceptance(true, true, method, uri, params)
-            Method.PUT -> Acceptance(true, true, method, uri, params)
-            Method.DELETE -> Acceptance(true, false, method, uri, params)
-            Method.PATCH -> Acceptance(true, true, method, uri, params)
-            else -> Acceptance(true, false, method, uri, params)
+            Method.OPTIONS -> Acceptance(remoteAddress, false, false, method, uri, params)
+            Method.HEAD -> Acceptance(remoteAddress, false, false, method, uri, params)
+            Method.GET -> Acceptance(remoteAddress, false, false, method, uri, params)
+            Method.POST -> Acceptance(remoteAddress, true, true, method, uri, params)
+            Method.PUT -> Acceptance(remoteAddress, true, true, method, uri, params)
+            Method.DELETE -> Acceptance(remoteAddress, true, false, method, uri, params)
+            Method.PATCH -> Acceptance(remoteAddress, true, true, method, uri, params)
+            else -> Acceptance(remoteAddress, true, false, method, uri, params)
           }
         }
       }
